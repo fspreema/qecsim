@@ -1,0 +1,13 @@
+[project]
+name = "qecsim"
+version = "0.1.0"
+description = "Implementation of a CX Gate with lattice surgery"
+authors = [
+    { name="Fabian Spreemann", email="f.spreemann@fz-juelich.de" }
+]
+readme = "README.md"
+requires-python = ">=3.8"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
