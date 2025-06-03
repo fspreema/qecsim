@@ -1,13 +1,15 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "qecsim"
 version = "0.1.0"
-description = "Implementation of a CX Gate with lattice surgery"
-authors = [
-    { name="Fabian Spreemann", email="f.spreemann@fz-juelich.de" }
-]
+description = "Quantum error correction and lattice surgery tools"
+authors = [{ name = "Fabian Spreemann", email = "your.email@example.com" }]
 readme = "README.md"
 requires-python = ">=3.8"
+dependencies = []
 
-[build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+[tool.setuptools]
+packages = ["qecsim"]
