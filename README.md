@@ -1,3 +1,3 @@
 # quecsim
 
-Implemetation of lattice Surgery in Stim
+Implemetation of the CNOT gate on the rotated Surface code by using lattice Surgery in Stim

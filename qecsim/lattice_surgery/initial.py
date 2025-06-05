@@ -1,19 +1,44 @@
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Mapping
 import stim
+from dataclasses import dataclass
+from .dataclasses import Config, Patch, LatticeContext
 
 Coord = complex
 
 __all__ = ["initial"]
 
-def initial(*, data_ancilla : list, data_control : list, 
-                    data_target : list, q2i : dict, i2q : dict,
-                    control_state_init : str, target_state_init : str,
-                    stab_to_data : Dict[Tuple[Coord, Coord], str],
-                    x_stab_index_ancilla : list, z_stab_index_ancilla : list, x_stab_boundary_b_index_ancilla : list,
-                    x_stab_index_control : list, z_stab_index_control : list,
-                    x_stab_index_target : int, z_stab_index_target : list) -> stim.Circuit:
+def initial(*, lct : LatticeContext, patches: dict[str, Patch], cfg : Config) -> stim.Circuit:
+    
+    #################################################
+    # Exporting all necessary values from Dataclasses
+    #################################################
 
-    #Define Initial Circuit
+    ancilla_patch = patches["ancilla"]
+    target_patch = patches["target"]
+    control_patch = patches["control"]
+
+    q2i = lct.q2i
+    i2q = lct.i2q
+    control_state_init = cfg.control_state_init
+    target_state_init = cfg.target_state_init
+    stab_to_data = lct.stab_to_data
+
+    data_ancilla = ancilla_patch.data
+    data_control = control_patch.data
+    data_target = target_patch.data
+
+    x_stab_index_ancilla = ancilla_patch.x_stab
+    z_stab_index_ancilla = ancilla_patch.z_stab
+    x_stab_boundary_b_index_ancilla = ancilla_patch.x_bdyB
+    x_stab_index_control = control_patch.x_stab
+    z_stab_index_control = control_patch.z_stab
+    x_stab_index_target = target_patch.x_stab
+    z_stab_index_target = target_patch.z_stab
+
+    ########################
+    # Define Initial Circuit
+    ########################
+
     initial_circuit = stim.Circuit()
 
     #Appending Coords

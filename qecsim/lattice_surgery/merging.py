@@ -1,16 +1,61 @@
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Mapping
 import stim
+from dataclasses import dataclass
+from .dataclasses import Config, Patch, LatticeContext
 from .stabilizers import populate_stab_to_data
 
 Coord = complex
 
-def merge(*, distance : int, data_ancilla : list,  data_target : list, data_control : list, q2i : dict, i2q : dict,
-            control_state_init : str, target_state_init : str,
-            x_stab_index_ancilla : list, z_stab_index_ancilla : list, 
-            x_stab_boundary_b_index_ancilla : list, x_stab_index_control : list, 
-            z_stab_index_control : list, x_stab_index_target : int, z_stab_index_target : list,
-            qubit_coords_surgery : dict, qubit_coords_ancilla : dict, qubit_coords_control : dict,
-            stab_to_data_target : dict, qubit_coords_target : dict) -> stim.Circuit:
+def merge(*, lct : LatticeContext, patches: dict[str, Patch], cfg : Config) -> stim.Circuit:
+
+    #################################################
+    # Exporting all necessary values from Dataclasses
+    #################################################
+
+    ancilla_patch = patches["ancilla"]
+    target_patch = patches["target"]
+    control_patch = patches["control"]
+    surgery_patch = patches["surgery"]
+
+    distance = cfg.distance
+    q2i = lct.q2i
+    i2q = lct.i2q
+    control_state_init = cfg.control_state_init
+    target_state_init = cfg.target_state_init
+
+    stab_to_data = lct.stab_to_data
+
+    qubit_coords_ancilla = ancilla_patch.coords
+    qubit_coords_control = control_patch.coords
+    qubit_coords_target = target_patch.coords
+    qubit_coords_surgery = surgery_patch.coords
+
+    ancilla_set = set(qubit_coords_ancilla)
+    target_set  = set(qubit_coords_target)
+    control_set = set(qubit_coords_control)
+    
+    # helper to filter the big dict
+    get_view = lambda region: {
+        pair: order
+        for pair, order in stab_to_data.items()
+        if pair[0] in region or pair[1] in region
+    }
+
+    stab_to_data_ancilla = get_view(ancilla_set)
+    stab_to_data_target  = get_view(target_set)
+    stab_to_data_control = get_view(control_set)
+
+    data_ancilla = ancilla_patch.data
+    data_control = control_patch.data
+    data_target = target_patch.data
+
+    x_stab_index_ancilla = ancilla_patch.x_stab
+    z_stab_index_ancilla = ancilla_patch.z_stab
+    x_stab_boundary_b_index_ancilla = ancilla_patch.x_bdyB
+    x_stab_index_control = control_patch.x_stab
+    z_stab_index_control = control_patch.z_stab
+    x_stab_index_target = target_patch.x_stab
+    z_stab_index_target = target_patch.z_stab
 
     ################################
     # Define initial merging Circuit
@@ -479,7 +524,14 @@ def merge(*, distance : int, data_ancilla : list,  data_target : list, data_cont
     # Implementing Logical XX Observable thorugh the Stabilizers
     ############################################################
 
+    merge_final_circuit = stim.Circuit()
 
+    observable_z_targets = []
+
+    for index_pos_ac in pos_to_index_new_z_stabs:
+        observable_z_targets.append(index_pos_ac[0] - len(combined_z_stab_ac + combined_x_stab_ac))
+
+    merge_final_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in observable_z_targets], 1)
 
     #######################################################
     # Adding conditional Z gate on target, if X_L is uneven

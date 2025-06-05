@@ -1,13 +1,17 @@
 import stim
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List, Mapping, Any
+from dataclasses import dataclass
 
 from .geometry import build_lattice
 from .stabilizers import populate_stab_to_data
-from .inital import initial
+from .initial import initial
 from .merging import merge
+from .dataclasses import Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext
 
 Coord = complex
 Label = str
+Index = int
+Pair = Tuple[Coord, Coord]
 
 __all__ = ["surgery_circuit"]
 
@@ -51,7 +55,7 @@ def _add_boundary_labels(distance: int,
         coord_ancilla = complex(y, 0)
         coord_target = complex(y - 2 + (distance * 2), 0)
         coord_control = complex(y - 2, distance * 2)
-        coord_surgery = complex(y - 2, max_coord)
+        coord_surgery = complex(max_coord, y - 2)
         ancilla[coord_ancilla] = "X-STAB-BOUND-A-A"
         target[coord_target] = "X-STAB-BOUND-A-T"
         control[coord_control] = "X-STAB-BOUND-A-C"
@@ -71,9 +75,9 @@ def _add_boundary_labels(distance: int,
     #Adding Z Surgery Stabilizer Between Ancilla & Control
     surgery[complex(0, max_coord)] = "Z-STAB-SURGERY-L"
 
-# -------------------------
-# Public function
-# -------------------------
+# -----------------------------------------
+# Public function -> Building final circuit
+# -----------------------------------------
 
 def surgery_circuit(distance: int, *, target_state_init: str, control_state_init: str) -> stim.Circuit:
     """
@@ -87,12 +91,20 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
                 -> Fully implemented CX-Gate in stim.Circuit format
     """
 
+    #########################################
+    # Input fixed run settings into dataclass
+    #########################################
+
+    cfg = Config(distance= distance, 
+                 target_state_init= target_state_init, 
+                 control_state_init = control_state_init)
+
     ###############################################################
     # 1. Build independent square patches (using geometry function)
     ###############################################################
     qubit_coords_ancilla: Dict[Coord, Label] = build_lattice(distance, offset=0+0j, starting_stabilizer_x=True)
-    qubit_coords_target: Dict[Coord, Label] = build_lattice(distance, offset=(distance*2)+0j, starting_stabilizer_x=False)
-    qubit_coords_control: Dict[Coord, Label] = build_lattice(distance, offset=0+distance*2j, starting_stabilizer_x=False)
+    qubit_coords_target: Dict[Coord, Label] = build_lattice(distance, offset= (distance*2) + 0j, starting_stabilizer_x=False)
+    qubit_coords_control: Dict[Coord, Label] = build_lattice(distance, offset= 0 + (distance*2) * 1j, starting_stabilizer_x=False)
     qubit_coords_surgery: Dict[Coord, Label] = {}
 
     #######################################################################################
@@ -140,45 +152,33 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     #Reverse Indexing
     i2q: dict[int, complex] = {i: q for q, i in q2i.items()}
 
-    #Indexing Z and X Stabilizers
-    x_stab_index_ancilla = [q2i[q] for q, qtype in qubit_coords_ancilla.items() if qtype in {"X-STAB","X-STAB-BOUND-A-A", "X-STAB-BOUND-B-A"}]
-    z_stab_index_ancilla = [q2i[q] for q, qtype in qubit_coords_ancilla.items() if qtype in {"Z-STAB","Z-STAB-BOUND-L-A", "Z-STAB-BOUND-R-A"}]
-    x_stab_boundary_b_index_ancilla = [q2i[q] for q, qtype in qubit_coords_ancilla.items() if qtype == "X-STAB-BOUND-B-A"]
-    x_stab_index_target = [q2i[q] for q, qtype in qubit_coords_target.items() if qtype in {"X-STAB","X-STAB-BOUND-A-T", "X-STAB-BOUND-B-T"}]
-    z_stab_index_target = [q2i[q] for q, qtype in qubit_coords_target.items() if qtype in {"Z-STAB","Z-STAB-BOUND-L-T", "Z-STAB-BOUND-R-T"}]
-    x_stab_index_control = [q2i[q] for q, qtype in qubit_coords_control.items() if qtype in {"X-STAB","X-STAB-BOUND-A-C", "X-STAB-BOUND-B-C"}]
-    z_stab_index_control = [q2i[q] for q, qtype in qubit_coords_control.items() if qtype in {"Z-STAB","Z-STAB-BOUND-L-C", "Z-STAB-BOUND-R-C"}]
+    ##########################################################
+    # Adding Indexes and shared information into lct dataclass
+    ##########################################################
 
-    #Indexing Data-Qubits
-    data_ancilla = [q2i[q] for q, qtype in qubit_coords_ancilla.items() if qtype == "DATA"]
-    data_target = [q2i[q] for q, qtype in qubit_coords_target.items() if qtype == "DATA"]
-    data_control = [q2i[q] for q, qtype in qubit_coords_control.items() if qtype == "DATA"]
+    lct = LatticeContext(q2i= q2i, 
+                         i2q= i2q, 
+                         stab_to_data= stab_to_data, 
+                         surgery_coords= qubit_coords_surgery)
+    
+    patches : Dict[str, Patch_Ancilla, Patch_Target, Patch_Control, Patch_Surgery] = {
+        "ancilla": Patch_Ancilla.from_coords(qubit_coords_ancilla, q2i),
+        "target": Patch_Target.from_coords(qubit_coords_target, q2i),
+        "control": Patch_Control.from_coords(qubit_coords_control, q2i),
+        "surgery": Patch_Surgery.from_coords(qubit_coords_surgery, q2i)
+    }
 
     ###################################
     # 5. Building Initilization Circuit
     ###################################
 
-    initial_circuit = initial(data_ancilla = data_ancilla, data_control = data_control, 
-            data_target = data_target, q2i = q2i, i2q = i2q,
-            control_state_init = control_state_init, target_state_init = target_state_init,
-            stab_to_data = stab_to_data,
-            x_stab_index_ancilla = x_stab_index_ancilla, z_stab_index_ancilla = z_stab_index_ancilla, 
-            x_stab_boundary_b_index_ancilla = x_stab_boundary_b_index_ancilla,
-            x_stab_index_control = x_stab_index_control, z_stab_index_control = z_stab_index_control,
-            x_stab_index_target = x_stab_index_target, z_stab_index_target = z_stab_index_target)
+    initial_circuit = initial(lct = lct, patches = patches, cfg = cfg)
    
     #############################################
     # 6. Building Merging Ancilla Control Circuit
     #############################################
 
-    merged_circuit_AC = merge(distance = distance, data_ancilla = data_ancilla,  data_target = data_target, data_control = data_control, 
-                              q2i = q2i, i2q = i2q, control_state_init = control_state_init, target_state_init = target_state_init,
-                              x_stab_index_ancilla = x_stab_index_ancilla, z_stab_index_ancilla = z_stab_index_ancilla, 
-                              x_stab_boundary_b_index_ancilla = x_stab_boundary_b_index_ancilla, x_stab_index_control = x_stab_index_control, 
-                              z_stab_index_control = z_stab_index_control, x_stab_index_target = x_stab_index_target, 
-                              z_stab_index_target = z_stab_index_target, qubit_coords_surgery = qubit_coords_surgery, 
-                              qubit_coords_ancilla = qubit_coords_ancilla, qubit_coords_control = qubit_coords_control,
-                              stab_to_data_target = stab_to_data_target, qubit_coords_target = qubit_coords_target)
+    merged_circuit_AC = merge(lct = lct, patches = patches, cfg = cfg)
 
     ###############################################
     # 5. Building Splitting Ancilla Control Circuit
