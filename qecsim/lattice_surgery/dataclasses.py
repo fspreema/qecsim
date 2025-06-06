@@ -135,4 +135,6 @@ class LatticeContext:
     q2i: Dict[Coord, Index]
     i2q: Dict[Index, Coord]
     stab_to_data: Dict[Pair, str]
+    stab_to_data_surgery_ac: Dict[Pair, str]
+    stab_to_data_surgery_at: Dict[Pair, str]
     surgery_coords: Dict[Coord, Label]

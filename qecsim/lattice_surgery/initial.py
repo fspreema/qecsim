@@ -1,32 +1,36 @@
 from typing import Dict, Tuple, Mapping
 import stim
 from dataclasses import dataclass
-from .dataclasses import Config, Patch, LatticeContext
+from .dataclasses import Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext
 
 Coord = complex
 
 __all__ = ["initial"]
 
-def initial(*, lct : LatticeContext, patches: dict[str, Patch], cfg : Config) -> stim.Circuit:
+def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Target, Patch_Control, Patch_Surgery], cfg : Config) -> stim.Circuit:
     
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
 
+    #-Loading in Patches
     ancilla_patch = patches["ancilla"]
     target_patch = patches["target"]
     control_patch = patches["control"]
 
+    #-Retrieving Global Infomration
     q2i = lct.q2i
     i2q = lct.i2q
     control_state_init = cfg.control_state_init
     target_state_init = cfg.target_state_init
     stab_to_data = lct.stab_to_data
 
+    #-Retrieving Data Coords
     data_ancilla = ancilla_patch.data
     data_control = control_patch.data
     data_target = target_patch.data
 
+    #-Retrieving Index from Stabilizers of the Lattices
     x_stab_index_ancilla = ancilla_patch.x_stab
     z_stab_index_ancilla = ancilla_patch.z_stab
     x_stab_boundary_b_index_ancilla = ancilla_patch.x_bdyB

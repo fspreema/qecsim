@@ -112,33 +112,23 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     #######################################################################################
     _add_boundary_labels(distance, qubit_coords_ancilla, qubit_coords_target, qubit_coords_control, qubit_coords_surgery)
 
-    # Merge into one big map
-    merged: Dict[Coord, Label] = {
-        **qubit_coords_ancilla,
-        **qubit_coords_control,
-        **qubit_coords_target,
-        **qubit_coords_surgery
-    }
+    # Merge into different Patches
+    """
+    Different Patches are needed, because of different Keywords on identical Coordinates (inside dict.):
+    X-Stab-Boundary-Above-Control & X-Stab-Boundary-Below-Ancilla f.ex. get Keywords for surgery stabilizers
+    """
+
+    indiv_patches = qubit_coords_ancilla | qubit_coords_control | qubit_coords_target
+    full_srgy_ptch = qubit_coords_ancilla | qubit_coords_control | qubit_coords_target | qubit_coords_surgery
 
     ################################################################################
     # 3. Adding the Mapping from Stabilizer to Data for later CX gate implementation
     ################################################################################
-    stab_to_data: Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(merged, merging = False)
-
-    ancilla_set = set(qubit_coords_ancilla)
-    target_set  = set(qubit_coords_target)
-    control_set = set(qubit_coords_control)
-
-    # helper to filter the big dict
-    get_view = lambda region: {
-        pair: order
-        for pair, order in stab_to_data.items()
-        if pair[0] in region or pair[1] in region
-    }
-
-    stab_to_data_ancilla = get_view(ancilla_set)
-    stab_to_data_target  = get_view(target_set)
-    stab_to_data_control = get_view(control_set)
+    stab_to_data_ancilla: Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords_ancilla, merging = False)
+    stab_to_data_target: Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords_target, merging = False)
+    stab_to_data_control: Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords_control, merging = False)
+    stab_to_data_surgery_ac : Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(full_srgy_ptch, merging = True, merging_type="AC")
+    stab_to_data_surgery_at : Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(full_srgy_ptch, merging = True, merging_type="AT")
 
     ###############################################
     # 4. Indexing All Qubits From given Coordinates
@@ -146,7 +136,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
 
     #Indexing Qubits
     q2i: dict[complex, int] = {q: i for i, q in enumerate(
-    sorted(merged, key=lambda v: (v.real, v.imag))
+    sorted(full_srgy_ptch, key=lambda v: (v.real, v.imag))
     )}
 
     #Reverse Indexing
@@ -158,7 +148,9 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
 
     lct = LatticeContext(q2i= q2i, 
                          i2q= i2q, 
-                         stab_to_data= stab_to_data, 
+                         stab_to_data = stab_to_data_ancilla | stab_to_data_control | stab_to_data_target,
+                         stab_to_data_surgery_ac= stab_to_data_surgery_ac,
+                         stab_to_data_surgery_at= stab_to_data_surgery_at,
                          surgery_coords= qubit_coords_surgery)
     
     patches : Dict[str, Patch_Ancilla, Patch_Target, Patch_Control, Patch_Surgery] = {
@@ -178,7 +170,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     # 6. Building Merging Ancilla Control Circuit
     #############################################
 
-    merged_circuit_AC = merge(lct = lct, patches = patches, cfg = cfg)
+    merged_circuit_AC = merge(lct = lct, patches = patches, cfg = cfg, merging_type="AC")
 
     ###############################################
     # 5. Building Splitting Ancilla Control Circuit
@@ -193,14 +185,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     # 6. Building Merging Ancilla Target Circuit
     ############################################
 
-    #Indexing of the additional Stabilizers included in the merging process
-    x_stab_index_lattice = [q2i[q] for q, qtype in qubit_coords_surgery.items() if qtype == "X-STAB-SURGERY-M"]
-    x_stab_boundary_b_lattice = [q2i[q] for q, qtype in qubit_coords_surgery.items() if qtype == "X-STAB-SURGERY-B"]
-
-    """
-    -> After merge logical Operators have to be redefined
-    -> After Merge d rounds of Stabilizer Measurements for fault tolerance
-    """
+    merged_circuit_AT = merge(lct = lct, patches = patches, cfg = cfg, merging_type="AT")
 
     ##############################################
     # 7. Building splitting Ancilla Target Circuit
@@ -216,6 +201,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     ###########################
 
     initial_circuit += merged_circuit_AC
+    initial_circuit += merged_circuit_AT
 
     ###################################################
     # 9. Retrieving final Circuit with inlined feedback
@@ -226,5 +212,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     """
 
     #return_circuit = inital_circuit.with_inlined_feedback()
+
+    print(stab_to_data_surgery_at)
 
     return initial_circuit
