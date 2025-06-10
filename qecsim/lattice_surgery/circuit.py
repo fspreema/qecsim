@@ -200,7 +200,6 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     # 8. Appending all Circuits
     ###########################
 
-    initial_circuit += merged_circuit_AC
     initial_circuit += merged_circuit_AT
 
     ###################################################

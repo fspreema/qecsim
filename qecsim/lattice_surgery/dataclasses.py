@@ -25,6 +25,7 @@ class Patch_Ancilla:
     x_stab:  List[Index]
     z_stab:  List[Index]
     x_bdyB:  List[Index]
+    z_bdyR:  List[Index]
 
     #Create Factory to build up the Lists from the coords and the q2i dict
 
@@ -44,6 +45,7 @@ class Patch_Ancilla:
             x_stab = pick_up("X-STAB", "X-STAB-BOUND-A-A", "X-STAB-BOUND-B-A"),
             z_stab = pick_up("Z-STAB", "Z-STAB-BOUND-L-A", "Z-STAB-BOUND-R-A"),
             x_bdyB = pick_up("X-STAB-BOUND-B-A"),
+            z_bdyR = pick_up("Z-STAB-BOUND-R-A"),
         )
     
 @dataclass
