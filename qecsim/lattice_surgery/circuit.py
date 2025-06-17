@@ -6,6 +6,7 @@ from .geometry import build_lattice
 from .stabilizers import populate_stab_to_data
 from .initial import initial
 from .merging import merge
+from .splitting import split
 from .dataclasses import Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext
 
 Coord = complex
@@ -176,10 +177,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     # 5. Building Splitting Ancilla Control Circuit
     ###############################################
 
-    """
-    -> Redefine Logical Operators
-    -> After Split d rounds of Stabilizer Measurements for fault tolerance
-    """
+    split_circuit_AC = split(lct = lct, patches = patches, cfg = cfg, split_type="AC")
 
     ############################################
     # 6. Building Merging Ancilla Target Circuit
@@ -200,7 +198,8 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     # 8. Appending all Circuits
     ###########################
 
-    initial_circuit += merged_circuit_AT
+    initial_circuit += merged_circuit_AC
+    #initial_circuit += split_circuit_AC
 
     ###################################################
     # 9. Retrieving final Circuit with inlined feedback
@@ -212,6 +211,8 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
 
     #return_circuit = inital_circuit.with_inlined_feedback()
 
-    print(stab_to_data_surgery_at)
+    for a in full_srgy_ptch:
+        if full_srgy_ptch[a] in {"X-STAB-BOUND-A-C"}:
+            print(q2i[a])
 
     return initial_circuit
