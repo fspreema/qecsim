@@ -112,8 +112,6 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             combined_x_stab.append(coords)
 
     split_init_circuit.append("TICK")
-    split_init_circuit.append("TICK")
-    split_init_circuit.append("TICK")
 
     split_init_circuit.append("H", combined_x_stab)
 
@@ -513,7 +511,6 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
 
     split_repeat_circuit = stim.Circuit()
 
-    split_repeat_circuit.append("TICK")
     split_repeat_circuit.append("SHIFT_COORDS", arg=(0,0,1))
     split_repeat_circuit.append("TICK")
     split_repeat_circuit.append("H", combined_x_stab)

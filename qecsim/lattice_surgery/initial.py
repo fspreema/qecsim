@@ -280,8 +280,6 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
 
     initial_repeat_circuit = stim.Circuit()
 
-    
-    initial_repeat_circuit.append("TICK")
     initial_repeat_circuit.append("SHIFT_COORDS", arg=(0,0,1))
     initial_repeat_circuit.append("TICK")
     initial_repeat_circuit.append("H", combined_x_stab)
