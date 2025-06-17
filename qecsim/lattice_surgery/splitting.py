@@ -388,8 +388,29 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             split_init_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
 
         #################################################################
-        # Implementing Detectors from the stabs wieght 4 ->  2 x weight 2
+        # Implementing Detectors from the stabs weight 4 ->  2 x weight 2
         #################################################################
+
+        pos_to_index_ac_joint = []
+
+        #Determening Postition of the two singular cut boundary stabilizers and the pos. in the joint merged run
+        for pos_single_control, index_single_control in enumerate(control_target_stabs):
+            for pos_single_ancilla, index_single_ancilla in enumerate(x_stab_index_ancilla + z_stab_index_ancilla):
+                for pos_lattice, index_lattice in enumerate(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices):
+
+                    if index_single_control in x_stab_boundary_b_index_ancilla:
+                        if index_single_ancilla in x_stab_boundary_b_index_ancilla:
+                            if index_lattice in x_stab_boundary_b_index_ancilla:
+                                if index_lattice == index_single_control == index_single_ancilla:
+                                    pos_to_index_ac_joint.append([[pos_single_control, index_single_control], [pos_single_ancilla, index_single_ancilla], [pos_lattice, index_lattice]])
+
+        for joint_index_pos in pos_to_index_ac_joint:
+            current_tar_1 = joint_index_pos[0][0] - len(control_target_stabs)
+            current_tar_2 = joint_index_pos[1][0] - len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+            previous_tar = joint_index_pos[2][0] - len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla) - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ) - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+            q_index = joint_index_pos[0][1]
+            split_init_circuit.append("DETECTOR", [stim.target_rec(current_tar_1), stim.target_rec(current_tar_2), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+
 
     elif split_type == "AT":
 
@@ -403,13 +424,13 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
                         if index_single not in z_stab_boundary_r_index_ancilla:
                             if index_lattice not in z_stab_boundary_r_index_ancilla:
                                 if index_single == index_lattice:
-                                    pos_to_index_control_z.append([[pos_single, index_single], [pos_lattice, index_lattice]])
+                                    pos_to_index_target_z.append([[pos_single, index_single], [pos_lattice, index_lattice]])
 
                 #X-Stabs
-                elif index_single in x_stab_index_control:
-                    if index_lattice in x_stab_index_control:
+                elif index_single in x_stab_index_target:
+                    if index_lattice in x_stab_index_target:
                         if index_single == index_lattice:
-                            pos_to_index_control_x.append([[pos_single, index_single], [pos_lattice, index_lattice]])
+                            pos_to_index_target_x.append([[pos_single, index_single], [pos_lattice, index_lattice]])
         
         for pos_single, index_single in enumerate(control_target_stabs):
             for pos_lattice, index_lattice in enumerate(x_stab_index_untouched_circ + z_stab_index_untouched_circ):
@@ -462,8 +483,28 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             split_init_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
         
         #################################################################
-        # Implementing Detectors from the stabs wieght 4 ->  2 x weight 2
+        # Implementing Detectors from the stabs weight 4 ->  2 x weight 2
         #################################################################
+
+        pos_to_index_ac_joint = []
+
+        #Determening Postition of the two singular cut boundary stabilizers and the pos. in the joint merged run
+        for pos_single_target, index_single_target in enumerate(control_target_stabs):
+            for pos_single_ancilla, index_single_ancilla in enumerate(x_stab_index_ancilla + z_stab_index_ancilla):
+                for pos_lattice, index_lattice in enumerate(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices):
+
+                    if index_single_target in z_stab_boundary_r_index_ancilla:
+                        if index_single_ancilla in z_stab_boundary_r_index_ancilla:
+                            if index_lattice in z_stab_boundary_r_index_ancilla:
+                                if index_lattice == index_single_target == index_single_ancilla:
+                                    pos_to_index_ac_joint.append([[pos_single_target, index_single_target], [pos_single_ancilla, index_single_ancilla], [pos_lattice, index_lattice]])
+
+        for joint_index_pos in pos_to_index_ac_joint:
+            current_tar_1 = joint_index_pos[0][0] - len(control_target_stabs)
+            current_tar_2 = joint_index_pos[1][0] - len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+            previous_tar = joint_index_pos[2][0] - len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla) - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ) - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+            q_index = joint_index_pos[0][1]
+            split_init_circuit.append("DETECTOR", [stim.target_rec(current_tar_1), stim.target_rec(current_tar_2), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
     
 
     ###########################
@@ -533,9 +574,9 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     split_repeat_circuit.append("H", x_stab_boundary_b_index_ancilla)
     split_repeat_circuit.append("TICK")
 
-    ##########################################################################
-    # Implementing Detectors for Ancilla (+ State -> X Basis is deterministic)
-    ##########################################################################
+    ####################################################
+    # Implementing Detectors for Ancilla
+    ####################################################
 
     #Determining Position in the measurement Run of only the Ancilla
     pos_to_index_ancilla_x : list = []
@@ -548,8 +589,15 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
         elif index in z_stab_index_ancilla:
             pos_to_index_ancilla_z.append([pos, index])
 
-    #Adding the needed Detectors
+    #X-Stabs
     for index_pos in pos_to_index_ancilla_x:
+        current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        previous_tar = index_pos[0] - 2 * len(x_stab_index_ancilla + z_stab_index_ancilla) - len(control_target_stabs)
+        q_index = index_pos[1]
+        split_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+
+    #Z-Stabs
+    for index_pos in pos_to_index_ancilla_z:
         current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
         previous_tar = index_pos[0] - 2 * len(x_stab_index_ancilla + z_stab_index_ancilla) - len(control_target_stabs)
         q_index = index_pos[1]
@@ -612,52 +660,38 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     # Implementing Detectors for Control
     ####################################
 
-    #Z-Basis (0/1 - state)
-    if control_state_init in {"Z0", "Z1"}:
-
-        for index_pos in pos_to_index_control_z:
-            current_tar = index_pos[0] - len(control_target_stabs)
-            previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
-            q_index = index_pos[1]
-            split_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+    #Z-Stabs
+    for index_pos in pos_to_index_control_z:
+        current_tar = index_pos[0] - len(control_target_stabs)
+        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        q_index = index_pos[1]
+        split_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
     
-    #X-Basis (+/- - state)
-    elif control_state_init in {"X-", "X+"}:
-
-        for index_pos in pos_to_index_control_x:
-            current_tar = index_pos[0] - len(control_target_stabs)
-            previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
-            q_index = index_pos[1]
-            split_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+    #X-Stabs
+    for index_pos in pos_to_index_control_x:
+        current_tar = index_pos[0] - len(control_target_stabs)
+        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        q_index = index_pos[1]
+        split_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
         
-    else:
-        raise ValueError("Not a valid Basis for initlization in the Control Lattice")
-
     ########################################
     # Implementing Detectors for Target
     ########################################
 
-    #Z-Basis (0/1 - state)
-    if target_state_init in {"Z0", "Z1"}:
-  
-        for index_pos in pos_to_index_target_z:
-            current_tar = index_pos[0] - len(control_target_stabs)
-            previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
-            q_index = index_pos[1]
-            split_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+    #Z-Stabs
+    for index_pos in pos_to_index_target_z:
+        current_tar = index_pos[0] - len(control_target_stabs)
+        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        q_index = index_pos[1]
+        split_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
     
-    #X-Basis (+/- - state)
-    elif target_state_init in {"X-", "X+"}:
-
-        for index_pos in pos_to_index_target_x:
-            current_tar = index_pos[0] - len(control_target_stabs)
-            previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
-            q_index = index_pos[1]
-            split_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+    #X-Stabs
+    for index_pos in pos_to_index_target_x:
+        current_tar = index_pos[0] - len(control_target_stabs)
+        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        q_index = index_pos[1]
+        split_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
         
-    else:
-        raise ValueError("Not a valid Basis for initlization in the Target Lattice")
-
     ##########################################
     # Adding Repeat Circ and returning circuit
     ##########################################

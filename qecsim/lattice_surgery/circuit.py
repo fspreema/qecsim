@@ -191,17 +191,32 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
 
     split_circuit_AT = split(lct = lct, patches = patches, cfg = cfg, split_type="AT")
 
+    ##############################################
+    # 8. Building splitting Ancilla Target Circuit
+    ##############################################
+
+    """
+    Maybe implement this into the split functions?
+    """
+
     ###########################
-    # 8. Appending all Circuits
+    # 9. Appending all Circuits
     ###########################
+
+    """
+    
+    Still need to add the len(stabs...) in the AT merge if the circuit is runs after AC!!
+    -> Currently only constructed to look at the detectors right behind one another in the circuit!
+    -> Maybe not??
+    """
 
     initial_circuit += merged_circuit_AC
     initial_circuit += split_circuit_AC
-    #initial_circuit += merged_circuit_AT
-    #initial_circuit += split_circuit_AT
+    initial_circuit += merged_circuit_AT
+    initial_circuit += split_circuit_AT
 
     ###################################################
-    # 9. Retrieving final Circuit with inlined feedback
+    # 10. Retrieving final Circuit with inlined feedback
     ###################################################
 
     """
@@ -209,9 +224,5 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     """
 
     #return_circuit = inital_circuit.with_inlined_feedback()
-
-    for a in full_srgy_ptch:
-        if full_srgy_ptch[a] in {"X-STAB-BOUND-A-C"}:
-            print(q2i[a])
 
     return initial_circuit
