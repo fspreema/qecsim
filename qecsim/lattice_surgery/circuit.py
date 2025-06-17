@@ -189,17 +189,16 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     # 7. Building splitting Ancilla Target Circuit
     ##############################################
 
-    """
-    -> Redefine Logical Operators
-    -> After Split d rounds of Stabilizer Measurements for fault tolerance
-    """
+    split_circuit_AT = split(lct = lct, patches = patches, cfg = cfg, split_type="AT")
 
     ###########################
     # 8. Appending all Circuits
     ###########################
 
     initial_circuit += merged_circuit_AC
-    #initial_circuit += split_circuit_AC
+    initial_circuit += split_circuit_AC
+    #initial_circuit += merged_circuit_AT
+    #initial_circuit += split_circuit_AT
 
     ###################################################
     # 9. Retrieving final Circuit with inlined feedback
