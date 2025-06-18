@@ -721,46 +721,10 @@ def merge(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             q_index = index_pos_merge[1]
             merge_round_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_target)], (i2q[q_index].real, i2q[q_index].imag, 0))
   
-    ####################################################################################
-    # Adding Conditional X Gate on Target in correspondance to the Logical XX Observable
-    ####################################################################################
-
-    """
-    The logical ZZ Observable is already defined by the newly implemented Z stabilizers on the merge -> Product of the stabilizers give measurement result
-    """
-
-    merge_final_circuit = stim.Circuit()
-
-    logical_obs_rec_tar = []
-
-    for index_pos_merge in pos_to_index_newly_gen_stabs:
-        logical_obs_rec_tar.append(index_pos_merge[0] - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices) - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ))
-
-    merge_final_circuit.append("TICK")
-
-    # Adding Correction dependent on the current merging type
-
-    """
-    THIS IS STILL WRONG -> LOGICAL OPERATOR NOT FLIP OF THE WHOLE LATTICE
-    """
-
-    if merging_type == "AC":
-
-        for records in logical_obs_rec_tar:
-            for data in data_control:
-                merge_final_circuit.append("CX", [stim.target_rec(records), data])
-
-    elif merging_type == "AT":
-
-        for records in logical_obs_rec_tar:
-            for data in data_target:
-                merge_final_circuit.append("CZ", [stim.target_rec(records), data])
-
-    ###############################################
-    # Return Full Merge implementation Circuit
-    ###############################################
+    ###########################
+    # Adding Circuits
+    ###########################
 
     merge_init_circuit += merge_round_circuit * (distance - 1)
-    merge_init_circuit += merge_final_circuit
 
     return merge_init_circuit

@@ -204,7 +204,6 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     ###########################
 
     """
-    
     Still need to add the len(stabs...) in the AT merge if the circuit is runs after AC!!
     -> Currently only constructed to look at the detectors right behind one another in the circuit!
     -> Maybe not??
@@ -223,6 +222,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     We use inlined feedback to track the necessary flips after measurement outcomes clasically, instead of phsically flipping the qubits
     """
 
-    #return_circuit = inital_circuit.with_inlined_feedback()
+    #return_circuit = initial_circuit.with_inlined_feedback()
 
     return initial_circuit
+    

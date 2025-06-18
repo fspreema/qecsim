@@ -688,11 +688,248 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
         previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
         q_index = index_pos[1]
         split_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+
+    ###########################
+    # Adding Final Circ
+    ###########################
+    """
+    In this Section we add the Conditional X_L and Z_L depending on the XX and ZZ Measurements
+    """
+
+    split_final_circuit = stim.Circuit()
+
+    split_final_circuit.append("SHIFT_COORDS", arg=(0,0,1))
+    split_final_circuit.append("TICK")
+    split_final_circuit.append("H", combined_x_stab)
+    split_final_circuit.append("TICK")
+
+    ####################################################
+    # CX Operations
+    ####################################################
+
+    for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+        if order == "1-CX":
+            index_pairs = []
+            index_pairs.append(q2i[coord_pairs[1]])
+            index_pairs.append(q2i[coord_pairs[0]])
+            split_final_circuit.append("CX", index_pairs)
+
+    split_final_circuit.append("TICK")
+            
+    for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+        if order == "2-CX":
+            index_pairs = []
+            index_pairs.append(q2i[coord_pairs[1]])
+            index_pairs.append(q2i[coord_pairs[0]])
+            split_final_circuit.append("CX", index_pairs)
+
+    split_final_circuit.append("TICK")
+
+    for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+        if order == "3-CX":
+            index_pairs = []
+            index_pairs.append(q2i[coord_pairs[1]])
+            index_pairs.append(q2i[coord_pairs[0]])
+            split_final_circuit.append("CX", index_pairs)
+    
+    split_final_circuit.append("TICK")
         
+    for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+        if order == "4-CX":
+            index_pairs = []
+            index_pairs.append(q2i[coord_pairs[1]])
+            index_pairs.append(q2i[coord_pairs[0]])
+            split_final_circuit.append("CX", index_pairs)
+
+    #Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!):
+    split_final_circuit.append("TICK")
+    split_final_circuit.append("H", x_stab_index_ancilla)
+    split_final_circuit.append("TICK")
+    split_final_circuit.append("MR", x_stab_index_ancilla + z_stab_index_ancilla)
+    split_final_circuit.append("TICK")
+    split_final_circuit.append("H", x_stab_boundary_b_index_ancilla)
+    split_final_circuit.append("TICK")
+
+    ####################################################
+    # Implementing Detectors for Ancilla
+    ####################################################
+
+    #X-Stabs
+    for index_pos in pos_to_index_ancilla_x:
+        current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        previous_tar = index_pos[0] - 2 * len(x_stab_index_ancilla + z_stab_index_ancilla) - len(control_target_stabs)
+        q_index = index_pos[1]
+        split_final_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+
+    #Z-Stabs
+    for index_pos in pos_to_index_ancilla_z:
+        current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        previous_tar = index_pos[0] - 2 * len(x_stab_index_ancilla + z_stab_index_ancilla) - len(control_target_stabs)
+        q_index = index_pos[1]
+        split_final_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+
+
+    #Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
+    for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+        if order == "5-CX":
+            index_pairs = []
+            index_pairs.append(q2i[coord_pairs[1]])
+            index_pairs.append(q2i[coord_pairs[0]])
+            split_final_circuit.append("CX", index_pairs)
+
+    split_final_circuit.append("TICK")
+
+    for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+        if order == "6-CX":
+            index_pairs = []
+            index_pairs.append(q2i[coord_pairs[1]])
+            index_pairs.append(q2i[coord_pairs[0]])
+            split_final_circuit.append("CX", index_pairs)
+
+    #All Stabilizers from the Target and Control Lattice
+    control_target_stabs = x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
+
+    #Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
+    split_final_circuit.append("TICK")
+    split_final_circuit.append("H", x_stab_index_control +  x_stab_index_target)
+    split_final_circuit.append("TICK")
+    split_final_circuit.append("MR", control_target_stabs)
+    
+    ####################################
+    # Implementing Detectors for Control
+    ####################################
+
+    #Z-Stabs
+    for index_pos in pos_to_index_control_z:
+        current_tar = index_pos[0] - len(control_target_stabs)
+        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        q_index = index_pos[1]
+        split_final_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+    
+    #X-Stabs
+    for index_pos in pos_to_index_control_x:
+        current_tar = index_pos[0] - len(control_target_stabs)
+        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        q_index = index_pos[1]
+        split_final_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+        
+    ########################################
+    # Implementing Detectors for Target
+    ########################################
+
+    #Z-Stabs
+    for index_pos in pos_to_index_target_z:
+        current_tar = index_pos[0] - len(control_target_stabs)
+        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        q_index = index_pos[1]
+        split_final_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+    
+    #X-Stabs
+    for index_pos in pos_to_index_target_x:
+        current_tar = index_pos[0] - len(control_target_stabs)
+        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        q_index = index_pos[1]
+        split_final_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+
+    #-------------------------------------------------------------------------------
+    """
+    As these are dependent on the measurement outcome and also on the type of merge
+    -> Seperated into two Parts conditioned on the Merge/Split type
+
+    The logical ZZ Observable is already defined by the newly implemented Z stabilizers on the merge -> Product of the stabilizers give measurement result
+    """
+    ################################################################################
+    # Finding newly generated Stabilizer postion in the Measurement-Rec of the Merge
+    ################################################################################
+
+    pos_to_index_newly_gen_stabs : list = []
+
+    if split_type == "AC":
+
+        for pos, index in enumerate(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices):
+            if index in (z_stab_index_surgery + z_stab_boundary_l_surgery):
+                pos_to_index_newly_gen_stabs.append([pos, index])
+
+    elif split_type == "AT":
+
+        for pos, index in enumerate(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices):
+            if index in (x_stab_index_surgery + x_stab_boundary_b_surgery):
+                pos_to_index_newly_gen_stabs.append([pos, index])
+
+    logical_obs_rec_tar = []
+
+    inner_record = len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+    skipped_records = len(x_stab_index_untouched_circ + z_stab_index_untouched_circ + distance * (control_target_stabs + x_stab_index_ancilla + z_stab_index_ancilla))
+
+    for index_pos_merge in pos_to_index_newly_gen_stabs:
+        logical_obs_rec_tar.append(index_pos_merge[0] - inner_record - skipped_records)
+
+    split_final_circuit.append("TICK")
+
+    ####################################
+    # Adding Conditional CZ/CX-Operators
+    ####################################
+
+    #Defining Logical Data Qubit string for Control -> Needed in Both cases
+    c_log_obs_index : list[complex] = []
+
+    for imag in range((distance * 2) + 1, (distance * 4), 2):
+        c_log_obs_index.append(q2i[(1 + imag * 1j)])
+
+    if split_type == "AC":
+
+        for records in logical_obs_rec_tar:
+            for data in c_log_obs_index:       
+                split_final_circuit.append("CX", [stim.target_rec(records), data])
+
+    elif split_type == "AT":
+
+        t_log_obs_index : list[complex] = []
+
+        for real in range((distance * 2) + 1, (distance * 4), 2):
+            t_log_obs_index.append(q2i[real + 1j])
+
+        for records in logical_obs_rec_tar:
+            for data in t_log_obs_index:
+                split_final_circuit.append("CZ", [stim.target_rec(records), data])
+
+        ###################################
+        # Meassuring Ancilla in the Z Basis
+        ###################################
+
+        #Picking Coordinates
+        a_log_obs_index : list[complex] = []
+
+        for real in range(1, (distance * 2), 2):
+            a_log_obs_index.append(q2i[real + 1j])
+
+        #Meassuring Data
+        split_final_circuit.append("TICK")
+        split_final_circuit.append("MZ", a_log_obs_index)
+        split_final_circuit.append("TICK")
+
+        #Adding the conditional Gate on Control
+        for records in range(-1, -len(a_log_obs_index) - 1, -1):
+            for data in c_log_obs_index:
+                split_final_circuit.append("CX", [stim.target_rec(records), data])
+
     ##########################################
     # Adding Repeat Circ and returning circuit
     ##########################################
 
-    split_init_circuit += split_repeat_circuit * (distance - 1)
+    split_init_circuit += split_repeat_circuit * (distance - 2)
+    split_init_circuit += split_final_circuit
 
     return split_init_circuit
