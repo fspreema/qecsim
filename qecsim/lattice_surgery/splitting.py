@@ -6,7 +6,7 @@ from .stabilizers import populate_stab_to_data
 
 Coord = complex
 
-def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery,], cfg : Config, split_type : str) -> stim.Circuit:
+def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery,], cfg : Config, split_type : str, before_m_flip_prob : float) -> stim.Circuit:
 
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -167,6 +167,13 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     split_init_circuit.append("TICK")
     split_init_circuit.append("H", x_stab_index_ancilla)
     split_init_circuit.append("TICK")
+
+    #-------Adding measurement Flip Prob.--------------
+    if before_m_flip_prob > 0:
+        split_init_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, before_m_flip_prob)
+        split_init_circuit.append("TICK")
+    #--------------------------------------------------
+
     split_init_circuit.append("MR", x_stab_index_ancilla + z_stab_index_ancilla)
     split_init_circuit.append("TICK")
     split_init_circuit.append("H", x_stab_boundary_b_index_ancilla)
@@ -298,6 +305,13 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     split_init_circuit.append("TICK")
     split_init_circuit.append("H", x_stab_index_control +  x_stab_index_target)
     split_init_circuit.append("TICK")
+
+    #-------Adding measurement Flip Prob.--------------
+    if before_m_flip_prob > 0:
+        split_init_circuit.append("X_ERROR", control_target_stabs, before_m_flip_prob)
+        split_init_circuit.append("TICK")
+    #--------------------------------------------------
+
     split_init_circuit.append("MR", control_target_stabs)
 
     ################################################################
@@ -566,6 +580,13 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     split_repeat_circuit.append("TICK")
     split_repeat_circuit.append("H", x_stab_index_ancilla)
     split_repeat_circuit.append("TICK")
+
+    #-------Adding measurement Flip Prob.--------------
+    if before_m_flip_prob > 0:
+        split_repeat_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, before_m_flip_prob)
+        split_repeat_circuit.append("TICK")
+    #--------------------------------------------------
+
     split_repeat_circuit.append("MR", x_stab_index_ancilla + z_stab_index_ancilla)
     split_repeat_circuit.append("TICK")
     split_repeat_circuit.append("H", x_stab_boundary_b_index_ancilla)
@@ -629,6 +650,13 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     split_repeat_circuit.append("TICK")
     split_repeat_circuit.append("H", x_stab_index_control +  x_stab_index_target)
     split_repeat_circuit.append("TICK")
+
+    #-------Adding measurement Flip Prob.--------------
+    if before_m_flip_prob > 0:
+        split_repeat_circuit.append("X_ERROR", control_target_stabs, before_m_flip_prob)
+        split_repeat_circuit.append("TICK")
+    #--------------------------------------------------
+
     split_repeat_circuit.append("MR", control_target_stabs)
 
     ################################################################
@@ -753,6 +781,13 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     split_final_circuit.append("TICK")
     split_final_circuit.append("H", x_stab_index_ancilla)
     split_final_circuit.append("TICK")
+
+    #-------Adding measurement Flip Prob.--------------
+    if before_m_flip_prob > 0:
+        split_final_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, before_m_flip_prob)
+        split_final_circuit.append("TICK")
+    #--------------------------------------------------
+
     split_final_circuit.append("MR", x_stab_index_ancilla + z_stab_index_ancilla)
     split_final_circuit.append("TICK")
     split_final_circuit.append("H", x_stab_boundary_b_index_ancilla)
@@ -805,6 +840,13 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     split_final_circuit.append("TICK")
     split_final_circuit.append("H", x_stab_index_control +  x_stab_index_target)
     split_final_circuit.append("TICK")
+
+    #-------Adding measurement Flip Prob.--------------
+    if before_m_flip_prob > 0:
+        split_final_circuit.append("X_ERROR", control_target_stabs, before_m_flip_prob)
+        split_final_circuit.append("TICK")
+    #--------------------------------------------------
+
     split_final_circuit.append("MR", control_target_stabs)
     
     ####################################
@@ -924,6 +966,13 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
         for records in range(-1, -len(a_log_obs_index) - 1, -1):
             for data in c_log_obs_index:
                 split_final_circuit.append("CX", [stim.target_rec(records), data])
+
+    ################################################
+    # Adding the final logical Observables (Non Rec)
+    ################################################
+
+
+
 
     ##########################################
     # Adding Repeat Circ and returning circuit

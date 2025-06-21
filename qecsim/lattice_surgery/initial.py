@@ -7,7 +7,8 @@ Coord = complex
 
 __all__ = ["initial"]
 
-def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Target, Patch_Control, Patch_Surgery], cfg : Config) -> stim.Circuit:
+def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Target, Patch_Control, Patch_Surgery], 
+            cfg : Config, before_round_depol : float, before_m_flip_prob : float) -> stim.Circuit:
     
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -88,6 +89,12 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         initial_circuit.append(gate, qubits)
 
 
+    #-------Adding Before Round Data Depol.------------
+    if before_round_depol > 0:
+        initial_circuit.append("TICK")
+        initial_circuit.append("DEPOLARIZE1", data_ancilla + data_control + data_target, before_round_depol)
+    #--------------------------------------------------
+
     initial_circuit.append("TICK")
 
     #Adding h gate for X stabilizers -> Filtering out double coords
@@ -149,6 +156,13 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     initial_circuit.append("TICK")
     initial_circuit.append("H", x_stab_index_ancilla)
     initial_circuit.append("TICK")
+
+    #-------Adding Measurement Flip--------------------
+    if before_m_flip_prob > 0:
+        initial_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, before_m_flip_prob)
+        initial_circuit.append("TICK")
+    #--------------------------------------------------
+
     initial_circuit.append("MR", x_stab_index_ancilla + z_stab_index_ancilla)
     initial_circuit.append("TICK")
     initial_circuit.append("H", x_stab_boundary_b_index_ancilla)
@@ -204,6 +218,13 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     initial_circuit.append("TICK")
     initial_circuit.append("H", x_stab_index_control +  x_stab_index_target)
     initial_circuit.append("TICK")
+
+    #-------Adding Measurement Flip--------------------
+    if before_m_flip_prob > 0:
+        initial_circuit.append("X_ERROR", control_target_stabs, before_m_flip_prob)
+        initial_circuit.append("TICK")
+    #--------------------------------------------------
+
     initial_circuit.append("MR", control_target_stabs)
 
     ################################################################
@@ -335,6 +356,13 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     initial_repeat_circuit.append("TICK")
     initial_repeat_circuit.append("H", x_stab_index_ancilla)
     initial_repeat_circuit.append("TICK")
+
+    #-------Adding Measurement Flip--------------------
+    if before_m_flip_prob > 0:
+        initial_repeat_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, before_m_flip_prob)
+        initial_repeat_circuit.append("TICK")
+    #--------------------------------------------------
+
     initial_repeat_circuit.append("MR", x_stab_index_ancilla + z_stab_index_ancilla)
     initial_repeat_circuit.append("TICK")
     initial_repeat_circuit.append("H", x_stab_boundary_b_index_ancilla)
@@ -403,6 +431,13 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     initial_repeat_circuit.append("TICK")
     initial_repeat_circuit.append("H", x_stab_index_control +  x_stab_index_target)
     initial_repeat_circuit.append("TICK")
+
+    #-------Adding Measurement Flip--------------------
+    if before_m_flip_prob > 0:
+        initial_repeat_circuit.append("X_ERROR", control_target_stabs, before_m_flip_prob)
+        initial_repeat_circuit.append("TICK")
+    #--------------------------------------------------
+
     initial_repeat_circuit.append("MR", control_target_stabs)
 
     ################################################################
@@ -461,5 +496,74 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
 
     initial_circuit += initial_repeat_circuit * (distance - 1)
+
+    #########################################
+    # Adding logical Observables (Non Record)
+    #########################################
+
+    # Ancillary stabilized by x logical
+    log_x_a = []
+
+    for imag in range(1, (distance * 2), 2):
+        log_x_a.append(q2i[1 + imag*1j])
+
+    #Rewriting in correct form i.e. X1 X2 etc...
+    targets_a = [f"X{i}" for i in log_x_a]
+
+    initial_circuit.append("OBSERVABLE_INCLUDE", targets_a, 0)
+
+    if control_state_init in {"X+", "X-"}:
+
+        # Control stabilized by x logical
+        log_x_c = []
+
+        for imag in range((distance * 2) + 1, (distance * 4), 2):
+            log_x_c.append(q2i[1 + imag*1j])
+
+        #Rewriting in correct form i.e. X1 X2 etc...
+        targets_c = [f"X{i}" for i in log_x_c]
+
+        initial_circuit.append("OBSERVABLE_INCLUDE", targets_c, 1)
+
+
+    elif control_state_init in {"Z0", "Z1"}:
+
+        # Control stabilized by x logical
+        log_z_c = []
+
+        for real in range(1, (distance * 2), 2):
+            log_z_c.append(q2i[real + ((distance * 2) + 1) * 1j])
+
+        #Rewriting in correct form i.e. X1 X2 etc...
+        targets_c = [f"Z{i}" for i in log_z_c]
+
+        initial_circuit.append("OBSERVABLE_INCLUDE", targets_c, 1)
+
+    if target_state_init in {"X+", "X-"}:
+
+        # Control stabilized by x logical
+        log_x_t = []
+
+        for imag in range(1, (distance * 2), 2):
+            log_x_t.append(q2i[((distance * 2) + 1) + imag*1j])
+
+        #Rewriting in correct form i.e. X1 X2 etc...
+        targets_t = [f"X{i}" for i in log_x_t]
+
+        initial_circuit.append("OBSERVABLE_INCLUDE", targets_t, 2)
+
+
+    elif target_state_init in {"Z0", "Z1"}:
+
+        # Control stabilized by x logical
+        log_z_t = []
+
+        for real in range(((distance * 2) + 1), (distance * 4), 2):
+            log_z_t.append(q2i[real + 1j])
+
+        #Rewriting in correct form i.e. X1 X2 etc...
+        targets_t = [f"Z{i}" for i in log_z_t]
+
+        initial_circuit.append("OBSERVABLE_INCLUDE", targets_t, 2)
 
     return initial_circuit

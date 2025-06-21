@@ -80,7 +80,7 @@ def _add_boundary_labels(distance: int,
 # Public function -> Building final circuit
 # -----------------------------------------
 
-def surgery_circuit(distance: int, *, target_state_init: str, control_state_init: str) -> stim.Circuit:
+def surgery_circuit(distance: int, *, target_state_init: str, control_state_init: str, noise_depol_data_init : float = 0.0, noise_measure_flip : float = 0.0) -> stim.Circuit:
     """
     Returns the full lattice surgery circuit
 
@@ -165,42 +165,34 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     # 5. Building Initilization Circuit
     ###################################
 
-    initial_circuit = initial(lct = lct, patches = patches, cfg = cfg)
+    initial_circuit = initial(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip)
    
     #############################################
     # 6. Building Merging Ancilla Control Circuit
     #############################################
 
-    merged_circuit_AC = merge(lct = lct, patches = patches, cfg = cfg, merging_type="AC")
+    merged_circuit_AC = merge(lct = lct, patches = patches, cfg = cfg, merging_type="AC", before_m_flip_prob = noise_measure_flip)
 
     ###############################################
     # 5. Building Splitting Ancilla Control Circuit
     ###############################################
 
-    split_circuit_AC = split(lct = lct, patches = patches, cfg = cfg, split_type="AC")
+    split_circuit_AC = split(lct = lct, patches = patches, cfg = cfg, split_type="AC", before_m_flip_prob = noise_measure_flip)
 
     ############################################
     # 6. Building Merging Ancilla Target Circuit
     ############################################
 
-    merged_circuit_AT = merge(lct = lct, patches = patches, cfg = cfg, merging_type="AT")
+    merged_circuit_AT = merge(lct = lct, patches = patches, cfg = cfg, merging_type="AT", before_m_flip_prob = noise_measure_flip)
 
     ##############################################
     # 7. Building splitting Ancilla Target Circuit
     ##############################################
 
-    split_circuit_AT = split(lct = lct, patches = patches, cfg = cfg, split_type="AT")
-
-    ##############################################
-    # 8. Building splitting Ancilla Target Circuit
-    ##############################################
-
-    """
-    Maybe implement this into the split functions?
-    """
+    split_circuit_AT = split(lct = lct, patches = patches, cfg = cfg, split_type="AT", before_m_flip_prob = noise_measure_flip)
 
     ###########################
-    # 9. Appending all Circuits
+    # 8. Appending all Circuits
     ###########################
 
     """
@@ -215,7 +207,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     initial_circuit += split_circuit_AT
 
     ###################################################
-    # 10. Retrieving final Circuit with inlined feedback
+    # 9. Retrieving final Circuit with inlined feedback
     ###################################################
 
     """
@@ -225,4 +217,4 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     #return_circuit = initial_circuit.with_inlined_feedback()
 
     return initial_circuit
-    
+
