@@ -36,10 +36,37 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     x_stab_index_ancilla = ancilla_patch.x_stab
     z_stab_index_ancilla = ancilla_patch.z_stab
     x_stab_boundary_b_index_ancilla = ancilla_patch.x_bdyB
+    z_stab_boundary_r_index_ancilla = ancilla_patch.z_bdyR
     x_stab_index_control = control_patch.x_stab
     z_stab_index_control = control_patch.z_stab
     x_stab_index_target = target_patch.x_stab
     z_stab_index_target = target_patch.z_stab
+
+    all_stabs_not_double = []
+    
+    #Setting double counter
+    counter_x = 0
+    counter_z = 0
+
+    for index in (x_stab_index_ancilla + z_stab_index_ancilla + x_stab_index_control + z_stab_index_control + x_stab_index_target + z_stab_index_target):
+
+        #Double Values possible
+        if index in x_stab_boundary_b_index_ancilla:
+
+            #Value already appended?
+            if counter_x == 0:
+                all_stabs_not_double.append(index)
+                counter_x += 1
+
+        elif index in z_stab_boundary_r_index_ancilla:
+
+            #Value already appended?
+            if counter_z == 0:
+                all_stabs_not_double.append(index)
+                counter_z += 1
+
+        else:
+            all_stabs_not_double.append(index)
 
     ########################
     # Define Initial Circuit
@@ -61,22 +88,22 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     ########################################################################
 
     init_patterns = {
-    ("Z0", "Z0"): [("RX", data_ancilla), ("R", data_control + data_target), ("Z", data_ancilla)],
-    ("Z0", "Z1"): [("RX", data_ancilla), ("R", data_control + data_target), ("X", data_target), ("Z", data_ancilla)],
-    ("Z0", "X+"): [("RX", data_ancilla + data_target), ("R", data_control), ("Z", data_ancilla + data_target)],
-    ("Z0", "X-"): [("RX", data_ancilla + data_target), ("R", data_control), ("Z", data_ancilla)],
-    ("Z1", "Z0"): [("RX", data_ancilla), ("R", data_control + data_target), ("X", data_control), ("Z", data_ancilla)],
-    ("Z1", "Z1"): [("RX", data_ancilla), ("R", data_control + data_target), ("X", data_control + data_target), ("Z", data_ancilla)],
-    ("Z1", "X+"): [("RX", data_ancilla + data_target), ("R", data_control), ("X", data_control), ("Z", data_ancilla + data_target)],
-    ("Z1", "X-"): [("RX", data_ancilla + data_target), ("R", data_control), ("X", data_control), ("Z", data_ancilla)],
-    ("X+", "Z0"): [("RX", data_ancilla + data_control), ("R", data_target), ("Z", data_ancilla + data_control)],
-    ("X+", "Z1"): [("RX", data_ancilla + data_control), ("R", data_target), ("X", data_target), ("Z", data_ancilla + data_control)],
-    ("X+", "X+"): [("RX", data_ancilla + data_control + data_target), ("Z", data_ancilla + data_control + data_target)],
-    ("X+", "X-"): [("RX", data_ancilla + data_control + data_target), ("Z", data_ancilla + data_target)],
-    ("X-", "Z0"): [("RX", data_ancilla + data_control), ("R", data_target), ("Z", data_ancilla)],
-    ("X-", "Z1"): [("RX", data_ancilla + data_control), ("R", data_target), ("X", data_target), ("Z", data_ancilla)],
-    ("X-", "X+"): [("RX", data_ancilla + data_control + data_target), ("Z", data_ancilla + data_control)],
-    ("X-", "X-"): [("RX", data_ancilla + data_control + data_target), ("Z", data_ancilla + data_control + data_target)],
+    ("Z0", "Z0"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("Z", data_ancilla)],
+    ("Z0", "Z1"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("X", data_target), ("Z", data_ancilla)],
+    ("Z0", "X+"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double), ("Z", data_ancilla + data_target)],
+    ("Z0", "X-"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double), ("Z", data_ancilla)],
+    ("Z1", "Z0"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("X", data_control), ("Z", data_ancilla)],
+    ("Z1", "Z1"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("X", data_control + data_target), ("Z", data_ancilla)],
+    ("Z1", "X+"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double), ("X", data_control), ("Z", data_ancilla + data_target)],
+    ("Z1", "X-"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double), ("X", data_control), ("Z", data_ancilla)],
+    ("X+", "Z0"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("Z", data_ancilla + data_control)],
+    ("X+", "Z1"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("X", data_target), ("Z", data_ancilla + data_control)],
+    ("X+", "X+"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", data_ancilla + data_control + data_target)],
+    ("X+", "X-"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", data_ancilla + data_target)],
+    ("X-", "Z0"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("Z", data_ancilla)],
+    ("X-", "Z1"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("X", data_target), ("Z", data_ancilla)],
+    ("X-", "X+"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", data_ancilla + data_control)],
+    ("X-", "X-"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", data_ancilla + data_control + data_target)],
     }
 
     # Apply the initialization pattern

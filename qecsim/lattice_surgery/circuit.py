@@ -216,5 +216,5 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
 
     return_circuit = initial_circuit.with_inlined_feedback()
 
-    return initial_circuit
+    return return_circuit
 
