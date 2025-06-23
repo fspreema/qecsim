@@ -925,26 +925,26 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     ####################################
 
     #Defining Logical Data Qubit string for Control -> Needed in Both cases
-    c_log_obs_index : list[complex] = []
+    c_log_obs_x_index : list[complex] = []
 
     for imag in range((distance * 2) + 1, (distance * 4), 2):
-        c_log_obs_index.append(q2i[(1 + imag * 1j)])
+        c_log_obs_x_index.append(q2i[(1 + imag * 1j)])
 
     if split_type == "AC":
 
         for records in logical_obs_rec_tar:
-            for data in c_log_obs_index:       
+            for data in c_log_obs_x_index:       
                 split_final_circuit.append("CX", [stim.target_rec(records), data])
 
     elif split_type == "AT":
 
-        t_log_obs_index : list[complex] = []
+        t_log_obs_z_index : list[complex] = []
 
         for real in range((distance * 2) + 1, (distance * 4), 2):
-            t_log_obs_index.append(q2i[real + 1j])
+            t_log_obs_z_index.append(q2i[real + 1j])
 
         for records in logical_obs_rec_tar:
-            for data in t_log_obs_index:
+            for data in t_log_obs_z_index:
                 split_final_circuit.append("CZ", [stim.target_rec(records), data])
 
         ###################################
@@ -952,24 +952,59 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
         ###################################
 
         #Picking Coordinates
-        a_log_obs_index : list[complex] = []
+        a_log_obs_z_index : list[complex] = []
 
         for real in range(1, (distance * 2), 2):
-            a_log_obs_index.append(q2i[real + 1j])
+            a_log_obs_z_index.append(q2i[real + 1j])
 
         #Meassuring Data
         split_final_circuit.append("TICK")
-        split_final_circuit.append("MZ", a_log_obs_index)
+        split_final_circuit.append("MZ", data_ancilla)
         split_final_circuit.append("TICK")
 
-        #Adding the conditional Gate on Control
-        for records in range(-1, -len(a_log_obs_index) - 1, -1):
-            for data in c_log_obs_index:
-                split_final_circuit.append("CX", [stim.target_rec(records), data])
+        a_log_obs_z_pos = []
 
-    ################################################
-    # Adding the final logical Observables (Non Rec)
-    ################################################
+        #Finding Target rec postion of the obs_index
+        for pos, index in enumerate(data_ancilla):
+            if index in a_log_obs_z_index:
+                a_log_obs_z_pos.append(- len(data_ancilla) + pos + 1)
+
+        #Adding the conditional Gate on Control
+        for records in a_log_obs_z_pos:
+            for data in c_log_obs_x_index:
+                split_final_circuit.append("CX", [stim.target_rec(records - 1), data])
+
+        split_final_circuit.append("TICK")
+
+        #Meassuring all Data Qubits:
+        if control_state_init in {"X+", "X-"}:
+            split_final_circuit.append("MX", data_control)
+
+        elif control_state_init in {"Z0", "Z1"}:
+            split_final_circuit.append("MZ", data_control)
+
+        if target_state_init in {"X+", "X-"}:
+            split_final_circuit.append("MX", data_target)
+
+        elif target_state_init in {"Z0", "Z1"}:
+            split_final_circuit.append("MZ", data_target)
+
+        '''
+        Not used!
+        -> Can later be used to add logical_observable if target is in initial stgate of a z basis
+        (If it is needed!)
+        '''
+
+        #Adding test Measurements
+        target_rec = []
+
+        for position, index in enumerate(data_control + data_target):
+            if index in t_log_obs_z_index:
+                target_rec.append(index)
+
+    #############################################
+    # Adding the final logical Observables (Rec)
+    #############################################
 
 
 

@@ -214,7 +214,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     We use inlined feedback to track the necessary flips after measurement outcomes clasically, instead of phsically flipping the qubits
     """
 
-    #return_circuit = initial_circuit.with_inlined_feedback()
+    return_circuit = initial_circuit.with_inlined_feedback()
 
     return initial_circuit
 
