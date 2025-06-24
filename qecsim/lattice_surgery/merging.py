@@ -749,10 +749,74 @@ def merge(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             q_index = index_pos_merge[1]
             merge_round_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_target)], (i2q[q_index].real, i2q[q_index].imag, 0))
   
+    ################################
+    # Redefining Logical Observables
+    ################################
+
+    merge_final_circuit = stim.Circuit()
+
+    merge_final_circuit.append("SHIFT_COORDS", arg=(0,0,1))
+
+    '''
+    All the logical Observables who cross the lattice now needs to be updates in order to commute with all stabilizers
+    -> Newly introudced stabilizers would else antcommute
+    '''
+
+    if merging_type == "AC":
+
+        if control_state_init in {"X+", "X-"}:
+
+            log_x_c_new = []
+
+            for imag in range(1, (distance * 4), 2):
+                log_x_c_new.append(q2i[1 + imag*1j])
+
+            #Rewriting in correct form i.e. Z1 Z2 etc...
+            paulis_c = [f"X{i}" for i in log_x_c_new]
+
+            # Control stabilized by x logical
+            log_x_c = []
+
+            for imag in range((distance * 2) + 1, (distance * 4), 2):
+                log_x_c.append(q2i[1 + imag*1j])
+
+            #Rewriting in correct form i.e. X1 X2 etc...
+            targets_c = [f"X{i}" for i in log_x_c]
+
+            #merge_final_circuit.append("OBSERVABLE_INCLUDE", targets_c, 0)
+            merge_final_circuit.append("OBSERVABLE_INCLUDE", paulis_c, 0)
+
+    # AT OBSERVABLE STILL ANTICOMMUTE SOMEHOW -> CHECK DETECTOR COORDINATES, MAYBE WRONG DETECTOR DEFINED!
+
+    elif merging_type == "AT":
+
+        if target_state_init in {"Z0", "Z1"}:
+
+            log_z_t_new = []
+
+            for real in range(1, (distance * 4), 2):
+                log_z_t_new.append(q2i[real + 1j])
+
+            #Rewriting in correct form i.e. Z1 Z2 etc...
+            paulis_t = [f"Z{i}" for i in log_z_t_new]
+
+            # Control stabilized by x logical
+            log_z_t = []
+
+            for real in range(((distance * 2) + 1), (distance * 4), 2):
+                log_z_t.append(q2i[real + 1j])
+
+            #Rewriting in correct form i.e. X1 X2 etc...
+            targets_t = [f"Z{i}" for i in log_z_t]
+
+            #merge_final_circuit.append("OBSERVABLE_INCLUDE", targets_t, 1)
+            merge_final_circuit.append("OBSERVABLE_INCLUDE", paulis_t, 1)
+
     ###########################
     # Adding Circuits
     ###########################
 
     merge_init_circuit += merge_round_circuit * (distance - 1)
+    merge_init_circuit += merge_final_circuit
 
     return merge_init_circuit

@@ -42,6 +42,10 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     x_stab_index_target = target_patch.x_stab
     z_stab_index_target = target_patch.z_stab
 
+    #----------------------------------------------
+    # Creating List of all Stabilizers (No Double!)
+    #----------------------------------------------
+
     all_stabs_not_double = []
     
     #Setting double counter
@@ -68,6 +72,37 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         else:
             all_stabs_not_double.append(index)
 
+    #------------------------------------------------------
+    # Creating list of Logical X/Z string and their indices
+    #------------------------------------------------------
+    """
+    -> Used for swithcing of the state in a given basis
+    """
+
+    # Ancilla
+    a_log_obs_z_index : list[complex] = []
+
+    for real in range(1, (distance * 2), 2):
+        a_log_obs_z_index.append(q2i[real + 1j])
+
+    # Target
+    t_log_obs_z_index : list[complex] = []
+    for real in range((distance * 2) + 1, (distance * 4), 2):
+        t_log_obs_z_index.append(q2i[real + 1j])
+
+    t_log_obs_x_index : list[complex] = []
+    for imag in range(1, (distance * 2), 2):
+        t_log_obs_x_index.append(q2i[((distance * 2) + 1) + imag * 1j])
+
+    # Control
+    c_log_obs_z_index : list[complex] = []
+    for real in range(1, (distance * 2), 2):
+        c_log_obs_z_index.append(q2i[(real + ((distance * 2) + 1) * 1j)])
+
+    c_log_obs_x_index : list[complex] = []
+    for imag in range((distance * 2) + 1, (distance * 4), 2):
+        c_log_obs_x_index.append(q2i[(1 + imag * 1j)])
+
     ########################
     # Define Initial Circuit
     ########################
@@ -88,22 +123,22 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     ########################################################################
 
     init_patterns = {
-    ("Z0", "Z0"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("Z", data_ancilla)],
-    ("Z0", "Z1"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("X", data_target), ("Z", data_ancilla)],
-    ("Z0", "X+"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double), ("Z", data_ancilla + data_target)],
-    ("Z0", "X-"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double), ("Z", data_ancilla)],
-    ("Z1", "Z0"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("X", data_control), ("Z", data_ancilla)],
-    ("Z1", "Z1"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("X", data_control + data_target), ("Z", data_ancilla)],
-    ("Z1", "X+"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double), ("X", data_control), ("Z", data_ancilla + data_target)],
-    ("Z1", "X-"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double), ("X", data_control), ("Z", data_ancilla)],
-    ("X+", "Z0"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("Z", data_ancilla + data_control)],
-    ("X+", "Z1"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("X", data_target), ("Z", data_ancilla + data_control)],
-    ("X+", "X+"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", data_ancilla + data_control + data_target)],
-    ("X+", "X-"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", data_ancilla + data_target)],
-    ("X-", "Z0"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("Z", data_ancilla)],
-    ("X-", "Z1"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("X", data_target), ("Z", data_ancilla)],
-    ("X-", "X+"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", data_ancilla + data_control)],
-    ("X-", "X-"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", data_ancilla + data_control + data_target)],
+    ("Z0", "Z0"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("Z", a_log_obs_z_index)],
+    ("Z0", "Z1"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("X", t_log_obs_x_index), ("Z", a_log_obs_z_index)],
+    ("Z0", "X+"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double), ("Z", a_log_obs_z_index + t_log_obs_z_index)],
+    ("Z0", "X-"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double), ("Z", a_log_obs_z_index)],
+    ("Z1", "Z0"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("X", c_log_obs_x_index), ("Z", a_log_obs_z_index)],
+    ("Z1", "Z1"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("X", c_log_obs_x_index + t_log_obs_x_index), ("Z", a_log_obs_z_index)],
+    ("Z1", "X+"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double), ("X", c_log_obs_x_index), ("Z", a_log_obs_z_index + t_log_obs_z_index)],
+    ("Z1", "X-"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double), ("X", c_log_obs_x_index), ("Z", a_log_obs_z_index)],
+    ("X+", "Z0"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("Z", a_log_obs_z_index + c_log_obs_z_index)],
+    ("X+", "Z1"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("X", t_log_obs_x_index), ("Z", a_log_obs_z_index + c_log_obs_z_index)],
+    ("X+", "X+"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", a_log_obs_z_index)],
+    ("X+", "X-"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", a_log_obs_z_index + t_log_obs_z_index)],
+    ("X-", "Z0"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("Z", a_log_obs_z_index)],
+    ("X-", "Z1"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("X", t_log_obs_x_index), ("Z", a_log_obs_z_index)],
+    ("X-", "X+"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", a_log_obs_z_index + c_log_obs_z_index)],
+    ("X-", "X-"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", a_log_obs_z_index + c_log_obs_z_index + t_log_obs_z_index)],
     }
 
     # Apply the initialization pattern
@@ -528,6 +563,7 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     # Adding logical Observables (Non Record)
     #########################################
 
+    '''
     # Ancillary stabilized by x logical
     log_x_a = []
 
@@ -538,7 +574,8 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     targets_a = [f"X{i}" for i in log_x_a]
 
     initial_circuit.append("OBSERVABLE_INCLUDE", targets_a, 0)
-
+    '''
+    
     if control_state_init in {"X+", "X-"}:
 
         # Control stabilized by x logical
@@ -550,7 +587,7 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         #Rewriting in correct form i.e. X1 X2 etc...
         targets_c = [f"X{i}" for i in log_x_c]
 
-        initial_circuit.append("OBSERVABLE_INCLUDE", targets_c, 1)
+        initial_circuit.append("OBSERVABLE_INCLUDE", targets_c, 0)
 
 
     elif control_state_init in {"Z0", "Z1"}:
@@ -564,7 +601,7 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         #Rewriting in correct form i.e. X1 X2 etc...
         targets_c = [f"Z{i}" for i in log_z_c]
 
-        initial_circuit.append("OBSERVABLE_INCLUDE", targets_c, 1)
+        initial_circuit.append("OBSERVABLE_INCLUDE", targets_c, 0)
 
     if target_state_init in {"X+", "X-"}:
 
@@ -577,7 +614,7 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         #Rewriting in correct form i.e. X1 X2 etc...
         targets_t = [f"X{i}" for i in log_x_t]
 
-        initial_circuit.append("OBSERVABLE_INCLUDE", targets_t, 2)
+        initial_circuit.append("OBSERVABLE_INCLUDE", targets_t, 1)
 
 
     elif target_state_init in {"Z0", "Z1"}:
@@ -591,6 +628,7 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         #Rewriting in correct form i.e. X1 X2 etc...
         targets_t = [f"Z{i}" for i in log_z_t]
 
-        initial_circuit.append("OBSERVABLE_INCLUDE", targets_t, 2)
+        initial_circuit.append("OBSERVABLE_INCLUDE", targets_t, 1)
+    
 
     return initial_circuit

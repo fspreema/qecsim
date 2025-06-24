@@ -920,15 +920,37 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
 
     split_final_circuit.append("TICK")
 
+    #####################################################
+    # Defining Logical Data Qubit string for all lattices
+    #####################################################
+
+    #-----Ancilla-------
+    a_log_obs_z_index : list[complex] = []
+
+    for real in range(1, (distance * 2), 2):
+        a_log_obs_z_index.append(q2i[real + 1j])
+
+    #-----Target--------
+    t_log_obs_z_index : list[complex] = []
+    for real in range((distance * 2) + 1, (distance * 4), 2):
+        t_log_obs_z_index.append(q2i[real + 1j])
+
+    t_log_obs_x_index : list[complex] = []
+    for imag in range(1, (distance * 2), 2):
+        t_log_obs_x_index.append(q2i[((distance * 2) + 1) + imag * 1j])
+
+    #-----Control-------
+    c_log_obs_z_index : list[complex] = []
+    for real in range(1, (distance * 2), 2):
+        c_log_obs_z_index.append(q2i[(real + ((distance * 2) + 1) * 1j)])
+
+    c_log_obs_x_index : list[complex] = []
+    for imag in range((distance * 2) + 1, (distance * 4), 2):
+        c_log_obs_x_index.append(q2i[(1 + imag * 1j)])
+
     ####################################
     # Adding Conditional CZ/CX-Operators
     ####################################
-
-    #Defining Logical Data Qubit string for Control -> Needed in Both cases
-    c_log_obs_x_index : list[complex] = []
-
-    for imag in range((distance * 2) + 1, (distance * 4), 2):
-        c_log_obs_x_index.append(q2i[(1 + imag * 1j)])
 
     if split_type == "AC":
 
@@ -938,11 +960,6 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
 
     elif split_type == "AT":
 
-        t_log_obs_z_index : list[complex] = []
-
-        for real in range((distance * 2) + 1, (distance * 4), 2):
-            t_log_obs_z_index.append(q2i[real + 1j])
-
         for records in logical_obs_rec_tar:
             for data in t_log_obs_z_index:
                 split_final_circuit.append("CZ", [stim.target_rec(records), data])
@@ -950,12 +967,6 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
         ###################################
         # Meassuring Ancilla in the Z Basis
         ###################################
-
-        #Picking Coordinates
-        a_log_obs_z_index : list[complex] = []
-
-        for real in range(1, (distance * 2), 2):
-            a_log_obs_z_index.append(q2i[real + 1j])
 
         #Meassuring Data
         split_final_circuit.append("TICK")
@@ -974,7 +985,78 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             for data in c_log_obs_x_index:
                 split_final_circuit.append("CX", [stim.target_rec(records - 1), data])
 
+    ################################################
+    # Redefining logical Observables while splitting
+    ################################################
+
+    split_final_circuit.append("SHIFT_COORDS", arg=(0,0,1))
+
+    control_obs_rec = []
+    target_obs_rec = []
+
+    if split_type == "AC":
+
+        if control_state_init in {"X+", "X-"}:
+
+            # Control stabilized by x logical
+            log_x_c = []
+
+            for imag in range((distance * 2) + 1, (distance * 4), 2):
+                log_x_c.append(q2i[1 + imag*1j])
+
+            #Rewriting in correct form i.e. X1 X2 etc...
+            pauli_terms_c = [f"X{i}" for i in log_x_c]
+
+            #Adding Observable
+            #split_final_circuit.append("OBSERVABLE_INCLUDE", pauli_terms_c, 0)
+
+        elif control_state_init in {"Z0", "Z1"}:
+                
+            # Control stabilized by x logical
+            log_z_c = []
+
+            for real in range(1, (distance * 2), 2):
+                log_z_c.append(q2i[real + ((distance * 2) + 1) * 1j])
+
+            #Rewriting in correct form i.e. X1 X2 etc...
+            pauli_terms_c = [f"Z{i}" for i in log_z_c]
+
+            #Adding Observable
+            #split_final_circuit.append("OBSERVABLE_INCLUDE", pauli_terms_c, 0)
+    
+    elif split_type == "AT":
+
+        if target_state_init in {"X+", "X-"}:
+
+            #Finding rec pos
+            for pos, index in enumerate(data_control + data_target):
+                if index in t_log_obs_x_index:
+                    target_obs_rec.append(pos)
+
+            #Adding Observable
+            #split_final_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data_control + data_target) + k) for k in target_obs_rec], 0)
+
+        elif target_state_init in {"Z0", "Z1"}:
+
+            #Finding rec pos
+            for pos, index in enumerate(data_control + data_target):
+                if index in t_log_obs_z_index:
+                    target_obs_rec.append(pos)
+
+            #Adding Observable
+            #split_final_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data_control + data_target) + k) for k in target_obs_rec], 0)
+
+    #################################################
+    # Adding the final measurement of all data qubits
+    #################################################
+
+    if split_type == "AT":
+
         split_final_circuit.append("TICK")
+
+        '''
+        Everything tht follows could be implemented in a new form of final_circuit.py
+        '''
 
         #Meassuring all Data Qubits:
         if control_state_init in {"X+", "X-"}:
@@ -988,26 +1070,6 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
 
         elif target_state_init in {"Z0", "Z1"}:
             split_final_circuit.append("MZ", data_target)
-
-        '''
-        Not used!
-        -> Can later be used to add logical_observable if target is in initial stgate of a z basis
-        (If it is needed!)
-        '''
-
-        #Adding test Measurements
-        target_rec = []
-
-        for position, index in enumerate(data_control + data_target):
-            if index in t_log_obs_z_index:
-                target_rec.append(index)
-
-    #############################################
-    # Adding the final logical Observables (Rec)
-    #############################################
-
-
-
 
     ##########################################
     # Adding Repeat Circ and returning circuit
