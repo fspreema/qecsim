@@ -562,73 +562,19 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     #########################################
     # Adding logical Observables (Non Record)
     #########################################
-
-    '''
-    # Ancillary stabilized by x logical
-    log_x_a = []
-
-    for imag in range(1, (distance * 2), 2):
-        log_x_a.append(q2i[1 + imag*1j])
-
-    #Rewriting in correct form i.e. X1 X2 etc...
-    targets_a = [f"X{i}" for i in log_x_a]
-
-    initial_circuit.append("OBSERVABLE_INCLUDE", targets_a, 0)
-    '''
     
     if control_state_init in {"X+", "X-"}:
 
         # Control stabilized by x logical
         log_x_c = []
 
-        for imag in range((distance * 2) + 1, (distance * 4), 2):
+        for imag in range(1, (distance * 2), 2):
             log_x_c.append(q2i[1 + imag*1j])
 
         #Rewriting in correct form i.e. X1 X2 etc...
         targets_c = [f"X{i}" for i in log_x_c]
 
         initial_circuit.append("OBSERVABLE_INCLUDE", targets_c, 0)
-
-
-    elif control_state_init in {"Z0", "Z1"}:
-
-        # Control stabilized by x logical
-        log_z_c = []
-
-        for real in range(1, (distance * 2), 2):
-            log_z_c.append(q2i[real + ((distance * 2) + 1) * 1j])
-
-        #Rewriting in correct form i.e. X1 X2 etc...
-        targets_c = [f"Z{i}" for i in log_z_c]
-
-        initial_circuit.append("OBSERVABLE_INCLUDE", targets_c, 0)
-
-    if target_state_init in {"X+", "X-"}:
-
-        # Control stabilized by x logical
-        log_x_t = []
-
-        for imag in range(1, (distance * 2), 2):
-            log_x_t.append(q2i[((distance * 2) + 1) + imag*1j])
-
-        #Rewriting in correct form i.e. X1 X2 etc...
-        targets_t = [f"X{i}" for i in log_x_t]
-
-        initial_circuit.append("OBSERVABLE_INCLUDE", targets_t, 1)
-
-
-    elif target_state_init in {"Z0", "Z1"}:
-
-        # Control stabilized by x logical
-        log_z_t = []
-
-        for real in range(((distance * 2) + 1), (distance * 4), 2):
-            log_z_t.append(q2i[real + 1j])
-
-        #Rewriting in correct form i.e. X1 X2 etc...
-        targets_t = [f"Z{i}" for i in log_z_t]
-
-        initial_circuit.append("OBSERVABLE_INCLUDE", targets_t, 1)
     
 
     return initial_circuit

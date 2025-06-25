@@ -203,8 +203,8 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
 
     initial_circuit += merged_circuit_AC
     initial_circuit += split_circuit_AC
-    #initial_circuit += merged_circuit_AT
-    #initial_circuit += split_circuit_AT
+    initial_circuit += merged_circuit_AT
+    initial_circuit += split_circuit_AT
 
     ###################################################
     # 9. Retrieving final Circuit with inlined feedback
@@ -214,7 +214,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     We use inlined feedback to track the necessary flips after measurement outcomes clasically, instead of phsically flipping the qubits
     """
 
-    return_circuit = initial_circuit.with_inlined_feedback()
+    #return_circuit = initial_circuit.with_inlined_feedback()
 
     print(i2q[2])
 

@@ -953,17 +953,17 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     ####################################
 
     if split_type == "AC":
-
+        
         for records in logical_obs_rec_tar:
             for data in c_log_obs_x_index:       
                 split_final_circuit.append("CX", [stim.target_rec(records), data])
-
+        
     elif split_type == "AT":
-
+        
         for records in logical_obs_rec_tar:
             for data in t_log_obs_z_index:
                 split_final_circuit.append("CZ", [stim.target_rec(records), data])
-
+        
         ###################################
         # Meassuring Ancilla in the Z Basis
         ###################################
@@ -979,20 +979,17 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
         for pos, index in enumerate(data_ancilla):
             if index in a_log_obs_z_index:
                 a_log_obs_z_pos.append(- len(data_ancilla) + pos + 1)
-
+            
         #Adding the conditional Gate on Control
         for records in a_log_obs_z_pos:
             for data in c_log_obs_x_index:
                 split_final_circuit.append("CX", [stim.target_rec(records - 1), data])
-
+            
     ################################################
     # Redefining logical Observables while splitting
     ################################################
 
     split_final_circuit.append("SHIFT_COORDS", arg=(0,0,1))
-
-    control_obs_rec = []
-    target_obs_rec = []
 
     if split_type == "AC":
 
@@ -1001,7 +998,7 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             # Control stabilized by x logical
             log_x_c = []
 
-            for imag in range((distance * 2) + 1, (distance * 4), 2):
+            for imag in range(1, (distance * 2), 2):
                 log_x_c.append(q2i[1 + imag*1j])
 
             #Rewriting in correct form i.e. X1 X2 etc...
@@ -1010,41 +1007,75 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             #Adding Observable
             #split_final_circuit.append("OBSERVABLE_INCLUDE", pauli_terms_c, 0)
 
-        elif control_state_init in {"Z0", "Z1"}:
-                
-            # Control stabilized by x logical
-            log_z_c = []
+        if target_state_init in {"Z0", "Z1"}:
+
+            log_z_t = []
 
             for real in range(1, (distance * 2), 2):
-                log_z_c.append(q2i[real + ((distance * 2) + 1) * 1j])
+                log_z_t.append(q2i[real + 1j])
 
-            #Rewriting in correct form i.e. X1 X2 etc...
-            pauli_terms_c = [f"Z{i}" for i in log_z_c]
+            #Rewriting in correct form i.e. Z1 Z2 etc...
+            paulis_terms_t = [f"Z{i}" for i in log_z_t]
 
-            #Adding Observable
-            #split_final_circuit.append("OBSERVABLE_INCLUDE", pauli_terms_c, 0)
+            split_final_circuit.append("OBSERVABLE_INCLUDE", paulis_terms_t, 1)
     
     elif split_type == "AT":
 
         if target_state_init in {"X+", "X-"}:
 
-            #Finding rec pos
-            for pos, index in enumerate(data_control + data_target):
-                if index in t_log_obs_x_index:
-                    target_obs_rec.append(pos)
+            # Control stabilized by x logical
+            log_x_t = []
+
+            for imag in range(1, (distance * 2), 2):
+                log_x_t.append(q2i[((distance * 2) + 3) + imag * 1j])
+
+            #Rewriting in correct form i.e. X1 X2 etc...
+            pauli_terms_t = [f"X{i}" for i in log_x_t]
 
             #Adding Observable
-            #split_final_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data_control + data_target) + k) for k in target_obs_rec], 0)
+            split_final_circuit.append("OBSERVABLE_INCLUDE", pauli_terms_t, 1)
 
         elif target_state_init in {"Z0", "Z1"}:
+                
+            # Control stabilized by x logical
+            log_z_t = []
 
-            #Finding rec pos
-            for pos, index in enumerate(data_control + data_target):
-                if index in t_log_obs_z_index:
-                    target_obs_rec.append(pos)
+            for real in range(((distance * 2) + 1), (distance * 4), 2):
+                log_z_t.append(q2i[real + 1j])
+
+            #Rewriting in correct form i.e. X1 X2 etc...
+            pauli_terms_t = [f"Z{i}" for i in log_z_t]
 
             #Adding Observable
-            #split_final_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data_control + data_target) + k) for k in target_obs_rec], 0)
+            split_final_circuit.append("OBSERVABLE_INCLUDE", pauli_terms_t, 1)
+
+        if control_state_init in {"Z0", "Z1"}:
+                
+            # Control stabilized by x logical
+            log_z_c = []
+
+            for real in range(1, (distance * 2), 2):
+                log_z_c.append(q2i[real + (((distance * 2) + 3) *1j)])
+
+            #Rewriting in correct form i.e. X1 X2 etc...
+            pauli_terms_c = [f"Z{i}" for i in log_z_c]
+
+            #Adding Observable
+            split_final_circuit.append("OBSERVABLE_INCLUDE", pauli_terms_c, 0)
+
+        elif control_state_init in {"X+", "X-"}:
+                
+            # Control stabilized by x logical
+            log_x_c = []
+
+            for imag in range(((distance * 2) + 1), (distance * 4), 2):
+                log_x_c.append(q2i[1 + imag * 1j])
+
+            #Rewriting in correct form i.e. X1 X2 etc...
+            pauli_terms_c = [f"X{i}" for i in log_x_c]
+
+            #Adding Observable
+            split_final_circuit.append("OBSERVABLE_INCLUDE", pauli_terms_c, 0)
 
     #################################################
     # Adding the final measurement of all data qubits

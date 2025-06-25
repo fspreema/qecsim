@@ -768,22 +768,12 @@ def merge(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
 
             log_x_c_new = []
 
-            for imag in range(1, (distance * 4), 2):
+            for imag in range(1, (distance * 2), 2):
                 log_x_c_new.append(q2i[1 + imag*1j])
 
             #Rewriting in correct form i.e. Z1 Z2 etc...
             paulis_c = [f"X{i}" for i in log_x_c_new]
 
-            # Control stabilized by x logical
-            log_x_c = []
-
-            for imag in range((distance * 2) + 1, (distance * 4), 2):
-                log_x_c.append(q2i[1 + imag*1j])
-
-            #Rewriting in correct form i.e. X1 X2 etc...
-            targets_c = [f"X{i}" for i in log_x_c]
-
-            #merge_final_circuit.append("OBSERVABLE_INCLUDE", targets_c, 0)
             merge_final_circuit.append("OBSERVABLE_INCLUDE", paulis_c, 0)
 
     # AT OBSERVABLE STILL ANTICOMMUTE SOMEHOW -> CHECK DETECTOR COORDINATES, MAYBE WRONG DETECTOR DEFINED!
@@ -794,22 +784,12 @@ def merge(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
 
             log_z_t_new = []
 
-            for real in range(1, (distance * 4), 2):
+            for real in range(1, (distance * 2), 2):
                 log_z_t_new.append(q2i[real + 1j])
 
             #Rewriting in correct form i.e. Z1 Z2 etc...
             paulis_t = [f"Z{i}" for i in log_z_t_new]
 
-            # Control stabilized by x logical
-            log_z_t = []
-
-            for real in range(((distance * 2) + 1), (distance * 4), 2):
-                log_z_t.append(q2i[real + 1j])
-
-            #Rewriting in correct form i.e. X1 X2 etc...
-            targets_t = [f"Z{i}" for i in log_z_t]
-
-            #merge_final_circuit.append("OBSERVABLE_INCLUDE", targets_t, 1)
             merge_final_circuit.append("OBSERVABLE_INCLUDE", paulis_t, 1)
 
     ###########################
