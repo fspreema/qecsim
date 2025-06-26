@@ -122,23 +122,47 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     # Inilizing Ancilla in Plus (Reset) and Control/ Target in desired State
     ########################################################################
 
+    '''
+    REMOVED FOR SOLVE_FLOW_MEASUREMENTS
+    '''
+    """
     init_patterns = {
-    ("Z0", "Z0"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("Z", a_log_obs_z_index)],
-    ("Z0", "Z1"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("X", t_log_obs_x_index), ("Z", a_log_obs_z_index)],
-    ("Z0", "X+"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double), ("Z", a_log_obs_z_index + t_log_obs_z_index)],
-    ("Z0", "X-"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double), ("Z", a_log_obs_z_index)],
-    ("Z1", "Z0"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("X", c_log_obs_x_index), ("Z", a_log_obs_z_index)],
-    ("Z1", "Z1"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("X", c_log_obs_x_index + t_log_obs_x_index), ("Z", a_log_obs_z_index)],
-    ("Z1", "X+"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double), ("X", c_log_obs_x_index), ("Z", a_log_obs_z_index + t_log_obs_z_index)],
-    ("Z1", "X-"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double), ("X", c_log_obs_x_index), ("Z", a_log_obs_z_index)],
-    ("X+", "Z0"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("Z", a_log_obs_z_index + c_log_obs_z_index)],
-    ("X+", "Z1"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("X", t_log_obs_x_index), ("Z", a_log_obs_z_index + c_log_obs_z_index)],
-    ("X+", "X+"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", a_log_obs_z_index)],
-    ("X+", "X-"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", a_log_obs_z_index + t_log_obs_z_index)],
-    ("X-", "Z0"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("Z", a_log_obs_z_index)],
-    ("X-", "Z1"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("X", t_log_obs_x_index), ("Z", a_log_obs_z_index)],
-    ("X-", "X+"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", a_log_obs_z_index + c_log_obs_z_index)],
-    ("X-", "X-"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", a_log_obs_z_index + c_log_obs_z_index + t_log_obs_z_index)],
+    ("Z0", "Z0"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double)],
+    ("Z0", "Z1"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("X", t_log_obs_x_index)],
+    ("Z0", "X+"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double)],
+    ("Z0", "X-"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double)],
+    ("Z1", "Z0"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("X", c_log_obs_x_index)],
+    ("Z1", "Z1"): [("RX", data_ancilla), ("R", data_control + data_target + all_stabs_not_double), ("X", c_log_obs_x_index + t_log_obs_x_index)],
+    ("Z1", "X+"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double), ("X", c_log_obs_x_index)],
+    ("Z1", "X-"): [("RX", data_ancilla + data_target), ("R", data_control + all_stabs_not_double), ("X", c_log_obs_x_index), ("Z", t_log_obs_z_index)],
+    ("X+", "Z0"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("Z", c_log_obs_z_index)],
+    ("X+", "Z1"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("X", t_log_obs_x_index), ("Z", c_log_obs_z_index)],
+    ("X+", "X+"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double)],
+    ("X+", "X-"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", t_log_obs_z_index)],
+    ("X-", "Z0"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("Z", c_log_obs_z_index)],
+    ("X-", "Z1"): [("RX", data_ancilla + data_control), ("R", data_target + all_stabs_not_double), ("X", t_log_obs_x_index), ("Z", c_log_obs_z_index)],
+    ("X-", "X+"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", c_log_obs_z_index)],
+    ("X-", "X-"): [("RX", data_ancilla + data_control + data_target), ("R", all_stabs_not_double), ("Z", c_log_obs_z_index + t_log_obs_z_index)],
+    }
+    """
+
+    init_patterns = {
+    ("Z0", "Z0"): [("RX", data_ancilla)],
+    ("Z0", "Z1"): [("RX", data_ancilla)],
+    ("Z0", "X+"): [("RX", data_ancilla)],
+    ("Z0", "X-"): [("RX", data_ancilla)],
+    ("Z1", "Z0"): [("RX", data_ancilla)],
+    ("Z1", "Z1"): [("RX", data_ancilla)],
+    ("Z1", "X+"): [("RX", data_ancilla)],
+    ("Z1", "X-"): [("RX", data_ancilla)],
+    ("X+", "Z0"): [("RX", data_ancilla)],
+    ("X+", "Z1"): [("RX", data_ancilla)],
+    ("X+", "X+"): [("RX", data_ancilla)],
+    ("X+", "X-"): [("RX", data_ancilla)],
+    ("X-", "Z0"): [("RX", data_ancilla)],
+    ("X-", "Z1"): [("RX", data_ancilla)],
+    ("X-", "X+"): [("RX", data_ancilla)],
+    ("X-", "X-"): [("RX", data_ancilla)],
     }
 
     # Apply the initialization pattern
@@ -150,15 +174,14 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     for gate, qubits in init_patterns[key]:
         initial_circuit.append(gate, qubits)
 
-
     #-------Adding Before Round Data Depol.------------
     if before_round_depol > 0:
         initial_circuit.append("TICK")
         initial_circuit.append("DEPOLARIZE1", data_ancilla + data_control + data_target, before_round_depol)
     #--------------------------------------------------
-
+    
     initial_circuit.append("TICK")
-
+    
     #Adding h gate for X stabilizers -> Filtering out double coords
     combined_x_stab : list = []
     for coords in (x_stab_index_ancilla + x_stab_index_control + x_stab_index_target):
@@ -249,7 +272,7 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     for index_pos in pos_to_index_ancilla_x:
         current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
         q_index = index_pos[1]
-        initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+        #initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
 
 
     #Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
@@ -321,7 +344,7 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         for index_pos in pos_to_index_control_z:
             current_tar = index_pos[0] - len(control_target_stabs)
             q_index = index_pos[1]
-            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+            #initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
     
     #X-Basis (+/- - state)
     elif control_state_init in {"X-", "X+"}:
@@ -329,7 +352,7 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         for index_pos in pos_to_index_control_x:
             current_tar = index_pos[0] - len(control_target_stabs)
             q_index = index_pos[1]
-            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+            #initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
         
     else:
         raise ValueError("Not a valid Basis for initlization in the Control Lattice")
@@ -344,7 +367,7 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         for index_pos in pos_to_index_target_z:
             current_tar = index_pos[0] - len(control_target_stabs)
             q_index = index_pos[1]
-            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+            #initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
     
     #X-Basis (+/- - state)
     elif target_state_init in {"X-", "X+"}:
@@ -352,7 +375,7 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         for index_pos in pos_to_index_target_x:
             current_tar = index_pos[0] - len(control_target_stabs)
             q_index = index_pos[1]
-            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+            #initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
         
     else:
         raise ValueError("Not a valid Basis for initlization in the Target Lattice")
@@ -562,7 +585,7 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     #########################################
     # Adding logical Observables (Non Record)
     #########################################
-    
+    """
     if control_state_init in {"X+", "X-"}:
 
         # Control stabilized by x logical
@@ -575,6 +598,6 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         targets_c = [f"X{i}" for i in log_x_c]
 
         initial_circuit.append("OBSERVABLE_INCLUDE", targets_c, 0)
-    
+    """
 
     return initial_circuit

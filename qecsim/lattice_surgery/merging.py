@@ -648,6 +648,7 @@ def merge(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     #############################################################################
 
     pos_to_index_newly_gen_stabs : list = []
+    first_MM_pos : list = []
 
     if merging_type == "AC":
 
@@ -661,10 +662,11 @@ def merge(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             if index in (x_stab_index_surgery + x_stab_boundary_b_surgery):
                 pos_to_index_newly_gen_stabs.append([pos, index])
 
-    #Adding the needed Detectors (Newly Z generated Stabs)
+    #Adding the needed Detectors (Newly Z/X generated Stabs)
     for index_pos_merge in pos_to_index_newly_gen_stabs:
         current_tar = index_pos_merge[0] - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
         previous_target = index_pos_merge[0] - 2 * len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices) - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ)
+        first_MM_pos.append(previous_target - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ))
         q_index = index_pos_merge[1]
         merge_round_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_target)], (i2q[q_index].real, i2q[q_index].imag, 0))
 
@@ -761,7 +763,7 @@ def merge(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     All the logical Observables who cross the lattice now needs to be updates in order to commute with all stabilizers
     -> Newly introudced stabilizers would else antcommute
     '''
-
+    """
     if merging_type == "AC":
 
         if control_state_init in {"X+", "X-"}:
@@ -775,9 +777,11 @@ def merge(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             paulis_c = [f"X{i}" for i in log_x_c_new]
 
             merge_final_circuit.append("OBSERVABLE_INCLUDE", paulis_c, 0)
+    """
 
     # AT OBSERVABLE STILL ANTICOMMUTE SOMEHOW -> CHECK DETECTOR COORDINATES, MAYBE WRONG DETECTOR DEFINED!
-
+    
+    """
     elif merging_type == "AT":
 
         if target_state_init in {"Z0", "Z1"}:
@@ -791,10 +795,10 @@ def merge(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             paulis_t = [f"Z{i}" for i in log_z_t_new]
 
             merge_final_circuit.append("OBSERVABLE_INCLUDE", paulis_t, 1)
-
-    ###########################
-    # Adding Circuits
-    ###########################
+    """
+    #####################################################
+    # Adding Circuits & Receving the MXX/MZZ Measurements
+    #####################################################
 
     merge_init_circuit += merge_round_circuit * (distance - 1)
     merge_init_circuit += merge_final_circuit

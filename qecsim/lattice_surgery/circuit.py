@@ -206,17 +206,50 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     initial_circuit += merged_circuit_AT
     initial_circuit += split_circuit_AT
 
-    ###################################################
-    # 9. Retrieving final Circuit with inlined feedback
-    ###################################################
+    #######################################################################
+    # 9. Retrieving final Circuit with postion of parity ZZ XX Measurements
+    #######################################################################
 
-    """
-    We use inlined feedback to track the necessary flips after measurement outcomes clasically, instead of phsically flipping the qubits
-    """
+    c_log_x = []
+    t_log_x = []
+    c_log_z = []
+    t_log_z = []
+    a_log_x = []
+    a_log_z = []
+    
+    for imag in range(((distance * 2) + 1), distance * 4, 2):
+        c_log_x.append(q2i[1 + imag * 1j])
+
+    for real in range(1, distance * 2, 2):
+        c_log_z.append(q2i[real + ((distance * 2) + 1) * 1j])
+
+    for imag in range(1, distance * 2, 2):
+        t_log_x.append(q2i[((distance * 2) + 1) + (imag * 1j)])
+
+    for real in range(((distance * 2) + 1), distance * 4, 2):
+        t_log_z.append(q2i[real + 1j])
+
+    for imag in range(1, distance * 2, 2):
+        a_log_x.append(q2i[1 + imag * 1j])
+
+    for real in range(1, distance * 2, 2):
+        a_log_z.append(q2i[real + 1j])
+
+    ##################################
+    # 10. Building logical Observables
+    ##################################
+
+    (included_measurements,) = initial_circuit.solve_flow_measurements([
+    stim.Flow("X6*X7*X8 -> X6*X7*X8*X37*X38*X39"),
+    ])
+
+    initial_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-k) for k in included_measurements], 0)
 
     #return_circuit = initial_circuit.with_inlined_feedback()
 
-    print(i2q[2])
+    #print(c_log_x, c_log_z)
+    #print(t_log_x, t_log_z)
+    #print(a_log_x, a_log_z)
 
     return initial_circuit
 

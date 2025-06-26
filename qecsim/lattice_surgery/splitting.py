@@ -848,6 +848,7 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     #--------------------------------------------------
 
     split_final_circuit.append("MR", control_target_stabs)
+    split_final_circuit.append("TICK")
     
     ####################################
     # Implementing Detectors for Control
@@ -918,8 +919,6 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     for index_pos_merge in pos_to_index_newly_gen_stabs:
         logical_obs_rec_tar.append(index_pos_merge[0] - inner_record - skipped_records)
 
-    split_final_circuit.append("TICK")
-
     #####################################################
     # Defining Logical Data Qubit string for all lattices
     #####################################################
@@ -957,13 +956,13 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
         for records in logical_obs_rec_tar:
             for data in c_log_obs_x_index:       
                 split_final_circuit.append("CX", [stim.target_rec(records), data])
-        
+
     elif split_type == "AT":
         
         for records in logical_obs_rec_tar:
             for data in t_log_obs_z_index:
                 split_final_circuit.append("CZ", [stim.target_rec(records), data])
-        
+
         ###################################
         # Meassuring Ancilla in the Z Basis
         ###################################
@@ -972,6 +971,7 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
         split_final_circuit.append("TICK")
         split_final_circuit.append("MZ", data_ancilla)
         split_final_circuit.append("TICK")
+
 
         a_log_obs_z_pos = []
 
@@ -984,28 +984,15 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
         for records in a_log_obs_z_pos:
             for data in c_log_obs_x_index:
                 split_final_circuit.append("CX", [stim.target_rec(records - 1), data])
-            
+    
     ################################################
     # Redefining logical Observables while splitting
     ################################################
 
     split_final_circuit.append("SHIFT_COORDS", arg=(0,0,1))
-
+    
+    """
     if split_type == "AC":
-
-        if control_state_init in {"X+", "X-"}:
-
-            # Control stabilized by x logical
-            log_x_c = []
-
-            for imag in range(1, (distance * 2), 2):
-                log_x_c.append(q2i[1 + imag*1j])
-
-            #Rewriting in correct form i.e. X1 X2 etc...
-            pauli_terms_c = [f"X{i}" for i in log_x_c]
-
-            #Adding Observable
-            #split_final_circuit.append("OBSERVABLE_INCLUDE", pauli_terms_c, 0)
 
         if target_state_init in {"Z0", "Z1"}:
 
@@ -1076,19 +1063,19 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
 
             #Adding Observable
             split_final_circuit.append("OBSERVABLE_INCLUDE", pauli_terms_c, 0)
-
+    """
     #################################################
     # Adding the final measurement of all data qubits
     #################################################
 
     if split_type == "AT":
-
+        """
         split_final_circuit.append("TICK")
-
+        """
         '''
         Everything tht follows could be implemented in a new form of final_circuit.py
         '''
-
+        """
         #Meassuring all Data Qubits:
         if control_state_init in {"X+", "X-"}:
             split_final_circuit.append("MX", data_control)
@@ -1100,7 +1087,8 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             split_final_circuit.append("MX", data_target)
 
         elif target_state_init in {"Z0", "Z1"}:
-            split_final_circuit.append("MZ", data_target)
+            split_final_circuit.append("MZ", data_target)        
+        """
 
     ##########################################
     # Adding Repeat Circ and returning circuit
