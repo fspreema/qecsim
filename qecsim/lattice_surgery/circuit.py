@@ -4,9 +4,11 @@ from dataclasses import dataclass
 
 from .geometry import build_lattice
 from .stabilizers import populate_stab_to_data
+from .reset_circ import reset
 from .initial import initial
 from .merging import merge
 from .splitting import split
+from.final_m_circuit import final_m
 from .dataclasses import Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext
 
 Coord = complex
@@ -191,9 +193,9 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
 
     split_circuit_AT = split(lct = lct, patches = patches, cfg = cfg, split_type="AT", before_m_flip_prob = noise_measure_flip)
 
-    ###########################
-    # 8. Appending all Circuits
-    ###########################
+    ################################################################################
+    # 8. Creating Clipped Circuit (Without State intilization and final measurement)
+    ################################################################################
 
     """
     Still need to add the len(stabs...) in the AT merge if the circuit is runs after AC!!
@@ -239,17 +241,63 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     # 10. Building logical Observables
     ##################################
 
-    (included_measurements,) = initial_circuit.solve_flow_measurements([
-    stim.Flow("X6*X7*X8 -> X6*X7*X8*X37*X38*X39"),
-    ])
+    if control_state_init in {"X+", "X-"}:
+        if target_state_init in {"X+", "X-"}:
 
-    initial_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-k) for k in included_measurements], 0)
+            left = '*'.join(f"X{i}" for i in c_log_x)
+            right = '*'.join(f"X{i}" for i in c_log_x + t_log_x)
+            result = f"{left} -> {right}"
 
-    #return_circuit = initial_circuit.with_inlined_feedback()
+            (included_measurements,) = initial_circuit.solve_flow_measurements([
+            stim.Flow(result),
+            ])
+
+    if control_state_init in {"Z0"}:
+        if target_state_init in {"X+", "X-"}:
+
+            left = '*'.join(f"Z{i}" for i in t_log_z)
+            right = '*'.join(f"Z{i}" for i in c_log_z + t_log_z)
+            result = f"{left} -> {right}"
+
+            (included_measurements,) = initial_circuit.solve_flow_measurements([
+            stim.Flow(result),
+            ])
+
+
+    ###############################
+    # 11. Adding State initiliztion
+    ###############################
+
+    state_init_circuit = reset(lct = lct, patches = patches, cfg = cfg)
+
+    final_measurement = final_m(lct = lct, patches = patches, cfg = cfg, before_m_flip_prob = noise_measure_flip)
+
+    state_init_circuit += initial_circuit
+
+    ##################################################
+    # 12. Adding logical Observable given by stim.Flow
+    ##################################################
+
+    # Calculating target rec pos
+    rec_pos = []
+
+    for index in included_measurements:
+        current_rec_tar = initial_circuit.num_measurements - index
+        rec_pos.append(- current_rec_tar)
+
+    state_init_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
+
+    ##########################
+    # Adding final measurement
+    ##########################
+
+    state_init_circuit += final_measurement
+
+    #return_circuit = state_init.with_inlined_feedback()
 
     #print(c_log_x, c_log_z)
     #print(t_log_x, t_log_z)
     #print(a_log_x, a_log_z)
 
-    return initial_circuit
+    return state_init_circuit
 

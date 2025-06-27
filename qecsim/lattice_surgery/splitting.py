@@ -967,128 +967,20 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
         # Meassuring Ancilla in the Z Basis
         ###################################
 
+        a_log_z = []
+
+        for real in range(1, distance * 2, 2):
+            a_log_z.append(q2i[real + 1j])
+
         #Meassuring Data
         split_final_circuit.append("TICK")
-        split_final_circuit.append("MZ", data_ancilla)
+        split_final_circuit.append("MZ", a_log_z)
         split_final_circuit.append("TICK")
 
-
-        a_log_obs_z_pos = []
-
-        #Finding Target rec postion of the obs_index
-        for pos, index in enumerate(data_ancilla):
-            if index in a_log_obs_z_index:
-                a_log_obs_z_pos.append(- len(data_ancilla) + pos + 1)
-            
         #Adding the conditional Gate on Control
-        for records in a_log_obs_z_pos:
+        for records in range(1, len(a_log_z) + 1, 1):
             for data in c_log_obs_x_index:
-                split_final_circuit.append("CX", [stim.target_rec(records - 1), data])
-    
-    ################################################
-    # Redefining logical Observables while splitting
-    ################################################
-
-    split_final_circuit.append("SHIFT_COORDS", arg=(0,0,1))
-    
-    """
-    if split_type == "AC":
-
-        if target_state_init in {"Z0", "Z1"}:
-
-            log_z_t = []
-
-            for real in range(1, (distance * 2), 2):
-                log_z_t.append(q2i[real + 1j])
-
-            #Rewriting in correct form i.e. Z1 Z2 etc...
-            paulis_terms_t = [f"Z{i}" for i in log_z_t]
-
-            split_final_circuit.append("OBSERVABLE_INCLUDE", paulis_terms_t, 1)
-    
-    elif split_type == "AT":
-
-        if target_state_init in {"X+", "X-"}:
-
-            # Control stabilized by x logical
-            log_x_t = []
-
-            for imag in range(1, (distance * 2), 2):
-                log_x_t.append(q2i[((distance * 2) + 3) + imag * 1j])
-
-            #Rewriting in correct form i.e. X1 X2 etc...
-            pauli_terms_t = [f"X{i}" for i in log_x_t]
-
-            #Adding Observable
-            split_final_circuit.append("OBSERVABLE_INCLUDE", pauli_terms_t, 1)
-
-        elif target_state_init in {"Z0", "Z1"}:
-                
-            # Control stabilized by x logical
-            log_z_t = []
-
-            for real in range(((distance * 2) + 1), (distance * 4), 2):
-                log_z_t.append(q2i[real + 1j])
-
-            #Rewriting in correct form i.e. X1 X2 etc...
-            pauli_terms_t = [f"Z{i}" for i in log_z_t]
-
-            #Adding Observable
-            split_final_circuit.append("OBSERVABLE_INCLUDE", pauli_terms_t, 1)
-
-        if control_state_init in {"Z0", "Z1"}:
-                
-            # Control stabilized by x logical
-            log_z_c = []
-
-            for real in range(1, (distance * 2), 2):
-                log_z_c.append(q2i[real + (((distance * 2) + 3) *1j)])
-
-            #Rewriting in correct form i.e. X1 X2 etc...
-            pauli_terms_c = [f"Z{i}" for i in log_z_c]
-
-            #Adding Observable
-            split_final_circuit.append("OBSERVABLE_INCLUDE", pauli_terms_c, 0)
-
-        elif control_state_init in {"X+", "X-"}:
-                
-            # Control stabilized by x logical
-            log_x_c = []
-
-            for imag in range(((distance * 2) + 1), (distance * 4), 2):
-                log_x_c.append(q2i[1 + imag * 1j])
-
-            #Rewriting in correct form i.e. X1 X2 etc...
-            pauli_terms_c = [f"X{i}" for i in log_x_c]
-
-            #Adding Observable
-            split_final_circuit.append("OBSERVABLE_INCLUDE", pauli_terms_c, 0)
-    """
-    #################################################
-    # Adding the final measurement of all data qubits
-    #################################################
-
-    if split_type == "AT":
-        """
-        split_final_circuit.append("TICK")
-        """
-        '''
-        Everything tht follows could be implemented in a new form of final_circuit.py
-        '''
-        """
-        #Meassuring all Data Qubits:
-        if control_state_init in {"X+", "X-"}:
-            split_final_circuit.append("MX", data_control)
-
-        elif control_state_init in {"Z0", "Z1"}:
-            split_final_circuit.append("MZ", data_control)
-
-        if target_state_init in {"X+", "X-"}:
-            split_final_circuit.append("MX", data_target)
-
-        elif target_state_init in {"Z0", "Z1"}:
-            split_final_circuit.append("MZ", data_target)        
-        """
+                split_final_circuit.append("CX", [stim.target_rec(- records), data])
 
     ##########################################
     # Adding Repeat Circ and returning circuit
