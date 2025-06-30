@@ -6,7 +6,8 @@ from .stabilizers import populate_stab_to_data
 
 Coord = complex
 
-def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery,], cfg : Config, before_m_flip_prob : float) -> stim.Circuit:
+def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery,], cfg : Config, flow : str, 
+            before_m_flip_prob : float) -> stim.Circuit:
 
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -83,68 +84,86 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
     # Defining Logical Observables
     ##############################
 
-    if control_state_init in {"Z0", "Z1"}:
+    if flow == "X -> XX":
+            
+        if control_state_init in {"X+", "X-"}:
+            if target_state_init in {"X+", "X-"}:
 
-        # Control stabilized by x logical
-        log_z_c = []
+                # Control stabilized by x logical
+                log_x_ct = []
 
-        for real in range(1, (distance * 2), 2):
-            log_z_c.append(q2i[real + ((distance * 2) + 1) * 1j])
+                for imag in range(((distance * 2) + 1), (distance * 4), 2):
+                    log_x_ct.append(q2i[1 + imag*1j])
 
-        tar_rec = []
+                for imag in range(1, (distance * 2), 2):
+                    log_x_ct.append(q2i[((distance * 2) + 1) + imag*1j])
 
-        for rec_pos, index in enumerate(data_control + data_target):
-            if index in log_z_c:
-                tar_rec.append(rec_pos)
+                tar_rec = []
 
-        measure_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(- len(data_control + data_target) + k) for k in tar_rec], 0)
+                for rec_pos, index in enumerate(data_control + data_target):
+                    if index in log_x_ct:
+                        tar_rec.append(rec_pos)
 
-    elif control_state_init in {"X+", "X-"}:
+                measure_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data_control + data_target) + k) for k in tar_rec], 0)
 
-        # Control stabilized by x logical
-        log_x_ct = []
+    elif flow == "X -> X":
+    
+        if control_state_init in {"X+", "X-", "Z0", "Z1"}:
+            if target_state_init in {"X+", "X-"}:
 
-        for imag in range(((distance * 2) + 1), (distance * 4), 2):
-            log_x_ct.append(q2i[1 + imag*1j])
+                # Control stabilized by x logical
+                log_x_t = []
 
-        for imag in range(1, (distance * 2), 2):
-            log_x_ct.append(q2i[((distance * 2) + 1) + imag*1j])
+                for imag in range(1, (distance * 2), 2):
+                    log_x_t.append(q2i[((distance * 2) + 1) + imag*1j])
 
-        tar_rec = []
+                tar_rec = []
 
-        for rec_pos, index in enumerate(data_control + data_target):
-            if index in log_x_ct:
-                tar_rec.append(rec_pos)
+                for rec_pos, index in enumerate(data_control + data_target):
+                    if index in log_x_t:
+                        tar_rec.append(rec_pos)
 
-        measure_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data_control + data_target) + k) for k in tar_rec], 0)
+                measure_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data_control + data_target) + k) for k in tar_rec], 0)
 
-    """
-    if target_state_init in {"X+", "X-"}:
+    elif flow == "Z -> ZZ":
 
-        # Control stabilized by x logical
-        log_x_c = []
+        if control_state_init in {"Z0", "Z1"}:
+            if target_state_init in {"Z0", "Z1"}:
 
-        for imag in range(1, (distance * 2), 2):
-            log_x_c.append(q2i[1 + imag*1j])
+                # Control stabilized by x logical
+                log_z_ct = []
 
-        #Rewriting in correct form i.e. X1 X2 etc...
-        targets_c = [f"X{i}" for i in log_x_c]
+                for real in range(1, (distance * 2), 2):
+                    log_z_ct.append(q2i[real + ((distance * 2) + 1) * 1j])
 
-        measure_circuit.append("OBSERVABLE_INCLUDE", targets_c, 0)
+                for real in range(((distance * 2) + 1), (distance * 4), 2):
+                    log_z_ct.append(q2i[real + 1j])
 
-    elif target_state_init in {"Z0", "Z1"}:
+                tar_rec = []
 
-        # Control stabilized by x logical
-        log_x_c = []
+                for rec_pos, index in enumerate(data_control + data_target):
+                    if index in log_z_ct:
+                        tar_rec.append(rec_pos)
 
-        for imag in range(1, (distance * 2), 2):
-            log_x_c.append(q2i[1 + imag*1j])
+                measure_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(- len(data_control + data_target) + k) for k in tar_rec], 0)
 
-        #Rewriting in correct form i.e. X1 X2 etc...
-        targets_c = [f"X{i}" for i in log_x_c]
+    elif flow == "Z -> Z":
 
-        measure_circuit.append("OBSERVABLE_INCLUDE", targets_c, 0)
+        if control_state_init in {"Z0", "Z1"}:
+            if target_state_init in {"Z0", "Z1", "X+", "X-"}:
 
-    """
+                # Control stabilized by x logical
+                log_z_c = []
+
+                for real in range(1, (distance * 2), 2):
+                    log_z_c.append(q2i[real + ((distance * 2) + 1) * 1j])
+
+                tar_rec = []
+
+                for rec_pos, index in enumerate(data_control + data_target):
+                    if index in log_z_c:
+                        tar_rec.append(rec_pos)
+
+                measure_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(- len(data_control + data_target) + k) for k in tar_rec], 0)
 
     return measure_circuit

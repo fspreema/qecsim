@@ -8,7 +8,8 @@ Coord = complex
 __all__ = ["initial"]
 
 def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Target, Patch_Control, Patch_Surgery], 
-            cfg : Config, before_round_depol : float, before_m_flip_prob : float) -> stim.Circuit:
+            cfg : Config, before_round_depol : float, before_m_flip_prob : float, 
+            after_r_flip : float, after_c_depol_prob : float) -> stim.Circuit:
     
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -119,22 +120,22 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     ########################################################################
     
     init_patterns = {
-    ("Z0", "Z0"): [("MX", data_ancilla)],
-    ("Z0", "Z1"): [("MX", data_ancilla)],
-    ("Z0", "X+"): [("MX", data_ancilla)],
-    ("Z0", "X-"): [("MX", data_ancilla)],
-    ("Z1", "Z0"): [("MX", data_ancilla)],
-    ("Z1", "Z1"): [("MX", data_ancilla)],
-    ("Z1", "X+"): [("MX", data_ancilla)],
-    ("Z1", "X-"): [("MX", data_ancilla)],
-    ("X+", "Z0"): [("MX", data_ancilla)],
-    ("X+", "Z1"): [("MX", data_ancilla)],
-    ("X+", "X+"): [("MX", data_ancilla)],
-    ("X+", "X-"): [("MX", data_ancilla)],
-    ("X-", "Z0"): [("MX", data_ancilla)],
-    ("X-", "Z1"): [("MX", data_ancilla)],
-    ("X-", "X+"): [("MX", data_ancilla)],
-    ("X-", "X-"): [("MX", data_ancilla)],
+    ("Z0", "Z0"): [("RX", data_ancilla)],
+    ("Z0", "Z1"): [("RX", data_ancilla)],
+    ("Z0", "X+"): [("RX", data_ancilla)],
+    ("Z0", "X-"): [("RX", data_ancilla)],
+    ("Z1", "Z0"): [("RX", data_ancilla)],
+    ("Z1", "Z1"): [("RX", data_ancilla)],
+    ("Z1", "X+"): [("RX", data_ancilla)],
+    ("Z1", "X-"): [("RX", data_ancilla)],
+    ("X+", "Z0"): [("RX", data_ancilla)],
+    ("X+", "Z1"): [("RX", data_ancilla)],
+    ("X+", "X+"): [("RX", data_ancilla)],
+    ("X+", "X-"): [("RX", data_ancilla)],
+    ("X-", "Z0"): [("RX", data_ancilla)],
+    ("X-", "Z1"): [("RX", data_ancilla)],
+    ("X-", "X+"): [("RX", data_ancilla)],
+    ("X-", "X-"): [("RX", data_ancilla)],
     }
     
     # Apply the initialization pattern
@@ -161,6 +162,12 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
             combined_x_stab.append(coords)
 
     initial_circuit.append("H", combined_x_stab)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        initial_circuit.append("DEPOLARIZE1", combined_x_stab, after_c_depol_prob)
+    #-----------------------------------------------
+
     initial_circuit.append("TICK")
 
     ####################################################
@@ -212,17 +219,34 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     #Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!):
     initial_circuit.append("TICK")
     initial_circuit.append("H", x_stab_index_ancilla)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        initial_circuit.append("DEPOLARIZE1", x_stab_index_ancilla, after_c_depol_prob)
+    #-----------------------------------------------
+
     initial_circuit.append("TICK")
 
     #-------Adding Measurement Flip--------------------
     if before_m_flip_prob > 0:
         initial_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, before_m_flip_prob)
-        initial_circuit.append("TICK")
     #--------------------------------------------------
 
     initial_circuit.append("MR", x_stab_index_ancilla + z_stab_index_ancilla)
+
+    #-------Adding-After-Reset-Flip-Prob.------------
+    if after_r_flip > 0:
+        initial_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, after_r_flip)
+    #------------------------------------------------
+
     initial_circuit.append("TICK")
     initial_circuit.append("H", x_stab_boundary_b_index_ancilla)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        initial_circuit.append("DEPOLARIZE1", x_stab_boundary_b_index_ancilla, after_c_depol_prob)
+    #-----------------------------------------------
+
     initial_circuit.append("TICK")
 
     ##########################################################################
@@ -274,15 +298,25 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     #Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     initial_circuit.append("TICK")
     initial_circuit.append("H", x_stab_index_control +  x_stab_index_target)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        initial_circuit.append("DEPOLARIZE1", x_stab_index_control +  x_stab_index_target, after_c_depol_prob)
+    #-----------------------------------------------
+
     initial_circuit.append("TICK")
 
     #-------Adding Measurement Flip--------------------
     if before_m_flip_prob > 0:
         initial_circuit.append("X_ERROR", control_target_stabs, before_m_flip_prob)
-        initial_circuit.append("TICK")
     #--------------------------------------------------
 
     initial_circuit.append("MR", control_target_stabs)
+
+    #-------Adding-After-Reset-Flip-Prob.------------
+    if after_r_flip > 0:
+        initial_circuit.append("X_ERROR", control_target_stabs, after_r_flip)
+    #------------------------------------------------
 
     ################################################################
     # Determining Postion in the measurement Run of Target & Control
@@ -361,6 +395,12 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     initial_repeat_circuit.append("SHIFT_COORDS", arg=(0,0,1))
     initial_repeat_circuit.append("TICK")
     initial_repeat_circuit.append("H", combined_x_stab)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        initial_repeat_circuit.append("DEPOLARIZE1", combined_x_stab, after_c_depol_prob)
+    #-----------------------------------------------
+
     initial_repeat_circuit.append("TICK")
 
     ####################################################
@@ -412,17 +452,34 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     #Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!):
     initial_repeat_circuit.append("TICK")
     initial_repeat_circuit.append("H", x_stab_index_ancilla)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        initial_repeat_circuit.append("DEPOLARIZE1", x_stab_index_ancilla, after_c_depol_prob)
+    #-----------------------------------------------
+
     initial_repeat_circuit.append("TICK")
 
     #-------Adding Measurement Flip--------------------
     if before_m_flip_prob > 0:
         initial_repeat_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, before_m_flip_prob)
-        initial_repeat_circuit.append("TICK")
     #--------------------------------------------------
 
     initial_repeat_circuit.append("MR", x_stab_index_ancilla + z_stab_index_ancilla)
+
+    #-------Adding-After-Reset-Flip-Prob.------------
+    if after_r_flip > 0:
+        initial_repeat_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, after_r_flip)
+    #------------------------------------------------
+
     initial_repeat_circuit.append("TICK")
     initial_repeat_circuit.append("H", x_stab_boundary_b_index_ancilla)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        initial_repeat_circuit.append("DEPOLARIZE1", x_stab_boundary_b_index_ancilla, after_c_depol_prob)
+    #-----------------------------------------------
+
     initial_repeat_circuit.append("TICK")
 
     ##########################################################################
@@ -487,15 +544,25 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     #Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     initial_repeat_circuit.append("TICK")
     initial_repeat_circuit.append("H", x_stab_index_control +  x_stab_index_target)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        initial_repeat_circuit.append("DEPOLARIZE1", x_stab_index_control +  x_stab_index_target, after_c_depol_prob)
+    #-----------------------------------------------
+
     initial_repeat_circuit.append("TICK")
 
     #-------Adding Measurement Flip--------------------
     if before_m_flip_prob > 0:
         initial_repeat_circuit.append("X_ERROR", control_target_stabs, before_m_flip_prob)
-        initial_repeat_circuit.append("TICK")
     #--------------------------------------------------
 
     initial_repeat_circuit.append("MR", control_target_stabs)
+
+    #-------Adding-After-Reset-Flip-Prob.------------
+    if after_r_flip > 0:
+        initial_repeat_circuit.append("X_ERROR", control_target_stabs, after_r_flip)
+    #------------------------------------------------
 
     ################################################################
     # Determining Postion in the measurement Run of Target & Control

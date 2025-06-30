@@ -82,7 +82,9 @@ def _add_boundary_labels(distance: int,
 # Public function -> Building final circuit
 # -----------------------------------------
 
-def surgery_circuit(distance: int, *, target_state_init: str, control_state_init: str, noise_depol_data_init : float = 0.0, noise_measure_flip : float = 0.0) -> stim.Circuit:
+def surgery_circuit(distance: int, *, target_state_init: str, control_state_init: str, flow_observable: str,
+                    noise_depol_data_init : float = 0.0, noise_measure_flip : float = 0.0,
+                    noise_after_reset : float = 0.0, noise_after_clifford_depol : float = 0.0) -> stim.Circuit:
     """
     Returns the full lattice surgery circuit
 
@@ -167,31 +169,32 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     # 5. Building Initilization Circuit
     ###################################
 
-    initial_circuit = initial(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip)
+    initial_circuit = initial(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
+                              after_r_flip = noise_after_reset, after_c_depol_prob = noise_after_clifford_depol)
    
     #############################################
     # 6. Building Merging Ancilla Control Circuit
     #############################################
 
-    merged_circuit_AC = merge(lct = lct, patches = patches, cfg = cfg, merging_type="AC", before_m_flip_prob = noise_measure_flip)
+    merged_circuit_AC = merge(lct = lct, patches = patches, cfg = cfg, merging_type="AC", before_m_flip_prob = noise_measure_flip, after_r_flip = noise_after_reset)
 
     ###############################################
     # 5. Building Splitting Ancilla Control Circuit
     ###############################################
 
-    split_circuit_AC = split(lct = lct, patches = patches, cfg = cfg, split_type="AC", before_m_flip_prob = noise_measure_flip)
+    split_circuit_AC = split(lct = lct, patches = patches, cfg = cfg, split_type="AC", before_m_flip_prob = noise_measure_flip, after_r_flip = noise_after_reset)
 
     ############################################
     # 6. Building Merging Ancilla Target Circuit
     ############################################
 
-    merged_circuit_AT = merge(lct = lct, patches = patches, cfg = cfg, merging_type="AT", before_m_flip_prob = noise_measure_flip)
+    merged_circuit_AT = merge(lct = lct, patches = patches, cfg = cfg, merging_type="AT", before_m_flip_prob = noise_measure_flip, after_r_flip = noise_after_reset)
 
     ##############################################
     # 7. Building splitting Ancilla Target Circuit
     ##############################################
 
-    split_circuit_AT = split(lct = lct, patches = patches, cfg = cfg, split_type="AT", before_m_flip_prob = noise_measure_flip)
+    split_circuit_AT = split(lct = lct, patches = patches, cfg = cfg, split_type="AT", before_m_flip_prob = noise_measure_flip, after_r_flip = noise_after_reset)
 
     ################################################################################
     # 8. Creating Clipped Circuit (Without State intilization and final measurement)
@@ -241,36 +244,88 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     # 10. Building logical Observables
     ##################################
 
-    if control_state_init in {"X+", "X-"}:
-        if target_state_init in {"X+", "X-"}:
+    if flow_observable == "X -> XX":
+        if control_state_init in {"X+", "X-"}:
+            if target_state_init in {"X+", "X-"}:
+            
+                left = '*'.join(f"X{i}" for i in c_log_x)
+                right = '*'.join(f"X{i}" for i in c_log_x + t_log_x)
+                result = f"{left} -> {right}"
 
-            left = '*'.join(f"X{i}" for i in c_log_x)
-            right = '*'.join(f"X{i}" for i in c_log_x + t_log_x)
-            result = f"{left} -> {right}"
+                (included_measurements,) = initial_circuit.solve_flow_measurements([
+                stim.Flow(result),
+                ])
 
-            (included_measurements,) = initial_circuit.solve_flow_measurements([
-            stim.Flow(result),
-            ])
+            else:
+                return ValueError("Wrong target basis for selected flow")
+            
+        else:
+            return ValueError("Wrong control basis for selected flow")
 
-    if control_state_init in {"Z0"}:
-        if target_state_init in {"X+", "X-"}:
+    elif flow_observable == "X -> X":
+        if control_state_init in {"X+", "X-", "Z0", "Z1"}:
+            if target_state_init in {"X+", "X-"}:
 
-            left = '*'.join(f"Z{i}" for i in t_log_z)
-            right = '*'.join(f"Z{i}" for i in c_log_z + t_log_z)
-            result = f"{left} -> {right}"
+                left = '*'.join(f"X{i}" for i in t_log_x)
+                right = '*'.join(f"X{i}" for i in t_log_x)
+                result = f"{left} -> {right}"
 
-            (included_measurements,) = initial_circuit.solve_flow_measurements([
-            stim.Flow(result),
-            ])
+                (included_measurements,) = initial_circuit.solve_flow_measurements([
+                stim.Flow(result),
+                ])
 
+            else:
+                return ValueError("Invalid target basis for selected flow")
+            
+        else:
+            return ValueError("Invalid control state")
+        
+    elif flow_observable == "Z -> ZZ":
+        if control_state_init in {"Z0", "Z1"}:
+            if target_state_init in {"Z0", "Z1"}:
+
+                left = '*'.join(f"Z{i}" for i in t_log_z)
+                right = '*'.join(f"Z{i}" for i in c_log_z + t_log_z)
+                result = f"{left} -> {right}"
+
+                (included_measurements,) = initial_circuit.solve_flow_measurements([
+                stim.Flow(result),
+                ])
+
+            else:
+                return ValueError("Wrong target basis for selected flow")
+            
+        else:
+            return ValueError("Wrong control basis for selected flow")
+
+    elif flow_observable == "Z -> Z":   
+        if control_state_init in {"Z0", "Z1"}:
+            if target_state_init in {"Z0", "Z1", "X+", "X-"}:
+
+                left = '*'.join(f"Z{i}" for i in c_log_z)
+                right = '*'.join(f"Z{i}" for i in c_log_z)
+                result = f"{left} -> {right}"
+
+                (included_measurements,) = initial_circuit.solve_flow_measurements([
+                stim.Flow(result),
+                ])
+
+            else:
+                return ValueError("Invalid target state")
+            
+        else:
+            return ValueError("Wrong control basis for selected flow")
+
+    else:
+        return ValueError("Invalid Flow selected")
 
     ###############################
     # 11. Adding State initiliztion
     ###############################
 
-    state_init_circuit = reset(lct = lct, patches = patches, cfg = cfg)
+    state_init_circuit = reset(lct = lct, patches = patches, cfg = cfg, flow = flow_observable)
 
-    final_measurement = final_m(lct = lct, patches = patches, cfg = cfg, before_m_flip_prob = noise_measure_flip)
+    final_measurement = final_m(lct = lct, patches = patches, cfg = cfg, flow = flow_observable, before_m_flip_prob = noise_measure_flip)
 
     state_init_circuit += initial_circuit
 

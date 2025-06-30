@@ -6,7 +6,8 @@ from .stabilizers import populate_stab_to_data
 
 Coord = complex
 
-def merge(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery,], cfg : Config, merging_type : str, before_m_flip_prob : float) -> stim.Circuit:
+def merge(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery,], cfg : Config, 
+          merging_type : str, before_m_flip_prob : float, after_r_flip : float) -> stim.Circuit:
 
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -213,6 +214,12 @@ def merge(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
 
     merge_init_circuit.append("MR", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
     merge_init_circuit.append("TICK")
+
+    #-------Adding-After-Reset-Flip-Prob.------------
+    if after_r_flip > 0:
+        merge_init_circuit.append("X_ERROR", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices, after_r_flip)
+        merge_init_circuit.append("TICK")
+    #------------------------------------------------
 
     ###########################################################################################################
     # Adding Detectors -> Firstly Stabilizers which measurement is already known i.e. outside of merging region
@@ -466,6 +473,12 @@ def merge(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
 
     merge_init_circuit.append("MR", x_stab_index_untouched_circ + z_stab_index_untouched_circ)
 
+    #-------Adding-After-Reset-Flip-Prob.------------
+    if after_r_flip > 0:
+        merge_init_circuit.append("TICK")
+        merge_init_circuit.append("X_ERROR", x_stab_index_untouched_circ + z_stab_index_untouched_circ, after_r_flip)
+    #------------------------------------------------
+
     if merging_type == "AC":
 
         #Determining Position in the measurement Run of only the exluded Lattice (Excluded from merge -> Normal stabilizer measurement)
@@ -603,6 +616,12 @@ def merge(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     merge_round_circuit.append("MR", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
     merge_round_circuit.append("TICK")
 
+    #-------Adding-After-Reset-Flip-Prob.------------
+    if after_r_flip > 0:
+        merge_round_circuit.append("X_ERROR", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices, after_r_flip)
+        merge_round_circuit.append("TICK")
+    #------------------------------------------------
+
     ###########################################################################################################
     # Adding Detectors -> Firstly Stabilizers which measurement is already known i.e. outside of merging region
     ###########################################################################################################
@@ -717,6 +736,12 @@ def merge(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     #--------------------------------------------------
 
     merge_round_circuit.append("MR", x_stab_index_untouched_circ + z_stab_index_untouched_circ)
+
+    #-------Adding-After-Reset-Flip-Prob.------------
+    if after_r_flip > 0:
+        merge_round_circuit.append("TICK")
+        merge_round_circuit.append("X_ERROR", x_stab_index_untouched_circ + z_stab_index_untouched_circ, after_r_flip)
+    #------------------------------------------------
 
     #Adding the needed Detectors for the untouched lattice
     if merging_type == "AC":

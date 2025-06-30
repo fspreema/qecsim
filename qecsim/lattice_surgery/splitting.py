@@ -6,7 +6,8 @@ from .stabilizers import populate_stab_to_data
 
 Coord = complex
 
-def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery,], cfg : Config, split_type : str, before_m_flip_prob : float) -> stim.Circuit:
+def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery,], cfg : Config, 
+          split_type : str, before_m_flip_prob : float, after_r_flip : float) -> stim.Circuit:
 
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -176,6 +177,13 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
 
     split_init_circuit.append("MR", x_stab_index_ancilla + z_stab_index_ancilla)
     split_init_circuit.append("TICK")
+
+    #-------Adding-After-Reset-Flip-Prob.------------
+    if after_r_flip > 0:
+        split_init_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, after_r_flip)
+        split_init_circuit.append("TICK")
+    #------------------------------------------------
+
     split_init_circuit.append("H", x_stab_boundary_b_index_ancilla)
     split_init_circuit.append("TICK")
 
@@ -313,6 +321,12 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     #--------------------------------------------------
 
     split_init_circuit.append("MR", control_target_stabs)
+
+    #-------Adding-After-Reset-Flip-Prob.------------
+    if after_r_flip > 0:
+        split_init_circuit.append("TICK")
+        split_init_circuit.append("X_ERROR", control_target_stabs, after_r_flip)
+    #------------------------------------------------
 
     ################################################################
     # Determining Postion in the measurement Run of Target & Control
@@ -589,6 +603,13 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
 
     split_repeat_circuit.append("MR", x_stab_index_ancilla + z_stab_index_ancilla)
     split_repeat_circuit.append("TICK")
+
+    #-------Adding-After-Reset-Flip-Prob.------------
+    if after_r_flip > 0:
+        split_repeat_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, after_r_flip)
+        split_repeat_circuit.append("TICK")
+    #------------------------------------------------
+    
     split_repeat_circuit.append("H", x_stab_boundary_b_index_ancilla)
     split_repeat_circuit.append("TICK")
 
@@ -658,6 +679,12 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     #--------------------------------------------------
 
     split_repeat_circuit.append("MR", control_target_stabs)
+
+    #-------Adding-After-Reset-Flip-Prob.------------
+    if after_r_flip > 0:
+        split_repeat_circuit.append("TICK")
+        split_repeat_circuit.append("X_ERROR", control_target_stabs, after_r_flip)
+    #------------------------------------------------
 
     ################################################################
     # Determining Postion in the measurement Run of Target & Control
@@ -790,6 +817,13 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
 
     split_final_circuit.append("MR", x_stab_index_ancilla + z_stab_index_ancilla)
     split_final_circuit.append("TICK")
+
+    #-------Adding-After-Reset-Flip-Prob.------------
+    if after_r_flip > 0:
+        split_final_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, after_r_flip)
+        split_final_circuit.append("TICK")
+    #------------------------------------------------
+    
     split_final_circuit.append("H", x_stab_boundary_b_index_ancilla)
     split_final_circuit.append("TICK")
 
@@ -849,6 +883,12 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
 
     split_final_circuit.append("MR", control_target_stabs)
     split_final_circuit.append("TICK")
+
+    #-------Adding-After-Reset-Flip-Prob.------------
+    if after_r_flip > 0:
+        split_final_circuit.append("X_ERROR", control_target_stabs, after_r_flip)
+        split_final_circuit.append("TICK")
+    #------------------------------------------------
     
     ####################################
     # Implementing Detectors for Control
