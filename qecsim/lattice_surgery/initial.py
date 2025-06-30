@@ -183,6 +183,19 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
             index_pairs.append(q2i[coord_pairs[0]])
             initial_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "1-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                initial_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     initial_circuit.append("TICK")
             
     for coord_pairs, order in stab_to_data.items():
@@ -194,6 +207,19 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
             index_pairs.append(q2i[coord_pairs[0]])
             initial_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "2-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                initial_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     initial_circuit.append("TICK")
 
     for coord_pairs, order in stab_to_data.items():
@@ -204,6 +230,19 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
             index_pairs.append(q2i[coord_pairs[1]])
             index_pairs.append(q2i[coord_pairs[0]])
             initial_circuit.append("CX", index_pairs)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "3-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                initial_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
     
     initial_circuit.append("TICK")
         
@@ -215,6 +254,19 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
             index_pairs.append(q2i[coord_pairs[1]])
             index_pairs.append(q2i[coord_pairs[0]])
             initial_circuit.append("CX", index_pairs)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "4-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                initial_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
 
     #Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!):
     initial_circuit.append("TICK")
@@ -268,7 +320,7 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     for index_pos in pos_to_index_ancilla_x:
         current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
         q_index = index_pos[1]
-        #initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+        initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
 
 
     #Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
@@ -281,6 +333,19 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
             index_pairs.append(q2i[coord_pairs[0]])
             initial_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "5-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                initial_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     initial_circuit.append("TICK")
 
     for coord_pairs, order in stab_to_data.items():
@@ -291,6 +356,19 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
             index_pairs.append(q2i[coord_pairs[1]])
             index_pairs.append(q2i[coord_pairs[0]])
             initial_circuit.append("CX", index_pairs)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "6-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                initial_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
 
     #All Stabilizers from the Target and Control Lattice
     control_target_stabs = x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
@@ -350,7 +428,7 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         for index_pos in pos_to_index_control_z:
             current_tar = index_pos[0] - len(control_target_stabs)
             q_index = index_pos[1]
-            #initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
     
     #X-Basis (+/- - state)
     elif control_state_init in {"X-", "X+"}:
@@ -358,7 +436,7 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         for index_pos in pos_to_index_control_x:
             current_tar = index_pos[0] - len(control_target_stabs)
             q_index = index_pos[1]
-            #initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
         
     else:
         raise ValueError("Not a valid Basis for initlization in the Control Lattice")
@@ -373,7 +451,7 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         for index_pos in pos_to_index_target_z:
             current_tar = index_pos[0] - len(control_target_stabs)
             q_index = index_pos[1]
-            #initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
     
     #X-Basis (+/- - state)
     elif target_state_init in {"X-", "X+"}:
@@ -381,7 +459,7 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         for index_pos in pos_to_index_target_x:
             current_tar = index_pos[0] - len(control_target_stabs)
             q_index = index_pos[1]
-            #initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
         
     else:
         raise ValueError("Not a valid Basis for initlization in the Target Lattice")
@@ -416,6 +494,19 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
             index_pairs.append(q2i[coord_pairs[0]])
             initial_repeat_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "1-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                initial_repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     initial_repeat_circuit.append("TICK")
             
     for coord_pairs, order in stab_to_data.items():
@@ -427,6 +518,19 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
             index_pairs.append(q2i[coord_pairs[0]])
             initial_repeat_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "2-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                initial_repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     initial_repeat_circuit.append("TICK")
 
     for coord_pairs, order in stab_to_data.items():
@@ -437,6 +541,19 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
             index_pairs.append(q2i[coord_pairs[1]])
             index_pairs.append(q2i[coord_pairs[0]])
             initial_repeat_circuit.append("CX", index_pairs)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "3-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                initial_repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
     
     initial_repeat_circuit.append("TICK")
         
@@ -448,6 +565,19 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
             index_pairs.append(q2i[coord_pairs[1]])
             index_pairs.append(q2i[coord_pairs[0]])
             initial_repeat_circuit.append("CX", index_pairs)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "4-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                initial_repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
 
     #Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!):
     initial_repeat_circuit.append("TICK")
@@ -527,6 +657,19 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
             index_pairs.append(q2i[coord_pairs[0]])
             initial_repeat_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "5-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                initial_repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     initial_repeat_circuit.append("TICK")
 
     for coord_pairs, order in stab_to_data.items():
@@ -537,6 +680,19 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
             index_pairs.append(q2i[coord_pairs[1]])
             index_pairs.append(q2i[coord_pairs[0]])
             initial_repeat_circuit.append("CX", index_pairs)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "6-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                initial_repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
 
     #All Stabilizers from the Target and Control Lattice
     control_target_stabs = x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target

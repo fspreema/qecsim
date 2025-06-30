@@ -156,7 +156,7 @@ def reset(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Targe
     ##############################
     # Defining Logical Observables
     ##############################
-
+    """
     if flow == "X -> XX":
 
         if control_state_init in {"X+", "X-"}:
@@ -219,6 +219,6 @@ def reset(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Targe
                 #Rewriting in correct form i.e. X1 X2 etc...
                 targets_c = [f"Z{i}" for i in log_z_c]
 
-                reset_circuit.append("OBSERVABLE_INCLUDE", targets_c, 0)
+                reset_circuit.append("OBSERVABLE_INCLUDE", targets_c, 0)"""
 
     return reset_circuit

@@ -69,15 +69,31 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
     measure_circuit.append("TICK")
 
     if control_state_init in {"X+", "X-"}:
+        #-------Adding measurement Flip Prob.--------------
+        if before_m_flip_prob > 0:
+            measure_circuit.append("X_ERROR", data_control, before_m_flip_prob)
+        #--------------------------------------------------
         measure_circuit.append("MX", data_control)
 
     elif control_state_init in {"Z0", "Z1"}:
+        #-------Adding measurement Flip Prob.--------------
+        if before_m_flip_prob > 0:
+            measure_circuit.append("X_ERROR", data_control, before_m_flip_prob)
+        #--------------------------------------------------
         measure_circuit.append("MZ", data_control)
 
     if target_state_init in {"X+", "X-"}:
+        #-------Adding measurement Flip Prob.--------------
+        if before_m_flip_prob > 0:
+            measure_circuit.append("X_ERROR", data_target, before_m_flip_prob)
+        #--------------------------------------------------
         measure_circuit.append("MX", data_target)
 
     elif target_state_init in {"Z0", "Z1"}:
+        #-------Adding measurement Flip Prob.--------------
+        if before_m_flip_prob > 0:
+            measure_circuit.append("X_ERROR", data_target, before_m_flip_prob)
+        #--------------------------------------------------
         measure_circuit.append("MZ", data_target)
 
     ##############################

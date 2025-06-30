@@ -7,7 +7,7 @@ from .stabilizers import populate_stab_to_data
 Coord = complex
 
 def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery,], cfg : Config, 
-          split_type : str, before_m_flip_prob : float, after_r_flip : float) -> stim.Circuit:
+          split_type : str, before_m_flip_prob : float, after_r_flip : float, after_c_depol_prob : float) -> stim.Circuit:
 
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -116,6 +116,11 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
 
     split_init_circuit.append("H", combined_x_stab)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        split_init_circuit.append("DEPOLARIZE1", combined_x_stab, after_c_depol_prob)
+    #-----------------------------------------------
+
     ####################################################
     # CX Operations
     ####################################################
@@ -131,6 +136,19 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             index_pairs.append(q2i[coord_pairs[0]])
             split_init_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "1-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                split_init_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     split_init_circuit.append("TICK")
             
     for coord_pairs, order in stab_to_data.items():
@@ -142,6 +160,19 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             index_pairs.append(q2i[coord_pairs[0]])
             split_init_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "2-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                split_init_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     split_init_circuit.append("TICK")
 
     for coord_pairs, order in stab_to_data.items():
@@ -152,6 +183,19 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             index_pairs.append(q2i[coord_pairs[1]])
             index_pairs.append(q2i[coord_pairs[0]])
             split_init_circuit.append("CX", index_pairs)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "3-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                split_init_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
     
     split_init_circuit.append("TICK")
         
@@ -164,27 +208,50 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             index_pairs.append(q2i[coord_pairs[0]])
             split_init_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "4-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                split_init_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     #Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!):
     split_init_circuit.append("TICK")
     split_init_circuit.append("H", x_stab_index_ancilla)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        split_init_circuit.append("DEPOLARIZE1", x_stab_index_ancilla, after_c_depol_prob)
+    #-----------------------------------------------
+
     split_init_circuit.append("TICK")
 
     #-------Adding measurement Flip Prob.--------------
     if before_m_flip_prob > 0:
         split_init_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, before_m_flip_prob)
-        split_init_circuit.append("TICK")
     #--------------------------------------------------
 
     split_init_circuit.append("MR", x_stab_index_ancilla + z_stab_index_ancilla)
-    split_init_circuit.append("TICK")
 
     #-------Adding-After-Reset-Flip-Prob.------------
     if after_r_flip > 0:
         split_init_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, after_r_flip)
-        split_init_circuit.append("TICK")
     #------------------------------------------------
 
+    split_init_circuit.append("TICK")
     split_init_circuit.append("H", x_stab_boundary_b_index_ancilla)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        split_init_circuit.append("DEPOLARIZE1", x_stab_boundary_b_index_ancilla, after_c_depol_prob)
+    #-----------------------------------------------
+
     split_init_circuit.append("TICK")
 
     ##########################################################################
@@ -295,6 +362,19 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             index_pairs.append(q2i[coord_pairs[0]])
             split_init_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "5-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                split_init_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     split_init_circuit.append("TICK")
 
     for coord_pairs, order in stab_to_data.items():
@@ -306,25 +386,42 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             index_pairs.append(q2i[coord_pairs[0]])
             split_init_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "6-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                split_init_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     #All Stabilizers from the Target and Control Lattice
     control_target_stabs = x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
 
     #Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     split_init_circuit.append("TICK")
     split_init_circuit.append("H", x_stab_index_control +  x_stab_index_target)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        split_init_circuit.append("DEPOLARIZE1", x_stab_index_control +  x_stab_index_target, after_c_depol_prob)
+    #-----------------------------------------------
+
     split_init_circuit.append("TICK")
 
     #-------Adding measurement Flip Prob.--------------
     if before_m_flip_prob > 0:
         split_init_circuit.append("X_ERROR", control_target_stabs, before_m_flip_prob)
-        split_init_circuit.append("TICK")
     #--------------------------------------------------
 
     split_init_circuit.append("MR", control_target_stabs)
 
     #-------Adding-After-Reset-Flip-Prob.------------
     if after_r_flip > 0:
-        split_init_circuit.append("TICK")
         split_init_circuit.append("X_ERROR", control_target_stabs, after_r_flip)
     #------------------------------------------------
 
@@ -542,6 +639,12 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     split_repeat_circuit.append("SHIFT_COORDS", arg=(0,0,1))
     split_repeat_circuit.append("TICK")
     split_repeat_circuit.append("H", combined_x_stab)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        split_repeat_circuit.append("DEPOLARIZE1", combined_x_stab, after_c_depol_prob)
+    #-----------------------------------------------
+
     split_repeat_circuit.append("TICK")
 
     ####################################################
@@ -557,6 +660,19 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             index_pairs.append(q2i[coord_pairs[0]])
             split_repeat_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "1-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                split_repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     split_repeat_circuit.append("TICK")
             
     for coord_pairs, order in stab_to_data.items():
@@ -568,6 +684,19 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             index_pairs.append(q2i[coord_pairs[0]])
             split_repeat_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "2-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                split_repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     split_repeat_circuit.append("TICK")
 
     for coord_pairs, order in stab_to_data.items():
@@ -578,6 +707,19 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             index_pairs.append(q2i[coord_pairs[1]])
             index_pairs.append(q2i[coord_pairs[0]])
             split_repeat_circuit.append("CX", index_pairs)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "3-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                split_repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
     
     split_repeat_circuit.append("TICK")
         
@@ -590,27 +732,50 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             index_pairs.append(q2i[coord_pairs[0]])
             split_repeat_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "4-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                split_repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     #Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!):
     split_repeat_circuit.append("TICK")
     split_repeat_circuit.append("H", x_stab_index_ancilla)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        split_repeat_circuit.append("DEPOLARIZE1", x_stab_index_ancilla, after_c_depol_prob)
+    #-----------------------------------------------
+    
     split_repeat_circuit.append("TICK")
 
     #-------Adding measurement Flip Prob.--------------
     if before_m_flip_prob > 0:
         split_repeat_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, before_m_flip_prob)
-        split_repeat_circuit.append("TICK")
     #--------------------------------------------------
 
     split_repeat_circuit.append("MR", x_stab_index_ancilla + z_stab_index_ancilla)
-    split_repeat_circuit.append("TICK")
 
     #-------Adding-After-Reset-Flip-Prob.------------
     if after_r_flip > 0:
         split_repeat_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, after_r_flip)
-        split_repeat_circuit.append("TICK")
     #------------------------------------------------
     
+    split_repeat_circuit.append("TICK")
     split_repeat_circuit.append("H", x_stab_boundary_b_index_ancilla)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        split_repeat_circuit.append("DEPOLARIZE1", x_stab_boundary_b_index_ancilla, after_c_depol_prob)
+    #-----------------------------------------------
+
     split_repeat_circuit.append("TICK")
 
     ####################################################
@@ -653,6 +818,19 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             index_pairs.append(q2i[coord_pairs[0]])
             split_repeat_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "5-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                split_repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     split_repeat_circuit.append("TICK")
 
     for coord_pairs, order in stab_to_data.items():
@@ -664,25 +842,42 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             index_pairs.append(q2i[coord_pairs[0]])
             split_repeat_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "6-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                split_repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     #All Stabilizers from the Target and Control Lattice
     control_target_stabs = x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
 
     #Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     split_repeat_circuit.append("TICK")
     split_repeat_circuit.append("H", x_stab_index_control +  x_stab_index_target)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        split_repeat_circuit.append("DEPOLARIZE1", x_stab_index_control +  x_stab_index_target, after_c_depol_prob)
+    #-----------------------------------------------
+    
     split_repeat_circuit.append("TICK")
 
     #-------Adding measurement Flip Prob.--------------
     if before_m_flip_prob > 0:
         split_repeat_circuit.append("X_ERROR", control_target_stabs, before_m_flip_prob)
-        split_repeat_circuit.append("TICK")
     #--------------------------------------------------
 
     split_repeat_circuit.append("MR", control_target_stabs)
 
     #-------Adding-After-Reset-Flip-Prob.------------
     if after_r_flip > 0:
-        split_repeat_circuit.append("TICK")
         split_repeat_circuit.append("X_ERROR", control_target_stabs, after_r_flip)
     #------------------------------------------------
 
@@ -756,6 +951,12 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     split_final_circuit.append("SHIFT_COORDS", arg=(0,0,1))
     split_final_circuit.append("TICK")
     split_final_circuit.append("H", combined_x_stab)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        split_final_circuit.append("DEPOLARIZE1", combined_x_stab, after_c_depol_prob)
+    #-----------------------------------------------
+
     split_final_circuit.append("TICK")
 
     ####################################################
@@ -771,6 +972,19 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             index_pairs.append(q2i[coord_pairs[0]])
             split_final_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "1-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                split_final_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     split_final_circuit.append("TICK")
             
     for coord_pairs, order in stab_to_data.items():
@@ -782,6 +996,19 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             index_pairs.append(q2i[coord_pairs[0]])
             split_final_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "2-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                split_final_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     split_final_circuit.append("TICK")
 
     for coord_pairs, order in stab_to_data.items():
@@ -792,6 +1019,19 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             index_pairs.append(q2i[coord_pairs[1]])
             index_pairs.append(q2i[coord_pairs[0]])
             split_final_circuit.append("CX", index_pairs)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "3-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                split_final_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
     
     split_final_circuit.append("TICK")
         
@@ -804,27 +1044,50 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             index_pairs.append(q2i[coord_pairs[0]])
             split_final_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "4-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                split_final_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     #Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!):
     split_final_circuit.append("TICK")
     split_final_circuit.append("H", x_stab_index_ancilla)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        split_final_circuit.append("DEPOLARIZE1", x_stab_index_ancilla, after_c_depol_prob)
+    #-----------------------------------------------
+
     split_final_circuit.append("TICK")
 
     #-------Adding measurement Flip Prob.--------------
     if before_m_flip_prob > 0:
         split_final_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, before_m_flip_prob)
-        split_final_circuit.append("TICK")
     #--------------------------------------------------
 
     split_final_circuit.append("MR", x_stab_index_ancilla + z_stab_index_ancilla)
-    split_final_circuit.append("TICK")
 
     #-------Adding-After-Reset-Flip-Prob.------------
     if after_r_flip > 0:
         split_final_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, after_r_flip)
-        split_final_circuit.append("TICK")
     #------------------------------------------------
-    
+
+    split_final_circuit.append("TICK")
     split_final_circuit.append("H", x_stab_boundary_b_index_ancilla)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        split_final_circuit.append("DEPOLARIZE1", x_stab_boundary_b_index_ancilla, after_c_depol_prob)
+    #-----------------------------------------------
+
     split_final_circuit.append("TICK")
 
     ####################################################
@@ -856,6 +1119,19 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             index_pairs.append(q2i[coord_pairs[0]])
             split_final_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "5-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                split_final_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     split_final_circuit.append("TICK")
 
     for coord_pairs, order in stab_to_data.items():
@@ -867,29 +1143,47 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             index_pairs.append(q2i[coord_pairs[0]])
             split_final_circuit.append("CX", index_pairs)
 
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "6-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                split_final_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
     #All Stabilizers from the Target and Control Lattice
     control_target_stabs = x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
 
     #Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     split_final_circuit.append("TICK")
     split_final_circuit.append("H", x_stab_index_control +  x_stab_index_target)
+
+    #-------Adding-After-Clifford-Depol.------------
+    if after_c_depol_prob > 0:
+        split_final_circuit.append("DEPOLARIZE1", x_stab_index_control +  x_stab_index_target, after_c_depol_prob)
+    #-----------------------------------------------
+
     split_final_circuit.append("TICK")
 
     #-------Adding measurement Flip Prob.--------------
     if before_m_flip_prob > 0:
         split_final_circuit.append("X_ERROR", control_target_stabs, before_m_flip_prob)
-        split_final_circuit.append("TICK")
     #--------------------------------------------------
 
     split_final_circuit.append("MR", control_target_stabs)
-    split_final_circuit.append("TICK")
 
     #-------Adding-After-Reset-Flip-Prob.------------
     if after_r_flip > 0:
         split_final_circuit.append("X_ERROR", control_target_stabs, after_r_flip)
-        split_final_circuit.append("TICK")
     #------------------------------------------------
     
+    split_final_circuit.append("TICK")
+
     ####################################
     # Implementing Detectors for Control
     ####################################
@@ -1014,14 +1308,28 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
 
         #Meassuring Data
         split_final_circuit.append("TICK")
-        split_final_circuit.append("MZ", a_log_z)
+
+        #-------Adding measurement Flip Prob.--------------
+        if before_m_flip_prob > 0:
+            split_final_circuit.append("X_ERROR", data_ancilla, before_m_flip_prob)
+        #--------------------------------------------------
+
+        split_final_circuit.append("MZ", data_ancilla)
         split_final_circuit.append("TICK")
 
         #Adding the conditional Gate on Control
-        for records in range(1, len(a_log_z) + 1, 1):
-            for data in c_log_obs_x_index:
-                split_final_circuit.append("CX", [stim.target_rec(- records), data])
-
+        for rec_tar, index in enumerate(data_ancilla):
+            if index in a_log_z:
+                for data in c_log_obs_x_index:
+                    split_final_circuit.append("CX", [stim.target_rec(-len(data_ancilla) + rec_tar), data])
+        """
+        #-------Adding-After-Clifford-Depol.------------
+        for rec_tar, index in enumerate(data_ancilla):
+            if index in a_log_z:
+                for data in c_log_obs_x_index:
+                    split_final_circuit.append("DEPOLARIZE1", data, after_c_depol_prob)
+        #-----------------------------------------------   
+        """
     ##########################################
     # Adding Repeat Circ and returning circuit
     ##########################################
