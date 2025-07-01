@@ -376,6 +376,7 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     #Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     initial_circuit.append("TICK")
     initial_circuit.append("H", x_stab_index_control +  x_stab_index_target)
+    initial_circuit.append("SHIFT_COORDS", arg = (0,0,1))
 
     #-------Adding-After-Clifford-Depol.------------
     if after_c_depol_prob > 0:
@@ -700,6 +701,7 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     #Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     initial_repeat_circuit.append("TICK")
     initial_repeat_circuit.append("H", x_stab_index_control +  x_stab_index_target)
+    initial_repeat_circuit.append("SHIFT_COORDS", arg=(0,0,1))
 
     #-------Adding-After-Clifford-Depol.------------
     if after_c_depol_prob > 0:

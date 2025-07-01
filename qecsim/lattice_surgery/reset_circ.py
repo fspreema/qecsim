@@ -122,7 +122,6 @@ def reset(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Targe
     # Inilizing Ancilla in Plus (Reset) and Control/ Target in desired State
     ########################################################################
 
-    
     init_patterns = {
     ("Z0", "Z0"): [("R", data_control + data_target + all_stabs_not_double)],
     ("Z0", "Z1"): [("R", data_control + data_target + all_stabs_not_double), ("X", t_log_obs_x_index)],

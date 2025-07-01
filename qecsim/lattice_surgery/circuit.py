@@ -354,15 +354,13 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
 
     #return_circuit = state_init.with_inlined_feedback()
 
-    #print(c_log_x, c_log_z)
-    #print(t_log_x, t_log_z)
-    #print(a_log_x, a_log_z)
     """
     test = reset(lct = lct, patches = patches, cfg = cfg, flow = flow_observable)
     test += initial(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
                               after_r_flip = noise_after_reset, after_c_depol_prob = noise_after_clifford_depol)
 
-    return test"""
+    return test
+    """
 
     return state_init_circuit
 
