@@ -8,7 +8,7 @@ Coord = complex
 __all__ = ["reset"]
 
 def reset(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Target, Patch_Control, Patch_Surgery], 
-            cfg : Config, flow : str) -> stim.Circuit:
+            cfg : Config) -> stim.Circuit:
     
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -151,73 +151,5 @@ def reset(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Targe
         reset_circuit.append(gate, qubits)
 
     reset_circuit.append("TICK")
-
-    ##############################
-    # Defining Logical Observables
-    ##############################
-    """
-    if flow == "X -> XX":
-
-        if control_state_init in {"X+", "X-"}:
-            if target_state_init in {"X+", "X-"}:
-                
-                # Control stabilized by x logical
-                log_x_c = []
-
-                for imag in range(((distance * 2) + 1), (distance * 4), 2):
-                    log_x_c.append(q2i[1 + imag*1j])
-
-                #Rewriting in correct form i.e. X1 X2 etc...
-                targets_c = [f"X{i}" for i in log_x_c]
-
-                reset_circuit.append("OBSERVABLE_INCLUDE", targets_c, 0)
-
-    elif flow == "X -> X":
-
-        if control_state_init in {"Z0", "Z1", "X+", "X-"}:        
-            if target_state_init in {"X+", "X-"}:
-
-                # Control stabilized by x logical
-                log_x_t = []
-
-                for imag in range(1, (distance * 2), 2):
-                    log_x_t.append(q2i[((distance * 2) + 1) + imag*1j])
-
-                #Rewriting in correct form i.e. X1 X2 etc...
-                targets_t = [f"X{i}" for i in log_x_t]
-
-                reset_circuit.append("OBSERVABLE_INCLUDE", targets_t, 0)
-
-    elif flow == "Z -> ZZ":
-
-        if control_state_init in {"Z0", "Z1"}:
-            if target_state_init in {"Z0", "Z1"}:
-
-                # Control stabilized by z logical
-                log_z_t = []
-
-                for real in range(((distance * 2) + 1), (distance * 4), 2):
-                    log_z_t.append(q2i[real + 1j])
-
-                #Rewriting in correct form i.e. X1 X2 etc...
-                targets_t = [f"Z{i}" for i in log_z_t]
-
-                reset_circuit.append("OBSERVABLE_INCLUDE", targets_t, 0)
-        
-    elif flow == "Z -> Z":
-
-        if control_state_init in {"Z0", "Z1"}:
-            if target_state_init in {"Z0", "Z1", "X+", "X-"}:
-
-                # Control stabilized by z logical
-                log_z_c = []
-
-                for real in range(1, (distance * 2), 2):
-                    log_z_c.append(q2i[real + ((distance * 2) + 1)*1j])
-
-                #Rewriting in correct form i.e. X1 X2 etc...
-                targets_c = [f"Z{i}" for i in log_z_c]
-
-                reset_circuit.append("OBSERVABLE_INCLUDE", targets_c, 0)"""
 
     return reset_circuit

@@ -1290,12 +1290,20 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
         for records in logical_obs_rec_tar:
             for data in c_log_obs_x_index:       
                 split_final_circuit.append("CX", [stim.target_rec(records), data])
+                #-------Adding-After-Clifford-Depol.------------
+                if after_c_depol_prob > 0:
+                    split_final_circuit.append("DEPOLARIZE1", data, after_c_depol_prob)
+                #-----------------------------------------------
 
     elif split_type == "AT":
         
         for records in logical_obs_rec_tar:
             for data in t_log_obs_z_index:
                 split_final_circuit.append("CZ", [stim.target_rec(records), data])
+                #-------Adding-After-Clifford-Depol.------------
+                if after_c_depol_prob > 0:
+                    split_final_circuit.append("DEPOLARIZE1", data, after_c_depol_prob)
+                #-----------------------------------------------
 
         ###################################
         # Meassuring Ancilla in the Z Basis
@@ -1314,7 +1322,7 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             split_final_circuit.append("X_ERROR", data_ancilla, before_m_flip_prob)
         #--------------------------------------------------
 
-        split_final_circuit.append("MX", data_ancilla)
+        split_final_circuit.append("MZ", data_ancilla)
         split_final_circuit.append("TICK")
 
         #Adding the conditional Gate on Control
@@ -1322,6 +1330,10 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
             if index in a_log_z:
                 for data in c_log_obs_x_index:
                     split_final_circuit.append("CX", [stim.target_rec(-len(data_ancilla) + rec_tar), data])
+                    #-------Adding-After-Clifford-Depol.------------
+                    if after_c_depol_prob > 0:
+                        split_final_circuit.append("DEPOLARIZE1", data, after_c_depol_prob)
+                    #-----------------------------------------------
 
         ####################################
         # Adding last Detectors for Ancilla:
@@ -1332,7 +1344,7 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
         Index_to_rec_ancilla: dict[int, int] = {q: i for i, q in enumerate(reversed(x_stab_index_ancilla + z_stab_index_ancilla))}
 
         for q, qtype in qubit_coords_ancilla.items():
-            """
+
             if qtype == "Z-STAB":
                 #Needed Data Qubits
                 upper_left = (q.real - 1) + (q.imag - 1) * 1j
@@ -1352,7 +1364,7 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
 
                 #Defining the last record targets (Normal Detectors from last round)
                 ancilla_index = q2i[q]
-                last_record = [- Index_to_rec_ancilla[ancilla_index] - 1 - len(data_ancilla) - len(control_target_stabs)]
+                last_record = [- Index_to_rec_ancilla[ancilla_index] - 1 - len(data_ancilla) -len(control_target_stabs)]
 
                 #Combining the record targets
                 final_record = current_record + last_record
@@ -1374,7 +1386,7 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
 
                 #Defining the last record targets (Normal Detectors from last round)
                 ancilla_index = q2i[q]
-                last_record = [- Index_to_rec_ancilla[ancilla_index] - 1 - len(data_ancilla) - len(control_target_stabs)]
+                last_record = [- Index_to_rec_ancilla[ancilla_index] - 1 - len(data_ancilla) -len(control_target_stabs)]
 
                 #Combining the record targets
                 final_record = current_record + last_record
@@ -1396,78 +1408,7 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
 
                 #Defining the last record targets (Normal Detectors from last round)
                 ancilla_index = q2i[q]
-                last_record = [- Index_to_rec_ancilla[ancilla_index] - 1 - len(data_ancilla) - len(control_target_stabs)]
-
-                #Combining the record targets
-                final_record = current_record + last_record
-                
-                #Appending Detector
-                split_final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))"""
-
-            if qtype == "X-STAB":
-                #Needed Data Qubits
-                upper_left = (q.real - 1) + (q.imag - 1) * 1j
-                upper_right = q.real + 1 + (q.imag - 1) * 1j
-                lower_left = q.real - 1 + (q.imag + 1) * 1j
-                lower_right = q.real + 1 + (q.imag + 1) * 1j
-
-                #Finding the Correct Data Index
-                index_upper_left = q2i[upper_left]
-                index_upper_right = q2i[upper_right]
-                index_lower_left = q2i[lower_left]
-                index_lower_right = q2i[lower_right]
-
-                #Defining the current record targets
-                current_record = [-Index_to_rec_data[index_upper_left] - 1, -Index_to_rec_data[index_upper_right] - 1,
-                                -Index_to_rec_data[index_lower_left] - 1, -Index_to_rec_data[index_lower_right] - 1]
-
-                #Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [- Index_to_rec_ancilla[ancilla_index] - 1 - len(data_ancilla) - len(control_target_stabs)]
-
-                #Combining the record targets
-                final_record = current_record + last_record
-                
-                #Appending Detector
-                split_final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
-
-            elif qtype == "X-STAB-BOUND-A-A":
-                #Needed Data Qubits
-                lower_right = q.real + 1 + (q.imag + 1) * 1j
-                lower_left = q.real - 1 + (q.imag + 1) * 1j
-
-                #Finding the Correct Data Index
-                index_lower_right = q2i[lower_right]
-                index_lower_left = q2i[lower_left]
-
-                #Defining the current record targets
-                current_record = [-Index_to_rec_data[index_lower_right] - 1, -Index_to_rec_data[index_lower_left] - 1]
-
-                #Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [- Index_to_rec_ancilla[ancilla_index] - 1 - len(data_ancilla) - len(control_target_stabs)]
-
-                #Combining the record targets
-                final_record = current_record + last_record
-                
-                #Appending Detector
-                split_final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
-
-            elif qtype == "X-STAB-BOUND-B-A":
-                #Needed Data Qubits
-                upper_right = (q.real + 1) + (q.imag - 1) * 1j
-                upper_left = q.real - 1 + (q.imag - 1) * 1j
-
-                #Finding the Correct Data Index
-                index_upper_right = q2i[upper_right]
-                index_upper_left = q2i[upper_left]
-
-                #Defining the current record targets
-                current_record = [-Index_to_rec_data[index_upper_right] - 1, -Index_to_rec_data[index_upper_left] - 1]
-
-                #Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [- Index_to_rec_ancilla[ancilla_index] - 1 - len(data_ancilla) - len(control_target_stabs)]
+                last_record = [- Index_to_rec_ancilla[ancilla_index] - 1 - len(data_ancilla) -len(control_target_stabs)]
 
                 #Combining the record targets
                 final_record = current_record + last_record

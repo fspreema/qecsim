@@ -149,7 +149,6 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
 
     #-------Adding Before Round Data Depol.------------
     if before_round_depol > 0:
-        initial_circuit.append("TICK")
         initial_circuit.append("DEPOLARIZE1", data_ancilla + data_control + data_target, before_round_depol)
     #--------------------------------------------------
     

@@ -327,7 +327,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     # 11. Adding State initiliztion
     ###############################
 
-    state_init_circuit = reset(lct = lct, patches = patches, cfg = cfg, flow = flow_observable)
+    state_init_circuit = reset(lct = lct, patches = patches, cfg = cfg)
 
     final_measurement = final_m(lct = lct, patches = patches, cfg = cfg, flow = flow_observable, before_m_flip_prob = noise_measure_flip)
 
@@ -351,16 +351,6 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     ##########################
 
     state_init_circuit += final_measurement
-
-    #return_circuit = state_init.with_inlined_feedback()
-
-    """
-    test = reset(lct = lct, patches = patches, cfg = cfg, flow = flow_observable)
-    test += initial(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
-                              after_r_flip = noise_after_reset, after_c_depol_prob = noise_after_clifford_depol)
-
-    return test
-    """
 
     return state_init_circuit
 
