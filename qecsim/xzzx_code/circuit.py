@@ -329,7 +329,6 @@ def XZZX_code(distance: int, *, state_init: str, before_round_depol : float = 0.
     repeat_circuit = stim.Circuit()
 
     repeat_circuit.append("SHIFT_COORDS", arg=(0,0,1))
-    repeat_circuit.append("TICK")
     repeat_circuit.append("H", stab_index)
 
     #-------Adding-After-Clifford-Depol.------------
@@ -501,7 +500,6 @@ def XZZX_code(distance: int, *, state_init: str, before_round_depol : float = 0.
 
     final_circuit = stim.Circuit()
 
-    final_circuit.append("TICK")
     final_circuit.append("SHIFT_COORDS", arg = (0,0,1))
 
     #-------Adding-Before-Measurement-Flip-Prob.----------
