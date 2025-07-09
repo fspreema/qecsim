@@ -25,26 +25,26 @@ def _add_boundary_labels(distance: int, ancilla: Dict[Coord, Label]) -> None:
     # Z-boundary stabilizers
     for y in range(2, max_coord, 4):
         coord_ancilla = complex(0, y)
-        ancilla[coord_ancilla] = "STAB-BOUND-L"
+        ancilla[coord_ancilla] = "STAB-BOUND-L-Hor"
 
     for y in range(4, max_coord, 4):
         coord_ancilla = complex(max_coord, y)
-        ancilla[coord_ancilla] = "STAB-BOUND-R"
+        ancilla[coord_ancilla] = "STAB-BOUND-R-Hor"
 
     # X-boundary stabilizers
     for y in range(4, max_coord, 4):
         coord_ancilla = complex(y, 0)
-        ancilla[coord_ancilla] = "STAB-BOUND-A"
+        ancilla[coord_ancilla] = "STAB-BOUND-A-Ver"
 
     for y in range(2, max_coord, 4):
         coord_ancilla = complex(y, max_coord)
-        ancilla[coord_ancilla] = "STAB-BOUND-B"
+        ancilla[coord_ancilla] = "STAB-BOUND-B-Ver"
 
 # -----------------------------------------
 # Public function -> Building final circuit
 # -----------------------------------------
 
-def XZZX_code(distance: int, *, state_init: str, before_round_depol : float = 0.0, before_m_flip_prob : float = 0.0,
+def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depol : float = 0.0, before_m_flip_prob : float = 0.0,
                     after_r_flip : float = 0.0, after_c_depol_prob : float = 0.0) -> stim.Circuit:
     """
     Returns XZZX-Code circuit
@@ -59,7 +59,7 @@ def XZZX_code(distance: int, *, state_init: str, before_round_depol : float = 0.
     ###############################################################
     # 1. Build independent square patches (using geometry function)
     ###############################################################
-    qubit_coords: Dict[Coord, Label] = build_lattice(distance, state_init = state_init,starting_stabilizer_A = True)
+    qubit_coords: Dict[Coord, Label] = build_lattice(distance, state_init = state_init)
 
     #######################################################################################
     # 2. Insert boundary & surgery labels (Only get activated in splitting/merging process)
@@ -88,9 +88,10 @@ def XZZX_code(distance: int, *, state_init: str, before_round_depol : float = 0.
     #------------------
 
     #Indexing Z and X Stabilizers
-    stab_index_A = [q2i[q] for q, qtype in qubit_coords.items() if qtype in {"STAB-A", "STAB-BOUND-A", "STAB-BOUND-B"}]
-    stab_index_B = [q2i[q] for q, qtype in qubit_coords.items() if qtype in {"STAB-B", "STAB-BOUND-L", "STAB-BOUND-R"}]
-    stab_index = [q2i[q] for q, qtype in qubit_coords.items() if qtype in {"STAB-B", "STAB-A", "STAB-BOUND-L", "STAB-BOUND-R", "STAB-BOUND-A", "STAB-BOUND-B"}]
+    stab_index_ver = [q2i[q] for q, qtype in qubit_coords.items() if qtype in {"STAB-Ver", "STAB-BOUND-A-Ver", "STAB-BOUND-B-Ver"}]
+    stab_index_hor = [q2i[q] for q, qtype in qubit_coords.items() if qtype in {"STAB-Hor", "STAB-BOUND-L-Hor", "STAB-BOUND-R-Hor"}]
+    stab_index = [q2i[q] for q, qtype in qubit_coords.items() if qtype in {"STAB-Hor", "STAB-Ver", "STAB-BOUND-L-Hor", 
+                                                                           "STAB-BOUND-R-Hor", "STAB-BOUND-A-Ver", "STAB-BOUND-B-Ver"}]
 
     #Indexing Data-Qubits
     data_Z = [q2i[q] for q, qtype in qubit_coords.items() if qtype == "DATA_Z"]
@@ -129,16 +130,13 @@ def XZZX_code(distance: int, *, state_init: str, before_round_depol : float = 0.
     for q, i in q2i.items():
         initial_circuit.append("QUBIT_COORDS", [i], [q.real, q.imag])
 
-
     ########################################################################
     # Inilizing Ancilla in Plus (Reset) and Control/ Target in desired State
     ########################################################################
     
     init_patterns = {
-    ("Z0"): [("RZ", data_Z + stab_index), ("RX", data_X)],
-    ("Z1"): [("RZ", data_Z + stab_index), ("RX", data_X)],
-    ("X+"): [("RX", data_X), ("RZ", data_Z + stab_index)],
-    ("X-"): [("RX", data_X), ("RZ", data_Z + stab_index)],
+    ("Ver"): [("RZ", data_Z + stab_index), ("RX", data_X)],
+    ("Hor"): [("RX", data_X), ("RZ", data_Z + stab_index)],
     }
     
     # Apply the initialization pattern
@@ -156,7 +154,6 @@ def XZZX_code(distance: int, *, state_init: str, before_round_depol : float = 0.
     #--------------------------------------------------
     
     initial_circuit.append("TICK")
-
     initial_circuit.append("H", stab_index)
 
     #-------Adding-After-Clifford-Depol.------------
@@ -294,27 +291,27 @@ def XZZX_code(distance: int, *, state_init: str, before_round_depol : float = 0.
     ##########################################################################
 
     #Determining Position in the measurement Run of only the Ancilla
-    pos_to_index_Z : list = []
-    pos_to_index_X : list = []
+    pos_to_index_ver : list = []
+    pos_to_index_hor : list = []
 
     for pos, index in enumerate(stab_index):
-        if index in stab_index_A:
-            pos_to_index_Z.append([pos, index])
-        elif index in stab_index_B:
-            pos_to_index_X.append([pos, index])
+        if index in stab_index_ver:
+            pos_to_index_ver.append([pos, index])
+        elif index in stab_index_hor:
+            pos_to_index_hor.append([pos, index])
 
-    if state_init in {"Z0", "Z1"}:
+    if state_init in {"Ver"}:
 
         #Adding the needed Detectors
-        for index_pos in pos_to_index_Z:
+        for index_pos in pos_to_index_ver:
             current_tar = index_pos[0] - len(stab_index)
             q_index = index_pos[1]
             initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
 
-    elif state_init in {"X+", "X-"}:
+    elif state_init in {"Hor"}:
 
         #Adding the needed Detectors
-        for index_pos in pos_to_index_X:
+        for index_pos in pos_to_index_hor:
             current_tar = index_pos[0] - len(stab_index)
             q_index = index_pos[1]
             initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
@@ -461,34 +458,34 @@ def XZZX_code(distance: int, *, state_init: str, before_round_depol : float = 0.
 
     repeat_circuit.append("TICK")
 
-    ##########################################################################
-    # Implementing Detectors for Ancilla (All Basis are deterministic)
-    ##########################################################################
+    ######################################################
+    # Implementing Detectors (All Basis are deterministic)
+    ######################################################
 
     #Determining Position in the measurement Run of only the Ancilla
-    pos_to_index_Z : list = []
-    pos_to_index_X : list = []
+    pos_to_index_ver : list = []
+    pos_to_index_hor : list = []
 
     for pos, index in enumerate(stab_index):
-        if index in stab_index_A:
-            pos_to_index_Z.append([pos, index])
-        elif index in stab_index_B:
-            pos_to_index_X.append([pos, index])
+        if index in stab_index_ver:
+            pos_to_index_ver.append([pos, index])
+        elif index in stab_index_hor:
+            pos_to_index_hor.append([pos, index])
 
     """
     As intial circuit run is completed, now we define all stabilizers in every basis
-    -> Detectors on x and z stabs uncorrelated to the inital state
+    -> Detectors on both basis are now deterministic
     """
 
     #Adding the needed Detectors (Z-Basis)
-    for index_pos in pos_to_index_Z:
+    for index_pos in pos_to_index_ver:
         current_tar = index_pos[0] - len(stab_index)
         previous_tar = index_pos[0] - 2 * len(stab_index)
         q_index = index_pos[1]
         repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
     
     #Adding the needed Detectors (X-Basis)
-    for index_pos in pos_to_index_X:
+    for index_pos in pos_to_index_hor:
         current_tar = index_pos[0] - len(stab_index)
         previous_tar = index_pos[0] - 2 * len(stab_index)
         q_index = index_pos[1]
@@ -523,11 +520,11 @@ def XZZX_code(distance: int, *, state_init: str, before_round_depol : float = 0.
     -> We need to meassure the X stabilizers in the X basis but we already meassured in the z basis (XZ do not commute)
     """
 
-    if state_init in {"Z0", "Z1"}:
+    if state_init in {"Ver"}:
     
         for q, qtype in qubit_coords.items():
             
-            if qtype == "STAB-A":
+            if qtype == "STAB-Ver":
                 #Needed Data Qubits
                 upper_left = (q.real - 1) + (q.imag - 1) * 1j
                 upper_right = q.real + 1 + (q.imag - 1) * 1j
@@ -554,7 +551,7 @@ def XZZX_code(distance: int, *, state_init: str, before_round_depol : float = 0.
                 #Appending Detector
                 final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
 
-            elif qtype == "STAB-BOUND-A":
+            elif qtype == "STAB-BOUND-A-Ver":
                 #Needed Data Qubits
                 lower_right = q.real + 1 + (q.imag + 1) * 1j
                 lower_left = q.real - 1 + (q.imag + 1) * 1j
@@ -576,7 +573,7 @@ def XZZX_code(distance: int, *, state_init: str, before_round_depol : float = 0.
                 #Appending Detector
                 final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
 
-            elif qtype == "STAB-BOUND-B":
+            elif qtype == "STAB-BOUND-B-Ver":
                 #Needed Data Qubits
                 upper_right = (q.real + 1) + (q.imag - 1) * 1j
                 upper_left = q.real - 1 + (q.imag - 1) * 1j
@@ -599,11 +596,11 @@ def XZZX_code(distance: int, *, state_init: str, before_round_depol : float = 0.
                 final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
             
 
-    elif state_init in {"X+", "X-"}:
+    elif state_init in {"Hor"}:
             
         for q, qtype in qubit_coords.items():
 
-            if qtype == "STAB-B":
+            if qtype == "STAB-Hor":
                 #Needed Data Qubits
                 upper_left = (q.real - 1) + (q.imag - 1) * 1j
                 upper_right = q.real + 1 + (q.imag - 1) * 1j
@@ -630,7 +627,7 @@ def XZZX_code(distance: int, *, state_init: str, before_round_depol : float = 0.
                 #Appending Detector
                 final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
 
-            elif qtype == "STAB-BOUND-L":
+            elif qtype == "STAB-BOUND-L-Hor":
                 #Needed Data Qubits
                 upper_right = q.real + 1 + (q.imag - 1) * 1j
                 lower_right = q.real + 1 + (q.imag + 1) * 1j
@@ -652,7 +649,7 @@ def XZZX_code(distance: int, *, state_init: str, before_round_depol : float = 0.
                 #Appending Detector
                 final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
 
-            elif qtype == "STAB-BOUND-R":
+            elif qtype == "STAB-BOUND-R-Hor":
                 #Needed Data Qubits
                 upper_left = (q.real - 1) + (q.imag - 1) * 1j
                 lower_left = q.real - 1 + (q.imag + 1) * 1j
@@ -678,34 +675,34 @@ def XZZX_code(distance: int, *, state_init: str, before_round_depol : float = 0.
     #7) Defining logical Operators (Final Measurement-Round)
     ########################################################
     
-    if state_init in {"Z0", "Z1"}:
+    if state_init in {"Ver"}:
 
         # Control stabilized by x logical
-        log_z = []
+        log_ver = []
 
         for imag in range(1, (distance * 2), 2):
-            log_z.append(q2i[1 + imag*1j])
+            log_ver.append(q2i[1 + imag*1j])
 
         tar_rec = []
 
         for rec_pos, index in enumerate(data_Z + data_X):
-            if index in log_z:
+            if index in log_ver:
                 tar_rec.append(rec_pos)
 
         final_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data_Z + data_X) + k) for k in tar_rec], 0)
 
-    elif state_init in {"X+", "X-"}:
+    elif state_init in {"Hor"}:
 
         # Control stabilized by x logical
-        log_x = []
+        log_hor = []
 
         for real in range(1, (distance * 2), 2):
-            log_x.append(q2i[real + 1j])
+            log_hor.append(q2i[real + 1j])
 
         tar_rec = []
 
         for rec_pos, index in enumerate(data_Z + data_X):
-            if index in log_x:
+            if index in log_hor:
                 tar_rec.append(rec_pos)
 
         final_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data_Z + data_X) + k) for k in tar_rec], 0)
@@ -714,7 +711,7 @@ def XZZX_code(distance: int, *, state_init: str, before_round_depol : float = 0.
     #8) Adding all circuits together
     ################################
 
-    initial_circuit += repeat_circuit * (distance - 1)
+    initial_circuit += repeat_circuit * (rounds - 1)
     initial_circuit += final_circuit
 
     return initial_circuit

@@ -9,20 +9,25 @@ __all__ = ["build_lattice"]
 # Public Function
 # -----------------------
 
-def build_lattice(distance: int, state_init : str, *, starting_stabilizer_A: bool = True) -> Dict[Coord, Label]:
+def build_lattice(distance: int, state_init : str) -> Dict[Coord, Label]:
     """
     Adding the geometry of the XZZX-Code as a helper function:
         ->Returns the {coords: label} dict used for building the qubit coords
 
-    Parameters:
-    -----------
+    *Parameters:*
+    ------------
     distance : int
         Code distance (must be odd and ≥3)
-    offset : complex, default 0+0j
-        Upper left corner displacement -> Reusement for the ancilla/target/control blocks
-    """
+    state_init : str
+        What basis (Vertical/ Horizontal) is the code initialized in?
 
-    """
+    *Comments:*
+    ----------
+    *Basis:*
+    As there are no trivial loops build up by only X/Z Paulis whe specify 
+    the given basis by the orientation of the logical Operator i.e. vertical/ horizontal
+
+    *Distance:*
     In theroy one needs to change the application of the boundary stab. 
     for even and odd distances but odd distances are the only practical code 
     length so we check for odd distance right at the beginning(makes no sene to 
@@ -33,14 +38,19 @@ def build_lattice(distance: int, state_init : str, *, starting_stabilizer_A: boo
         raise ValueError("distance must be odd and ≥3")
 
     qubit_coords: Dict[Coord, Label] = {}
-    start_with_x = starting_stabilizer_A
+
+    start_with_x = True
 
     for real in range(distance * 2):
         stab_counter = 0
         data_counter = 0
 
         for imag in range(distance * 2):
-            # ---------------------- DATA qubits ---------------------------
+
+            #######################
+            # Labeling DATA QUBITS
+            #######################
+
             if real % 2 != 0 and imag % 2 != 0:
                 coord = complex(real, imag)
                 qubit_coords[coord] = "DATA"
@@ -50,18 +60,27 @@ def build_lattice(distance: int, state_init : str, *, starting_stabilizer_A: boo
                 else:
                     use_x = data_counter % 2 == 1
 
-                if state_init in {"Z0", "Z1"}:
+                """
+                Labeling of the Data qubits
+                -> Depending on the initlization in the Horizontal/ Vertical Basis one has to initlize the data qubits differently
+                -> Labeling ensures which Reset to apply on which qubit
+                """
+
+                if state_init in {"Ver"}:
                     qubit_coords[coord] = "DATA_X" if use_x else "DATA_Z"
                     data_counter += 1
 
-                elif state_init in {"X+", "X-"}:
+                elif state_init in {"Hor"}:
                     qubit_coords[coord] = "DATA_Z" if use_x else "DATA_X"
                     data_counter += 1
 
                 else:
                     ValueError("No valid inital state")
 
-            # ----------------- Interior Stabilisers ----------------------
+            ######################################
+            # Labeling Stabilizer (Aniclla) Qubits
+            ######################################
+
             elif real % 2 == 0 and imag % 2 == 0 and real != 0 and imag != 0:
                 coord = complex(real, imag)
 
@@ -70,12 +89,12 @@ def build_lattice(distance: int, state_init : str, *, starting_stabilizer_A: boo
                 else:
                     use_x = stab_counter % 2 == 1
 
-                '''
-                Stab A -> First Round Stabs are first one top left, then third top...
-                Stab B -> First Round Stabs are second one top left, then fifth top...
-                '''
+                """
+                Stab-Ver -> Deterministic Stabilizers (Detectors) with respect to the Vertical Operator/ Basis
+                Stab-Hor -> Deterministic Stabilizers (Detectors) with respect to the Horizontal Operator/ Basis
+                """
 
-                qubit_coords[coord] = "STAB-A" if use_x else "STAB-B"
+                qubit_coords[coord] = "STAB-Ver" if use_x else "STAB-Hor"
                 stab_counter += 1
 
         # flip phase after each even row (except first)

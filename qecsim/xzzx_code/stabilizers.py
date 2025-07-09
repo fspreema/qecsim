@@ -12,9 +12,6 @@ __all__ = ["populate_stab_to_data"]
 def populate_stab_to_data(patch: Dict[Coord, Label]) -> Dict[Tuple[Coord, Coord], str]:
     """
     Returns the CX-Schedule {(data_coord, stab_coord): order} for a given lattice
-
-    * X-Stabs: control ist the **Data** qubit -> (data, stab)
-    * Z-Stabs: control is the **stab** qubit -> (stab, data)
     """
 
     stab_to_data: Dict[Tuple[Coord, Coord], Label] = {}
@@ -35,7 +32,7 @@ def _attach_interior_cx(patch: Dict[Coord, Label], stab_to_data: Dict[Tuple[Coor
 
     for coords,string in patch.items():
         #Already in Correct Orientation for Measurement of CX
-        if string == "STAB-A":
+        if string == "STAB-Ver":
             new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
             new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
             new_cord3 = (coords.real - 1) + (coords.imag + 1) * 1j
@@ -45,7 +42,7 @@ def _attach_interior_cx(patch: Dict[Coord, Label], stab_to_data: Dict[Tuple[Coor
             stab_to_data[new_cord3, coords] = "3-CZ"
             stab_to_data[new_cord4, coords] = "4-CX"
             
-        elif string == "STAB-B":
+        elif string == "STAB-Hor":
             new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
             new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
             new_cord3 = (coords.real - 1) + (coords.imag + 1) * 1j
@@ -59,27 +56,28 @@ def _attach_boundary_cx(patch: Dict[Coord, Label], stab_to_data: Dict[Tuple[Coor
     """
     Adds the 2-body CX Schedule for the *boundary* stabilizers
     """
+
     for coords,string in patch.items():
 
-        if string == "STAB-BOUND-L":
+        if string == "STAB-BOUND-L-Hor":
             new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
             new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
             stab_to_data[new_cord1, coords] = "3-CZ"
             stab_to_data[new_cord2, coords] = "4-CX"
   
-        elif string == "STAB-BOUND-R":
+        elif string == "STAB-BOUND-R-Hor":
             new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
             new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
             stab_to_data[new_cord1, coords] = "1-CX"
             stab_to_data[new_cord2, coords] = "2-CZ"
                
-        elif string == "STAB-BOUND-A":
+        elif string == "STAB-BOUND-A-Ver":
             new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
             new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
             stab_to_data[new_cord1, coords] = "3-CZ"
             stab_to_data[new_cord2, coords] = "4-CX"
 
-        elif string == "STAB-BOUND-B":
+        elif string == "STAB-BOUND-B-Ver":
             new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
             new_cord2 = (coords.real + 1 ) + (coords.imag - 1) * 1j
             stab_to_data[new_cord1, coords] = "1-CX"
