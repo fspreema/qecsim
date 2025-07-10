@@ -1,6 +1,7 @@
 from scipy.interpolate import interp1d
 from scipy.optimize import root_scalar
 import numpy as np
+import matplotlib.pyplot as plt
 from collections import defaultdict
 import sinter
 
@@ -39,12 +40,12 @@ def threshold_linear(data_stats: list[sinter.TaskStats], p_min : float = 0.0025,
         physical_p = [
             stat.json_metadata["p"]
             for stat in data_stats
-            if stat.json_metadata["distance"] == dist and p_min < stat.json_metadata["p"] < p_max
+            if stat.json_metadata["distance"] == dist
         ]
         logical_p = [
             stat.errors / stat.shots
             for stat in data_stats
-            if stat.json_metadata["distance"] == dist and p_min < stat.json_metadata["p"] < p_max
+            if stat.json_metadata["distance"] == dist
         ]
 
         """
@@ -56,7 +57,12 @@ def threshold_linear(data_stats: list[sinter.TaskStats], p_min : float = 0.0025,
         ########################################################
         # Sort and convert and convert to log log for linear fit
         ########################################################
-        physical_p, logical_p = zip(*sorted(zip(physical_p, logical_p)))
+
+        filtered = [(p, l) for p, l in zip(physical_p, logical_p) if l > 0 and p > 0]
+        if len(filtered) < 2:
+            raise ValueError("Not enough valid points (logical_p > 0) for interpolation")
+
+        physical_p, logical_p = zip(*sorted(filtered))
 
         x_dots[dist] = np.log10(physical_p)
         y_dots[dist] = np.log10(logical_p)
@@ -65,8 +71,8 @@ def threshold_linear(data_stats: list[sinter.TaskStats], p_min : float = 0.0025,
     # Intepolate Data for root_scalar function
     ##########################################
 
-    f1_interp = interp1d(x_dots[d1], y_dots[d1], kind='linear', bounds_error=False)
-    f2_interp = interp1d(x_dots[d2], y_dots[d2], kind='linear', bounds_error=False)
+    f1_interp = interp1d(x_dots[d1], y_dots[d1], kind='quadratic')
+    f2_interp = interp1d(x_dots[d2], y_dots[d2], kind='quadratic')
 
     ##################################################################
     # Define function for root_scalar and boundaries for search region
