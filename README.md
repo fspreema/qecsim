@@ -7,4 +7,4 @@
   - Repetition code
   - (Rotated) Surface code
   - XZZX code
-- Implements **CNOT gates via lattice surgery** on the **rotated surface code**
+- Implements CX gate via lattice surgery on the rotated surface code
