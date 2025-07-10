@@ -1,8 +1,6 @@
-from scipy.interpolate import interp1d
 from scipy.optimize import root_scalar
+from scipy.interpolate import PchipInterpolator
 import numpy as np
-import matplotlib.pyplot as plt
-from collections import defaultdict
 import sinter
 
 __all__ = ["calc_threshold"]
@@ -11,7 +9,7 @@ __all__ = ["calc_threshold"]
 # Global Function:
 #-----------------
 
-def threshold_linear(data_stats: list[sinter.TaskStats], p_min : float = 0.0025, p_max : float = 0.015) -> float:
+def threshold_approx(data_stats: list[sinter.TaskStats], p_min : float = 0.0025, p_max : float = 0.015) -> float:
 
     """
     Returns: float
@@ -71,8 +69,8 @@ def threshold_linear(data_stats: list[sinter.TaskStats], p_min : float = 0.0025,
     # Intepolate Data for root_scalar function
     ##########################################
 
-    f1_interp = interp1d(x_dots[d1], y_dots[d1], kind='quadratic')
-    f2_interp = interp1d(x_dots[d2], y_dots[d2], kind='quadratic')
+    f1_interp = PchipInterpolator(x_dots[d1], y_dots[d1])
+    f2_interp = PchipInterpolator(x_dots[d2], y_dots[d2])
 
     ##################################################################
     # Define function for root_scalar and boundaries for search region
