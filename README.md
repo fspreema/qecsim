@@ -1,3 +1,10 @@
-# quecsim
+# qecsim
 
-Implemetation of the CNOT gate on the rotated Surface code by using lattice Surgery in Stim
+**qecsim** is a Python package for simulating quantum error correction codes and lattice surgery operations using [Stim](https://github.com/quantumlib/Stim), a fast stabilizer simulator.
+
+### Features
+- Supports multiple quantum error correction codes:
+  - Repetition code
+  - (Rotated) Surface code
+  - XZZX code
+- Implements **CNOT gates via lattice surgery** on the **rotated surface code**
