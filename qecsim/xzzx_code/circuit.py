@@ -1,5 +1,6 @@
 import stim
-from typing import Dict, Tuple, List, Mapping, Any
+import numpy as np
+from typing import Dict, Tuple
 from .geometry import build_lattice
 from .stabilizers import populate_stab_to_data
 
@@ -40,12 +41,75 @@ def _add_boundary_labels(distance: int, ancilla: Dict[Coord, Label]) -> None:
         coord_ancilla = complex(y, max_coord)
         ancilla[coord_ancilla] = "STAB-BOUND-B-Ver"
 
+def _noise_mode_creator(bias : list, after_c_custom_noise : float) -> list[list]:
+
+    """
+    Creates the noise needed fot the Curstom Pauli Channels
+    -> Given a bias list and full chance of a physical_error
+    -> type of bias is [b_x, b_y, b_z] with b_x + b_y + b_z = 1
+    -> Returns:
+        - List of 3 probabilities for PAULI_CHANNEL_1
+        - List of 15 probabilities for PAULI_CHANNEL_2  
+    """
+
+    # Check if Prob under 3/4 else BLoch sphere turned inside out
+    if after_c_custom_noise > 3/4:
+        return 0
+
+    if np.any(bias):
+        if np.isclose(sum(bias), 1.0):
+            #######################################
+            # Adding Noise for single Pauli Channel
+            #######################################
+
+            after_c_p_xyz = [after_c_custom_noise * bias[i] for i in range(3)]
+
+            ######################################
+            # Adding Noise for multi Pauli Channel
+            ######################################
+
+            bx, by, bz = bias 
+            single_probs = np.array([1, bx, by, bz])
+
+            after_c_p_xyz_multi_unnorm : list = []
+
+            # Probabilities for I{I,X,Y,Z}
+            after_c_p_xyz_multi_unnorm += list(single_probs)
+
+            # Remove II prob.
+            after_c_p_xyz_multi_unnorm.pop(0)
+
+            # Probabilities for X{I,X,Y,Z}
+            after_c_p_xyz_multi_unnorm += list(single_probs * bx)
+
+            # Probabilities for Y{I,X,Y,Z}
+            after_c_p_xyz_multi_unnorm += list(single_probs * by)
+
+            # Probabilities for Z{I,X,Y,Z}
+            after_c_p_xyz_multi_unnorm += list(single_probs * bz)
+
+            #Normalize Weights
+            total = sum(after_c_p_xyz_multi_unnorm)
+
+            after_c_p_xyz_multi = [weights * (after_c_custom_noise / total) for weights in after_c_p_xyz_multi_unnorm]
+
+        else:
+            return 0
+
+    else:
+        after_c_p_xyz = [0] * 3
+        after_c_p_xyz_multi = [0] * 15
+
+    return after_c_p_xyz, after_c_p_xyz_multi
+
 # -----------------------------------------
 # Public function -> Building final circuit
 # -----------------------------------------
 
-def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depol : float = 0.0, before_m_flip_prob : float = 0.0,
-                    after_r_flip : float = 0.0, after_c_depol_prob : float = 0.0) -> stim.Circuit:
+def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depol : float = 0.0, 
+              before_round_p_xyz : list = [0,0,0], before_m_flip_prob : float = 0.0,
+                    after_r_flip : float = 0.0, after_c_depol_prob : float = 0.0,
+                    noise_bias : list = [0,0,0], after_c_pauli_channel_prob : float = 0.0) -> stim.Circuit:
     """
     Returns XZZX-Code circuit
 
@@ -55,6 +119,21 @@ def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depo
     Returns:
                 -> Fully implemented XZZX-Code in stim.Circuit format
     """
+
+    ######################################
+    # Creating Noise Model with given Bias
+    ######################################
+
+    if after_c_pauli_channel_prob > 3/4:
+        return ValueError("Prob too high for custom channel")
+    
+    if after_c_pauli_channel_prob != 0 and noise_bias == [0] * 3:
+        return ValueError("Please input a prob and a bias")
+    
+    if not np.isclose(sum(noise_bias), 1.0):
+        return ValueError("Bias does not add up to 1!")
+
+    after_c_p_xyz, after_c_p_xyz_multi = _noise_mode_creator(bias = noise_bias, after_c_custom_noise = after_c_pauli_channel_prob)
 
     ###############################################################
     # 1. Build independent square patches (using geometry function)
@@ -152,6 +231,11 @@ def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depo
     if before_round_depol > 0:
         initial_circuit.append("DEPOLARIZE1", data, before_round_depol)
     #--------------------------------------------------
+
+    #-------Adding Before Round Data Depol.------------
+    if np.any(before_round_p_xyz):
+        initial_circuit.append("PAULI_CHANNEL_1", data, before_round_p_xyz)
+    #--------------------------------------------------
     
     initial_circuit.append("TICK")
     initial_circuit.append("H", stab_index)
@@ -159,6 +243,11 @@ def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depo
     #-------Adding-After-Clifford-Depol.------------
     if after_c_depol_prob > 0:
         initial_circuit.append("DEPOLARIZE1", stab_index, after_c_depol_prob)
+    #-----------------------------------------------
+
+    #-------Adding-After-Clifford-Pauli-Channel.----
+    if np.any(after_c_p_xyz):
+        initial_circuit.append("PAULI_CHANNEL_1", stab_index, after_c_p_xyz)
     #-----------------------------------------------
 
     initial_circuit.append("TICK")
@@ -189,6 +278,19 @@ def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depo
                 initial_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
     #-----------------------------------------------
 
+    #-------Adding-After-Clifford-Pauli-Channel.-----
+    if np.any(after_c_p_xyz_multi):
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "1-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                initial_circuit.append("PAULI_CHANNEL_2", index_pairs, after_c_p_xyz_multi)
+    #-----------------------------------------------
+
     initial_circuit.append("TICK")
             
     for coord_pairs, order in stab_to_data.items():
@@ -213,6 +315,19 @@ def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depo
                 initial_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
     #-----------------------------------------------
 
+    #-------Adding-After-Clifford-Pauli-Channel.-----
+    if np.any(after_c_p_xyz_multi):
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "2-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                initial_circuit.append("PAULI_CHANNEL_2", index_pairs, after_c_p_xyz_multi)
+    #-----------------------------------------------
+
     initial_circuit.append("TICK")
 
     for coord_pairs, order in stab_to_data.items():
@@ -235,6 +350,19 @@ def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depo
                 index_pairs.append(q2i[coord_pairs[1]])
                 index_pairs.append(q2i[coord_pairs[0]])
                 initial_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
+    #-------Adding-After-Clifford-Pauli-Channel.-----
+    if np.any(after_c_p_xyz_multi):
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "3-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                initial_circuit.append("PAULI_CHANNEL_2", index_pairs, after_c_p_xyz_multi)
     #-----------------------------------------------
     
     initial_circuit.append("TICK")
@@ -261,6 +389,19 @@ def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depo
                 initial_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
     #-----------------------------------------------
 
+    #-------Adding-After-Clifford-Pauli-Channel.-----
+    if np.any(after_c_p_xyz_multi):
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "4-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                initial_circuit.append("PAULI_CHANNEL_2", index_pairs, after_c_p_xyz_multi)
+    #-----------------------------------------------
+
     #Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!):
     initial_circuit.append("TICK")
     initial_circuit.append("H", stab_index)
@@ -268,6 +409,11 @@ def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depo
     #-------Adding-After-Clifford-Depol.------------
     if after_c_depol_prob > 0:
         initial_circuit.append("DEPOLARIZE1", stab_index, after_c_depol_prob)
+    #-----------------------------------------------
+
+    #-------Adding-After-Clifford-Pauli-Channel.----
+    if np.any(after_c_p_xyz):
+        initial_circuit.append("PAULI_CHANNEL_1", stab_index, after_c_p_xyz)
     #-----------------------------------------------
 
     initial_circuit.append("TICK")
@@ -333,6 +479,11 @@ def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depo
         repeat_circuit.append("DEPOLARIZE1", stab_index, after_c_depol_prob)
     #-----------------------------------------------
 
+    #-------Adding-After-Clifford-Pauli-Channel.----
+    if np.any(after_c_p_xyz):
+        repeat_circuit.append("PAULI_CHANNEL_1", stab_index, after_c_p_xyz)
+    #-----------------------------------------------
+
     repeat_circuit.append("TICK")
 
     ####################################################
@@ -361,6 +512,19 @@ def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depo
                 repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
     #-----------------------------------------------
 
+    #-------Adding-After-Clifford-Pauli-Channel.-----
+    if np.any(after_c_p_xyz_multi):
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "1-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                repeat_circuit.append("PAULI_CHANNEL_2", index_pairs, after_c_p_xyz_multi)
+    #-----------------------------------------------
+
     repeat_circuit.append("TICK")
             
     for coord_pairs, order in stab_to_data.items():
@@ -385,6 +549,19 @@ def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depo
                 repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
     #-----------------------------------------------
 
+    #-------Adding-After-Clifford-Pauli-Channel.-----
+    if np.any(after_c_p_xyz_multi):
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "2-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                repeat_circuit.append("PAULI_CHANNEL_2", index_pairs, after_c_p_xyz_multi)
+    #-----------------------------------------------
+
     repeat_circuit.append("TICK")
 
     for coord_pairs, order in stab_to_data.items():
@@ -407,6 +584,19 @@ def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depo
                 index_pairs.append(q2i[coord_pairs[1]])
                 index_pairs.append(q2i[coord_pairs[0]])
                 repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    #-----------------------------------------------
+
+    #-------Adding-After-Clifford-Pauli-Channel.-----
+    if np.any(after_c_p_xyz_multi):
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "3-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                repeat_circuit.append("PAULI_CHANNEL_2", index_pairs, after_c_p_xyz_multi)
     #-----------------------------------------------
     
     repeat_circuit.append("TICK")
@@ -433,6 +623,19 @@ def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depo
                 repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
     #-----------------------------------------------
 
+    #-------Adding-After-Clifford-Pauli-Channel.-----
+    if np.any(after_c_p_xyz_multi):
+                
+        for coord_pairs, order in stab_to_data.items():
+   
+        #Parallel Implementation of CX
+            if order == "4-CX":
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                repeat_circuit.append("PAULI_CHANNEL_2", index_pairs, after_c_p_xyz_multi)
+    #-----------------------------------------------
+
     #Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!):
     repeat_circuit.append("TICK")
     repeat_circuit.append("H", stab_index)
@@ -440,6 +643,11 @@ def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depo
     #-------Adding-After-Clifford-Depol.------------
     if after_c_depol_prob > 0:
         repeat_circuit.append("DEPOLARIZE1", stab_index, after_c_depol_prob)
+    #-----------------------------------------------
+
+    #-------Adding-After-Clifford-Pauli-Channel.----
+    if np.any(after_c_p_xyz):
+        repeat_circuit.append("PAULI_CHANNEL_1", stab_index, after_c_p_xyz)
     #-----------------------------------------------
 
     repeat_circuit.append("TICK")
