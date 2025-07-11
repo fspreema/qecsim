@@ -57,44 +57,41 @@ def _noise_mode_creator(bias : list, after_c_custom_noise : float) -> list[list]
         return 0
 
     if np.any(bias):
-        if np.isclose(sum(bias), 1.0):
-            #######################################
-            # Adding Noise for single Pauli Channel
-            #######################################
+            
+        #######################################
+        # Adding Noise for single Pauli Channel
+        #######################################
 
-            after_c_p_xyz = [after_c_custom_noise * bias[i] for i in range(3)]
+        after_c_p_xyz = [(after_c_custom_noise / sum(bias)) * bias[i] for i in range(3)]
 
-            ######################################
-            # Adding Noise for multi Pauli Channel
-            ######################################
+        ######################################
+        # Adding Noise for multi Pauli Channel
+        ######################################
 
-            bx, by, bz = bias 
-            single_probs = np.array([1, bx, by, bz])
+        bx, by, bz = bias 
+        single_probs = np.array([1, bx, by, bz])
 
-            after_c_p_xyz_multi_unnorm : list = []
+        after_c_p_xyz_multi_unnorm : list = []
 
-            # Probabilities for I{I,X,Y,Z}
-            after_c_p_xyz_multi_unnorm += list(single_probs)
+        # Probabilities for I{I,X,Y,Z}
+        after_c_p_xyz_multi_unnorm += list(single_probs)
 
-            # Remove II prob.
-            after_c_p_xyz_multi_unnorm.pop(0)
+        # Remove II prob.
+        after_c_p_xyz_multi_unnorm.pop(0)
 
-            # Probabilities for X{I,X,Y,Z}
-            after_c_p_xyz_multi_unnorm += list(single_probs * bx)
+        # Probabilities for X{I,X,Y,Z}
+        after_c_p_xyz_multi_unnorm += list(single_probs * bx)
 
-            # Probabilities for Y{I,X,Y,Z}
-            after_c_p_xyz_multi_unnorm += list(single_probs * by)
+        # Probabilities for Y{I,X,Y,Z}
+        after_c_p_xyz_multi_unnorm += list(single_probs * by)
 
-            # Probabilities for Z{I,X,Y,Z}
-            after_c_p_xyz_multi_unnorm += list(single_probs * bz)
+        # Probabilities for Z{I,X,Y,Z}
+        after_c_p_xyz_multi_unnorm += list(single_probs * bz)
 
-            #Normalize Weights
-            total = sum(after_c_p_xyz_multi_unnorm)
+        #Normalize Weights
+        total = sum(after_c_p_xyz_multi_unnorm)
 
-            after_c_p_xyz_multi = [weights * (after_c_custom_noise / total) for weights in after_c_p_xyz_multi_unnorm]
-
-        else:
-            return 0
+        after_c_p_xyz_multi = [weights * (after_c_custom_noise / total) for weights in after_c_p_xyz_multi_unnorm]
 
     else:
         after_c_p_xyz = [0] * 3
@@ -126,12 +123,6 @@ def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depo
 
     if after_c_pauli_channel_prob > 3/4:
         return ValueError("Prob too high for custom channel")
-    
-    if after_c_pauli_channel_prob != 0 and noise_bias == [0] * 3:
-        return ValueError("Please input a prob and a bias")
-    
-    if not np.isclose(sum(noise_bias), 1.0):
-        return ValueError("Bias does not add up to 1!")
 
     after_c_p_xyz, after_c_p_xyz_multi = _noise_mode_creator(bias = noise_bias, after_c_custom_noise = after_c_pauli_channel_prob)
 
