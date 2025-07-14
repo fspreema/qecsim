@@ -1,5 +1,6 @@
-from scipy.optimize import root_scalar
-from scipy.interpolate import PchipInterpolator
+from scipy.optimize import minimize_scalar
+from scipy.interpolate import UnivariateSpline
+import matplotlib.pyplot as plt
 import numpy as np
 import sinter
 
@@ -69,15 +70,15 @@ def threshold_approx(data_stats: list[sinter.TaskStats], p_min : float = 0.0025,
     # Intepolate Data for root_scalar function
     ##########################################
 
-    f1_interp = PchipInterpolator(x_dots[d1], y_dots[d1])
-    f2_interp = PchipInterpolator(x_dots[d2], y_dots[d2])
+    f1_interp = UnivariateSpline(x_dots[d1], y_dots[d1], s=1e-4)
+    f2_interp = UnivariateSpline(x_dots[d2], y_dots[d2], s=1e-4)
 
     ##################################################################
     # Define function for root_scalar and boundaries for search region
     ##################################################################
 
     def diff(x):
-        return f1_interp(x) - f2_interp(x)
+        return abs(f1_interp(x) - f2_interp(x))
 
     x_min = max(min(x_dots[d1]), min(x_dots[d2]))
     x_max = min(max(x_dots[d1]), max(x_dots[d2]))
@@ -86,14 +87,14 @@ def threshold_approx(data_stats: list[sinter.TaskStats], p_min : float = 0.0025,
     # Run root scalar and check convergence
     #######################################
 
-    sol = root_scalar(diff, bracket=[x_min, x_max], method='brentq')
+    sol = minimize_scalar(diff, bounds=(x_min, x_max), method='bounded')
 
-    if not sol.converged:
-        raise RuntimeError("Root finding did not converge")
+    if not sol.success:
+        raise RuntimeError("Minimization did not converge")
 
     #################################
     # Convert back from log10(x) to x
     #################################
 
-    threshold = 10 ** sol.root
+    threshold = 10 ** sol.x
     return threshold
