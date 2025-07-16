@@ -50,9 +50,6 @@ if __name__ == "__main__":
     # Defining Tasks
     ################
 
-    def circuit_factory(d, b, p):
-        return compiled_xzzx(d, b, p)
-
     def make_tasks_for_bias(bias):
         return [
             sinter.Task(
