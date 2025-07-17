@@ -1,9 +1,12 @@
 import sinter
 import os, itertools
-from qecsim.xzzx_code.circuit import XZZX_code
-from qecsim.threshold_num.calc_threshold import threshold_approx
 import pickle
 import numpy as np
+
+from qecsim.xzzx_code.circuit import XZZX_code
+from qecsim.threshold_num.calc_threshold import threshold_approx
+from qecsim.threshold_num.calc_threshold_new import calc_threshold_new
+from stimbposd import SinterDecoder_BPOSD, sinter_decoders
 
 if __name__ == "__main__":
 
@@ -15,17 +18,13 @@ if __name__ == "__main__":
     bias_steps = np.arange(0.0, 1 + (step/2), step)
     all_bias_triplets = [[bx, by, 1 - bx - by]
                         for bx, by in itertools.product(bias_steps, repeat = 2) 
-                        if 0 <= 1 - bx - by <= 1
-                        and not (bx == 0 and by == 0)]
+                        if 0 <= 1 - bx - by <= 1]
 
     # Changing Bias setting
     for bx, by, bz in all_bias_triplets:
 
         #Creating Current Bias
         current_bias = [bx,by,bz]
-
-        if current_bias == [0,0,0]:
-            continue
 
         # Running simulation
         task_noisy_v = [sinter.Task(
@@ -39,26 +38,42 @@ if __name__ == "__main__":
             json_metadata={'p': noise, 'distance' : d, 'bias' : current_bias}
             ) 
             for noise in [i for i in np.arange(0.005, 0.1, 0.005)]
-            for d in [9, 11]
-            ]
-
+            for d in [5, 7]
+        ]
+        
         stats_noisy_v : list[sinter.TaskStats] = sinter.collect(
             num_workers = os.cpu_count(),
             tasks=task_noisy_v,
             decoders=['pymatching'],
-            max_shots=100_000_0,
+            max_shots=500_000,
             max_errors=10_000,
             print_progress=True
         )
 
+        """
+        Drop in for implementation of near PM decoder
+        -> Really long runtime
+        """
+
+        """
+        stats_noisy_v : list[sinter.TaskStats] = sinter.collect(
+            num_workers = os.cpu_count(),
+            tasks=task_noisy_v,
+            decoders=['bposd'],
+            custom_decoders=sinter_decoders(),
+            max_shots=500_000,
+            max_errors=10_000,
+            print_progress=True
+        )"""
+
         # calculate threshold and save -> If Error skip and set 0 
         try:
-            calc_th = threshold_approx(stats_noisy_v)
+            calc_th = calc_threshold_new(stats_noisy_v)
             num_value.append([current_bias,calc_th])
 
         except Exception:
-            num_value.append([current_bias,0])
+            num_value.append([current_bias, -1])
 
     #Saving num_values with pickle
-    with open("XZZX_num_value(full_bias).pkl", "wb") as file:
+    with open("XZZX_num_value(full_bias_low_d).pkl", "wb") as file:
         pickle.dump(num_value, file)
