@@ -78,7 +78,7 @@ def threshold_approx(data_stats: list[sinter.TaskStats], p_min : float = 0.0025,
     ##################################################################
 
     def diff(x):
-        return abs(f1_interp(x) - f2_interp(x))
+        return (f1_interp(x) - f2_interp(x))**2
 
     x_min = max(min(x_dots[d1]), min(x_dots[d2]))
     x_max = min(max(x_dots[d1]), max(x_dots[d2]))
