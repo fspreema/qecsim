@@ -9,7 +9,7 @@ from .initial import initial
 from .merging import merge
 from .splitting import split
 from.final_m_circuit import final_m
-from .dataclasses import Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext
+from .my_dataclasses import Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext
 
 Coord = complex
 Label = str
