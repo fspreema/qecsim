@@ -82,26 +82,53 @@ def _add_boundary_labels(distance: int,
 # Public function -> Building final circuit
 # -----------------------------------------
 
-def surgery_circuit(distance: int, *, target_state_init: str, control_state_init: str, flow_observable: str,
-                    noise_depol_data_init : float = 0.0, noise_measure_flip : float = 0.0,
-                    noise_after_reset : float = 0.0, noise_after_clifford_depol : float = 0.0) -> stim.Circuit:
+def surgery_circuit(distance: int, *, 
+                    round_num: int = 0,
+                    target_state_init: str, 
+                    control_state_init: str, 
+                    flow_observable: str,
+                    noise_depol_data_init : float = 0.0, 
+                    noise_measure_flip : float = 0.0,
+                    noise_after_reset : float = 0.0, 
+                    noise_after_clifford_depol : float = 0.0) -> stim.Circuit:
+    
     """
     Returns the full lattice surgery circuit
 
     Arguments:
-                -> target_state_init: In which basis should the target lattice be initlized?
-                -> control_state_init: In which basis should the control lattice be initilized?
+                -> target_state_init: 
+                In which basis should the target lattice be initlized?
+                -> control_state_init: 
+                In which basis should the control lattice be initilized?
+                -> flow_observable: 
+                What Observable should stim track?
+                -> distance/rounds: 
+                Distance and rounds of the circuit (If not given any value distance = rounds)
+                -> noise_depol_data_init:
+                Depolaization noise after initlization of the data qubits with given probability
+                -> noise_measure_flip:
+                X_Error before measurement to simulate faulty measurement with given probability
+                -> noise_after_reset: 
+                X_Error after reset of ancilla in order so simulate faulty reset with given probability
+                -> nosie_after_clifford_depol: 
+                Depolarization gate after each Clifford (CX and H) with given probability
 
     Returns:
                 -> Fully implemented CX-Gate in stim.Circuit format
     """
+    ####################
+    # Check Round number
+    ####################
+
+    if round_num == 0:
+        round_num = distance
 
     #########################################
     # Input fixed run settings into dataclass
     #########################################
 
-    cfg = Config(distance= distance, 
-                 target_state_init= target_state_init, 
+    cfg = Config(distance = distance, 
+                 target_state_init = target_state_init, 
                  control_state_init = control_state_init)
 
     ###############################################################
@@ -169,35 +196,65 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     # 5. Building Initilization Circuit
     ###################################
 
-    initial_circuit = initial(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
-                              after_r_flip = noise_after_reset, after_c_depol_prob = noise_after_clifford_depol)
+    initial_circuit = initial(rounds = round_num,
+                              lct = lct, 
+                              patches = patches, 
+                              cfg = cfg, 
+                              before_round_depol = noise_depol_data_init, 
+                              before_m_flip_prob = noise_measure_flip, 
+                              after_r_flip = noise_after_reset, 
+                              after_c_depol_prob = noise_after_clifford_depol)
    
     #############################################
     # 6. Building Merging Ancilla Control Circuit
     #############################################
 
-    merged_circuit_AC = merge(lct = lct, patches = patches, cfg = cfg, merging_type="AC", before_m_flip_prob = noise_measure_flip, after_r_flip = noise_after_reset,
+    merged_circuit_AC = merge(rounds = round_num,
+                              lct = lct, 
+                              patches = patches, 
+                              cfg = cfg, 
+                              merging_type="AC", 
+                              before_m_flip_prob = noise_measure_flip, 
+                              after_r_flip = noise_after_reset,
                               after_c_depol_prob = noise_after_clifford_depol)
 
     ###############################################
     # 5. Building Splitting Ancilla Control Circuit
     ###############################################
 
-    split_circuit_AC = split(lct = lct, patches = patches, cfg = cfg, split_type="AC", before_m_flip_prob = noise_measure_flip, after_r_flip = noise_after_reset,
+    split_circuit_AC = split(rounds = round_num,
+                             lct = lct, 
+                             patches = patches, 
+                             cfg = cfg, 
+                             split_type="AC", 
+                             before_m_flip_prob = noise_measure_flip, 
+                             after_r_flip = noise_after_reset,
                              after_c_depol_prob = noise_after_clifford_depol)
 
     ############################################
     # 6. Building Merging Ancilla Target Circuit
     ############################################
 
-    merged_circuit_AT = merge(lct = lct, patches = patches, cfg = cfg, merging_type="AT", before_m_flip_prob = noise_measure_flip, after_r_flip = noise_after_reset,
+    merged_circuit_AT = merge(rounds = round_num,
+                              lct = lct, 
+                              patches = patches, 
+                              cfg = cfg, 
+                              merging_type="AT", 
+                              before_m_flip_prob = noise_measure_flip, 
+                              after_r_flip = noise_after_reset,
                               after_c_depol_prob = noise_after_clifford_depol)
 
     ##############################################
     # 7. Building splitting Ancilla Target Circuit
     ##############################################
 
-    split_circuit_AT = split(lct = lct, patches = patches, cfg = cfg, split_type="AT", before_m_flip_prob = noise_measure_flip, after_r_flip = noise_after_reset,
+    split_circuit_AT = split(rounds = round_num,
+                             lct = lct, 
+                             patches = patches, 
+                             cfg = cfg, 
+                             split_type="AT", 
+                             before_m_flip_prob = noise_measure_flip, 
+                             after_r_flip = noise_after_reset,
                              after_c_depol_prob = noise_after_clifford_depol)
 
     ################################################################################

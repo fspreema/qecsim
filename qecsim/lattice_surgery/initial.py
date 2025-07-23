@@ -7,9 +7,14 @@ Coord = complex
 
 __all__ = ["initial"]
 
-def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Target, Patch_Control, Patch_Surgery], 
-            cfg : Config, before_round_depol : float, before_m_flip_prob : float, 
-            after_r_flip : float, after_c_depol_prob : float) -> stim.Circuit:
+def initial(*, rounds : int,
+            lct : LatticeContext, 
+            patches: dict[str, Patch_Ancilla, Patch_Target, Patch_Control, Patch_Surgery], 
+            cfg : Config, 
+            before_round_depol : float, 
+            before_m_flip_prob : float, 
+            after_r_flip : float, 
+            after_c_depol_prob : float) -> stim.Circuit:
     
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -776,6 +781,6 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         q_index = index_pos[1]
         initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
 
-    initial_circuit += initial_repeat_circuit * (distance - 1)
+    initial_circuit += initial_repeat_circuit * (rounds - 1)
 
     return initial_circuit

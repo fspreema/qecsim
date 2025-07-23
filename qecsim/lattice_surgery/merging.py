@@ -6,8 +6,14 @@ from .stabilizers import populate_stab_to_data
 
 Coord = complex
 
-def merge(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery,], cfg : Config, 
-          merging_type : str, before_m_flip_prob : float, after_r_flip : float, after_c_depol_prob : float) -> stim.Circuit:
+def merge(*, rounds : int,
+          lct : LatticeContext, 
+          patches: dict[str, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery,], 
+          cfg : Config, 
+          merging_type : str, 
+          before_m_flip_prob : float, 
+          after_r_flip : float, 
+          after_c_depol_prob : float) -> stim.Circuit:
 
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -978,6 +984,6 @@ def merge(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     # Adding Circuits & Receving the MXX/MZZ Measurements
     #####################################################
 
-    merge_init_circuit += merge_round_circuit * (distance - 1)
+    merge_init_circuit += merge_round_circuit * (rounds - 1)
 
     return merge_init_circuit

@@ -6,8 +6,14 @@ from .stabilizers import populate_stab_to_data
 
 Coord = complex
 
-def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery,], cfg : Config, 
-          split_type : str, before_m_flip_prob : float, after_r_flip : float, after_c_depol_prob : float) -> stim.Circuit:
+def split(*, rounds : int,
+          lct : LatticeContext, 
+          patches: dict[str, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery,], 
+          cfg : Config, 
+          split_type : str, 
+          before_m_flip_prob : float, 
+          after_r_flip : float, 
+          after_c_depol_prob : float) -> stim.Circuit:
 
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -1248,7 +1254,7 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     logical_obs_rec_tar = []
 
     inner_record = len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-    skipped_records = len(x_stab_index_untouched_circ + z_stab_index_untouched_circ + distance * (control_target_stabs + x_stab_index_ancilla + z_stab_index_ancilla))
+    skipped_records = len(x_stab_index_untouched_circ + z_stab_index_untouched_circ + rounds * (control_target_stabs + x_stab_index_ancilla + z_stab_index_ancilla))
 
     for index_pos_merge in pos_to_index_newly_gen_stabs:
         logical_obs_rec_tar.append(index_pos_merge[0] - inner_record - skipped_records)
@@ -1420,7 +1426,7 @@ def split(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Contr
     # Adding Repeat Circ and returning circuit
     ##########################################
 
-    split_init_circuit += split_repeat_circuit * (distance - 2)
+    split_init_circuit += split_repeat_circuit * (rounds - 2)
     split_init_circuit += split_final_circuit
 
     return split_init_circuit
