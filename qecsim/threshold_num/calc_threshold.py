@@ -36,16 +36,12 @@ def threshold_approx(data_stats: list[sinter.TaskStats], p_min : float = 0.0025,
     ###########################################
 
     for dist in [d1, d2]:
-        physical_p = [
-            stat.json_metadata["p"]
-            for stat in data_stats
-            if stat.json_metadata["distance"] == dist
-        ]
-        logical_p = [
-            stat.errors / stat.shots
-            for stat in data_stats
-            if stat.json_metadata["distance"] == dist
-        ]
+        filtered_stats = [stat for stat in data_stats
+                        if stat.json_metadata["distance"] == dist
+                        and p_min < stat.json_metadata["p"] < p_max
+]
+        physical_p = [stat.json_metadata["p"] for stat in filtered_stats]
+        logical_p = [stat.errors / stat.shots for stat in filtered_stats]
 
         """
         It is enough to check one Dataset for minim distance
