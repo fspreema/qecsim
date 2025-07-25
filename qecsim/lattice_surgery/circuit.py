@@ -82,11 +82,13 @@ def _add_boundary_labels(distance: int,
 # Public function -> Building final circuit
 # -----------------------------------------
 
-def surgery_circuit(distance: int, *, 
-                    round_num: int = 0,
-                    target_state_init: str, 
-                    control_state_init: str, 
-                    flow_observable: str,
+def surgery_circuit(distance : int, *, 
+                    round_num : int = 0,
+                    round_merge : int = 0,
+                    round_split : int = 0,
+                    target_state_init : str, 
+                    control_state_init : str, 
+                    flow_observable : str,
                     noise_depol_data_init : float = 0.0, 
                     noise_measure_flip : float = 0.0,
                     noise_after_reset : float = 0.0, 
@@ -122,6 +124,12 @@ def surgery_circuit(distance: int, *,
 
     if round_num == 0:
         round_num = distance
+
+    if round_merge == 0:
+        round_merge = distance
+
+    if round_split == 0:
+        round_split = distance
 
     #########################################
     # Input fixed run settings into dataclass
@@ -209,7 +217,7 @@ def surgery_circuit(distance: int, *,
     # 6. Building Merging Ancilla Control Circuit
     #############################################
 
-    merged_circuit_AC = merge(rounds = round_num,
+    merged_circuit_AC = merge(rounds = round_merge,
                               lct = lct, 
                               patches = patches, 
                               cfg = cfg, 
@@ -222,7 +230,7 @@ def surgery_circuit(distance: int, *,
     # 5. Building Splitting Ancilla Control Circuit
     ###############################################
 
-    split_circuit_AC = split(rounds = round_num,
+    split_circuit_AC = split(rounds = round_split,
                              lct = lct, 
                              patches = patches, 
                              cfg = cfg, 
@@ -235,7 +243,7 @@ def surgery_circuit(distance: int, *,
     # 6. Building Merging Ancilla Target Circuit
     ############################################
 
-    merged_circuit_AT = merge(rounds = round_num,
+    merged_circuit_AT = merge(rounds = round_merge,
                               lct = lct, 
                               patches = patches, 
                               cfg = cfg, 
@@ -248,7 +256,7 @@ def surgery_circuit(distance: int, *,
     # 7. Building splitting Ancilla Target Circuit
     ##############################################
 
-    split_circuit_AT = split(rounds = round_num,
+    split_circuit_AT = split(rounds = round_split,
                              lct = lct, 
                              patches = patches, 
                              cfg = cfg, 

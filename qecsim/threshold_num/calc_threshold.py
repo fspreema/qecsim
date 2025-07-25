@@ -18,6 +18,7 @@ def threshold_approx(data_stats: list[sinter.TaskStats], p_min : float = 0.0025,
 
     Function selects stats with highest distance and calculates corssing point by interpolation
     -> Threshold is defined as the limit of corssings between d & d+2 distances
+    -> Implementation by finding minimum of the difference of the functions
     """
 
     distances = sorted(set(stat.json_metadata["distance"] for stat in data_stats))
@@ -61,13 +62,13 @@ def threshold_approx(data_stats: list[sinter.TaskStats], p_min : float = 0.0025,
 
         x_dots[dist] = np.log10(physical_p)
         y_dots[dist] = np.log10(logical_p)
-    
+
     ##########################################
     # Intepolate Data for root_scalar function
     ##########################################
 
-    f1_interp = UnivariateSpline(x_dots[d1], y_dots[d1], s=1e-4)
-    f2_interp = UnivariateSpline(x_dots[d2], y_dots[d2], s=1e-4)
+    f1_interp = UnivariateSpline(x_dots[d1], y_dots[d1], k = 3)
+    f2_interp = UnivariateSpline(x_dots[d2], y_dots[d2], k = 3)
 
     ##################################################################
     # Define function for root_scalar and boundaries for search region
@@ -87,10 +88,42 @@ def threshold_approx(data_stats: list[sinter.TaskStats], p_min : float = 0.0025,
 
     if not sol.success:
         raise RuntimeError("Minimization did not converge")
+    
+    #######################################
+    # Filter out datapoint next to pot. sol
+    #######################################
+
+    next_lower_p = - np.inf
+    next_higher_p = 0
+    current_pos = 0
+
+    for pos, p_ph in enumerate(x_dots[d1]):
+        if p_ph < sol.x:
+            next_lower_p = p_ph
+            next_higher_p = x_dots[d1][pos + 1]
+            current_pos = pos
+
+    ############################
+    # Build linear Approximation
+    ############################
+
+    x = [next_lower_p, next_higher_p]
+    y_1 = [y_dots[d1][current_pos], y_dots[d1][current_pos + 1]]
+    y_2 = [y_dots[d2][current_pos], y_dots[d2][current_pos + 1]]
+
+    fit_1 = np.polyfit(x, y_1, 1)
+    fit_2 = np.polyfit(x, y_2, 1)
+
+    #########################
+    # Search for intersection
+    #########################
+
+    sol_crossing = (fit_2[1] - fit_1[1]) / (fit_1[0] - fit_2[0])
 
     #################################
     # Convert back from log10(x) to x
     #################################
 
-    threshold = 10 ** sol.x
+    threshold = 10 ** sol_crossing
+
     return threshold
