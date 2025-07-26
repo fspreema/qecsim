@@ -1,4 +1,4 @@
-from scipy.optimize import minimize_scalar
+from scipy.optimize import minimize_scalar, brentq
 from scipy.interpolate import UnivariateSpline
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,7 +10,7 @@ __all__ = ["calc_threshold"]
 # Global Function:
 #-----------------
 
-def threshold_approx(data_stats: list[sinter.TaskStats], p_min : float = 0.0025, p_max : float = 0.015) -> float:
+def threshold_approx(data_stats: list[sinter.TaskStats], p_min : float = 1e-6, p_max : float = 0.5) -> float:
 
     """
     Returns: float
@@ -92,7 +92,7 @@ def threshold_approx(data_stats: list[sinter.TaskStats], p_min : float = 0.0025,
     #######################################
     # Filter out datapoint next to pot. sol
     #######################################
-
+    
     next_lower_p = - np.inf
     next_higher_p = 0
     current_pos = 0
@@ -117,6 +117,9 @@ def threshold_approx(data_stats: list[sinter.TaskStats], p_min : float = 0.0025,
     #########################
     # Search for intersection
     #########################
+
+    if np.isclose(fit_1[0], fit_2[0], atol=1e-3):
+        raise RuntimeError("Local segments are parallel: no intersection!")
 
     sol_crossing = (fit_2[1] - fit_1[1]) / (fit_1[0] - fit_2[0])
 

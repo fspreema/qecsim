@@ -62,7 +62,7 @@ if __name__ == "__main__":
         task_noisy_XX = [sinter.Task(
         circuit = surgery_circuit(
             distance = d,
-            round_split = d * 2,
+            round_num = d * 2,
             target_state_init ="X+", 
             control_state_init ="X+",
             flow_observable = "X -> XX",
@@ -86,7 +86,7 @@ if __name__ == "__main__":
         )
 
         #Saving Stats
-        fname = f"lscx_doublerounds_split_d{d}.pkl"
+        fname = f"lscx_doublerounds_init_d{d}.pkl"
         try:
             joblib.dump(stats_noisy_XX, fname, compress=3)
             print(f"Successfully saved {fname}")
@@ -105,9 +105,9 @@ if __name__ == "__main__":
         task_noisy_XX = [sinter.Task(
         circuit = surgery_circuit(
             distance = d,
-            round_split = int(d * 2/3),
-            target_state_init ="X+", 
-            control_state_init ="X+",
+            round_num = int(d * 2/3),
+            target_state_init = "X+", 
+            control_state_init = "X+",
             flow_observable = "X -> XX",
             noise_after_clifford_depol = noise,
             noise_measure_flip = noise,
@@ -129,7 +129,7 @@ if __name__ == "__main__":
         )
 
         #Saving Stats
-        fname = f"lscx_twothirdrounds_split_d{d}.pkl"
+        fname = f"lscx_twothirdrounds_init_d{d}.pkl"
         try:
             joblib.dump(stats_noisy_XX, fname, compress=3)
             print(f"Successfully saved {fname}")
@@ -140,7 +140,8 @@ if __name__ == "__main__":
         del stats_noisy_XX
         del task_noisy_XX
         gc.collect()
-
+        
+        """
         #--------------MERGE------------------
 
         #######################
@@ -228,6 +229,7 @@ if __name__ == "__main__":
         del stats_noisy_XX
         del task_noisy_XX
         gc.collect()
+        """
 
     ###########################
     # Adding all files together
@@ -245,10 +247,10 @@ if __name__ == "__main__":
         joblib.dump(combined_stats, out_name, compress=3)
         print(f"Combined and saved as {out_name}")
 
-    combine_files("doublerounds_merge")
-    combine_files("doublerounds_split")
-    combine_files("twothirdrounds_merge")
-    combine_files("twothirdrounds_split")
+    combine_files("doublerounds_init")
+    #combine_files("doublerounds_split")
+    combine_files("twothirdrounds_init")
+    #combine_files("twothirdrounds_split")
 
     ######################################
     # Delete all individual distance files
