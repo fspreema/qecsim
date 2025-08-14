@@ -7,250 +7,90 @@ import glob
 
 from qecsim.lattice_surgery.circuit import surgery_circuit
 
+"""
+This is super INEFFICIENT!
+
+-> For high d and really low prob for phys error, max_shots are to low to detect any error (Can be skipped)
+-> Combined files are saved thorugh loop which loops until d_max = 15 (Have files we don't need in form of _12_ _14_)
+-> Only save the run datasets where 2 distances are included -> Every other doesn't need to be calculated
+
+TODO:
+-> Rewrite sim run with different noise for different distances
+-> Change saving loop
+-> Check if distance pairs are present before running sim run
+"""
+
 if __name__ == "__main__":
 
-    for d in [i for i in range(3,15,2)]:
+    d_max = 15
 
-        ###################
-        # Calc d thresholds
-        ###################
-        """
-        task_noisy_XX = [sinter.Task(
-        circuit = surgery_circuit(
-            distance = d,
-            round_split = d,
-            target_state_init ="X+", 
-            control_state_init ="X+",
-            flow_observable = "X -> XX",
-            noise_after_clifford_depol = noise,
-            noise_measure_flip = noise,
-            noise_after_reset = noise,
-            noise_depol_data_init = noise
-            ),
-        json_metadata={'p': noise, 'distance' : d, 'rounds' : d}
-        ) 
-        for noise in [i for i in np.arange(0.004, 0.013, 0.001)]
-        ]
+    for d in [i for i in range(3,d_max,2)]:
 
-        stats_noisy_XX : list[sinter.TaskStats] = sinter.collect(
-            num_workers = os.cpu_count(),
-            tasks=task_noisy_XX,
-            decoders=['pymatching'],
-            max_shots=1_000_000,
-            max_errors=10_000,
-            print_progress=True
-        )
+        for r in [i for i in range(2,d,2)]:
 
-        #Saving Stats
-        fname = f"lscx_singlerounds_d{d}.pkl"
-        try:
-            joblib.dump(stats_noisy_XX, fname, compress=3)
-            print(f"Successfully saved {fname}")
-        except Exception as e:
-            print(f"Failed to save {fname}: {e}")
+            ###################
+            # Calc d thresholds
+            ###################
+            
+            task_noisy_XX = [sinter.Task(
+                circuit = surgery_circuit(
+                    distance = d,
+                    round_num = r,
+                    round_split = r,
+                    round_merge = r,
+                    target_state_init ="X+", 
+                    control_state_init ="X+",
+                    flow_observable = "X -> XX",
+                    noise_after_clifford_depol = noise,
+                    noise_measure_flip = noise,
+                    noise_after_reset = noise,
+                    noise_depol_data_init = noise
+                    ),
+                json_metadata={'p': noise, 'distance' : d, 'rounds' : r}
+                )
+                for noise in [i for i in np.arange(1e-5, 0.013, 5e-5)]
+            ]
 
-        # Clear RAM by deleting large variables and running garbage collection
-        del stats_noisy_XX
-        del task_noisy_XX
-        gc.collect()
-        """
+            stats_noisy_XX : list[sinter.TaskStats] = sinter.collect(
+                num_workers = os.cpu_count(),
+                tasks = task_noisy_XX,
+                decoders = ['pymatching'],
+                max_shots = 1_000_000,
+                max_errors = 10_000,
+                print_progress = True
+            )
 
-        #######################
-        # Calc d * 2 thresholds
-        #######################
+            #Saving Stats
+            fname = f"lscx_singlerounds_d{d}_r{r}.pkl"
+            try:
+                joblib.dump(stats_noisy_XX, fname, compress=3)
+                print(f"Successfully saved {fname}")
+            except Exception as e:
+                print(f"Failed to save {fname}: {e}")
 
-        task_noisy_XX = [sinter.Task(
-        circuit = surgery_circuit(
-            distance = d,
-            round_num = d * 2,
-            target_state_init ="X+", 
-            control_state_init ="X+",
-            flow_observable = "X -> XX",
-            noise_after_clifford_depol = noise,
-            noise_measure_flip = noise,
-            noise_after_reset = noise,
-            noise_depol_data_init = noise
-            ),
-        json_metadata={'p': noise, 'distance' : d, 'rounds' : d * 2}
-        ) 
-        for noise in [i for i in np.arange(0.004, 0.013, 0.001)]
-        ]
-
-        stats_noisy_XX : list[sinter.TaskStats] = sinter.collect(
-            num_workers = os.cpu_count(),
-            tasks=task_noisy_XX,
-            decoders=['pymatching'],
-            max_shots=1_000_000,
-            max_errors=10_000,
-            print_progress=True
-        )
-
-        #Saving Stats
-        fname = f"lscx_doublerounds_init_d{d}.pkl"
-        try:
-            joblib.dump(stats_noisy_XX, fname, compress=3)
-            print(f"Successfully saved {fname}")
-        except Exception as e:
-            print(f"Failed to save {fname}: {e}")
-
-        # Clear RAM by deleting large variables and running garbage collection
-        del stats_noisy_XX
-        del task_noisy_XX
-        gc.collect()
-
-        #########################
-        # Calc d * 2/3 thresholds
-        #########################
-
-        task_noisy_XX = [sinter.Task(
-        circuit = surgery_circuit(
-            distance = d,
-            round_num = int(d * 2/3),
-            target_state_init = "X+", 
-            control_state_init = "X+",
-            flow_observable = "X -> XX",
-            noise_after_clifford_depol = noise,
-            noise_measure_flip = noise,
-            noise_after_reset = noise,
-            noise_depol_data_init = noise
-            ),
-        json_metadata={'p': noise, 'distance' : d, 'rounds' : int(d * 2/3)}
-        ) 
-        for noise in [i for i in np.arange(0.004, 0.013, 0.001)]
-        ]
-
-        stats_noisy_XX : list[sinter.TaskStats] = sinter.collect(
-            num_workers = os.cpu_count(),
-            tasks=task_noisy_XX,
-            decoders=['pymatching'],
-            max_shots=1_000_000,
-            max_errors=10_000,
-            print_progress=True
-        )
-
-        #Saving Stats
-        fname = f"lscx_twothirdrounds_init_d{d}.pkl"
-        try:
-            joblib.dump(stats_noisy_XX, fname, compress=3)
-            print(f"Successfully saved {fname}")
-        except Exception as e:
-            print(f"Failed to save {fname}: {e}")
-
-        # Clear RAM by deleting large variables and running garbage collection
-        del stats_noisy_XX
-        del task_noisy_XX
-        gc.collect()
-        
-        """
-        #--------------MERGE------------------
-
-        #######################
-        # Calc d * 2 thresholds
-        #######################
-
-        task_noisy_XX = [sinter.Task(
-        circuit = surgery_circuit(
-            distance = d,
-            round_merge = d * 2,
-            target_state_init ="X+", 
-            control_state_init ="X+",
-            flow_observable = "X -> XX",
-            noise_after_clifford_depol = noise,
-            noise_measure_flip = noise,
-            noise_after_reset = noise,
-            noise_depol_data_init = noise
-            ),
-        json_metadata={'p': noise, 'distance' : d, 'rounds' : d * 2}
-        ) 
-        for noise in [i for i in np.arange(0.004, 0.013, 0.001)]
-        ]
-
-        stats_noisy_XX : list[sinter.TaskStats] = sinter.collect(
-            num_workers = os.cpu_count(),
-            tasks=task_noisy_XX,
-            decoders=['pymatching'],
-            max_shots=1_000_000,
-            max_errors=10_000,
-            print_progress=True
-        )
-
-        #Saving Stats
-        fname = f"lscx_doublerounds_merge_d{d}.pkl"
-        try:
-            joblib.dump(stats_noisy_XX, fname, compress=3)
-            print(f"Successfully saved {fname}")
-        except Exception as e:
-            print(f"Failed to save {fname}: {e}")
-
-        # Clear RAM by deleting large variables and running garbage collection
-        del stats_noisy_XX
-        del task_noisy_XX
-        gc.collect()
-
-        #########################
-        # Calc d * 2/3 thresholds
-        #########################
-
-        task_noisy_XX = [sinter.Task(
-        circuit = surgery_circuit(
-            distance = d,
-            round_merge = int(d * 2/3),
-            target_state_init ="X+", 
-            control_state_init ="X+",
-            flow_observable = "X -> XX",
-            noise_after_clifford_depol = noise,
-            noise_measure_flip = noise,
-            noise_after_reset = noise,
-            noise_depol_data_init = noise
-            ),
-        json_metadata={'p': noise, 'distance' : d, 'rounds' : int(d * 2/3)}
-        ) 
-        for noise in [i for i in np.arange(0.004, 0.013, 0.001)]
-        ]
-
-        stats_noisy_XX : list[sinter.TaskStats] = sinter.collect(
-            num_workers = os.cpu_count(),
-            tasks=task_noisy_XX,
-            decoders=['pymatching'],
-            max_shots=1_000_000,
-            max_errors=10_000,
-            print_progress=True
-        )
-
-        #Saving Stats
-        fname = f"lscx_twothirdrounds_merge_d{d}.pkl"
-        try:
-            joblib.dump(stats_noisy_XX, fname, compress=3)
-            print(f"Successfully saved {fname}")
-        except Exception as e:
-            print(f"Failed to save {fname}: {e}")
-
-        # Clear RAM by deleting large variables and running garbage collection
-        del stats_noisy_XX
-        del task_noisy_XX
-        gc.collect()
-        """
+            # Clear RAM by deleting large variables and running garbage collection
+            del stats_noisy_XX
+            del task_noisy_XX
+            gc.collect()
 
     ###########################
     # Adding all files together
     ###########################
 
-    def combine_files(round_type):
+    def combine_files(round_num):
 
-        pattern = f"lscx_{round_type}_d*.pkl"
+        pattern = f"lscx_singlerounds_d*_r{round_num}.pkl"
         files = sorted(glob.glob(pattern))
         combined_stats = []
         for f in files:
             part = joblib.load(f)
             combined_stats.extend(part)
-        out_name = f"lscx_{round_type}_combined.pkl"
+        out_name = f"lscx_singlerounds_{round_num}_combined.pkl"
         joblib.dump(combined_stats, out_name, compress=3)
         print(f"Combined and saved as {out_name}")
 
-    combine_files("doublerounds_init")
-    #combine_files("doublerounds_split")
-    combine_files("twothirdrounds_init")
-    #combine_files("twothirdrounds_split")
+    for r in [i for i in range(2,d_max,2)]:
+        combine_files(r)
 
     ######################################
     # Delete all individual distance files
