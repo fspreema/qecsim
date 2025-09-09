@@ -4,7 +4,8 @@ import numpy as np
 __all__ = ["pauli_injector"]
 
 def pauli_injector(circuit : stim.Circuit, 
-                           noise_info : np.array) -> tuple[np.array, np.array, np.array, np.array]:
+                           noise_info : np.array,
+                           batch_size : int = 1) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
 
     '''
     This function uses stim.FlipSimualtor in order to determine which measurements get flipped after an arbitary pauli error is included into the circuit
@@ -33,15 +34,15 @@ def pauli_injector(circuit : stim.Circuit,
     We need this as we have also the sign as well as gamma which need to be multiplied by the final measurement outcome
     """
 
-    sign_keeper = np.ones(circuit.num_qubits, dtype=int)
-    gamma_keeper = np.ones(circuit.num_qubits, dtype=float)
+    sign_keeper = np.ones((circuit.num_qubits, batch_size), dtype=int)
+    gamma_keeper = np.ones((circuit.num_qubits, batch_size), dtype=float)
 
     ###########################
     # Initlizing Flip Simulator
     ###########################
     
     flip = stim.FlipSimulator(
-        batch_size = 1,
+        batch_size = batch_size,
         num_qubits = circuit.num_qubits,
         disable_stabilizer_randomization = True
         )
@@ -52,12 +53,16 @@ def pauli_injector(circuit : stim.Circuit,
 
     all_noisy_ticks = noise_info[:,1]
     current_tick = -1
-    
+
     ########################################################
     # Running through circuit tick by tick and adding paulis
     ######################################################## 
 
     for i in range(len(all_noisy_ticks)):
+
+        """
+        flip.do adds instruction to every batch instance -> therefore keep outside the batch loop
+        """
 
         # Adding all instructions until Pauli insertion
         for index, operation in enumerate(circuit):
@@ -72,69 +77,120 @@ def pauli_injector(circuit : stim.Circuit,
         sgn_err = int(noise_info[i,6])
         current_gamma = noise_info[i,7]
 
+        # Checking DEPOL2 -> No looping over the individual qubits, therefore outside the for loop
+        if error_type == "DEPOL2":
+
+            #############################################################################
+            # Looping over Batch number and simulating batch_nuberm fo different outcomes
+            #############################################################################
+        
+            for current_batch in range(batch_size):
+
+                # Creating current random number
+                current_rdm_nmbr = np.random.rand()
+                    
+                # Checking if error is applied or not
+                if current_rdm_nmbr < current_err_prob:
+
+                    paulis = ["I", "X", "Y", "Z"]
+                    depol2 = [(a,b) for a in paulis for b in paulis if not (a == "I" and b == "I")]
+
+                    # Choose Random Multi Qubit Pauli for depol
+                    rng = np.random.default_rng()
+                    chosen_pauli1, chosen_pauli2 = depol2[rng.integers(15)]
+
+                    # Add Paulis into noiseless circuit
+                    flip.set_pauli_flip(chosen_pauli1, qubit_index = qubit_index[0], instance_index = current_batch)
+                    flip.set_pauli_flip(chosen_pauli2, qubit_index = qubit_index[1], instance_index = current_batch)
+
+                    # Updating sign keeper
+                    """
+                    We add the sign to one fo the qubits
+                    -> As we multiply gamma together in the end it doesnt really matter what 
+                    qubit, but as DEPOL2 is one operation we add the gamma only to one qubit!
+                    """
+
+                    sign_keeper[qubit_index[0], current_batch] *= sgn_err
+
+                else:
+
+                    # Update sign keeper
+                    sign_keeper[qubit_index[0], current_batch] *= sgn_I
+
+                # Add gamma keeper
+                gamma_keeper[qubit_index[0], current_batch] *= current_gamma
+
+            # Updating Boundaries for adding instructions to the flip sim
+            current_tick = all_noisy_ticks[i] - 1
+            continue
+
         # Looping over all qubit indexes
         for current_qubit in qubit_index:
 
             # Check what type of noise we have in order to determine what elements the inverse channel has
             if error_type == "DEPOL":
 
-                # Creating current random number
-                current_rdm_nmbr = np.random.rand()
+                #############################################################################
+                # Looping over Batch number and simulating batch_nuberm fo different outcomes
+                #############################################################################
             
-                # Checking if error is applied or not
-                if current_rdm_nmbr < current_err_prob:
+                for current_batch in range(batch_size):
 
-                    # Choose Pauli for depol
-                    pauli_random = np.random.rand()
+                    # Creating current random number
+                    current_rdm_nmbr = np.random.rand()
+                    
+                    # Checking if error is applied or not
+                    if current_rdm_nmbr < current_err_prob:
 
-                    if pauli_random < 1/3:
-                        chosen_pauli = "X"
+                        paulis = ["X", "Y", "Z"]
 
-                    elif pauli_random < 2/3:
-                        chosen_pauli = "Y"
+                        rng = np.random.default_rng()
+                        chosen_pauli = paulis[rng.integers(3)]
+
+                        # Add Pauli into noiseless circuit
+                        flip.set_pauli_flip(chosen_pauli, qubit_index = current_qubit, instance_index = current_batch)
+
+                        # Updating sign keeper
+                        sign_keeper[current_qubit, current_batch] *= sgn_err
 
                     else:
-                        chosen_pauli = "Z"
 
-                    # Add Pauli into noiseless circuit
-                    flip.set_pauli_flip(chosen_pauli, qubit_index = current_qubit, instance_index = 0)
+                        # Update sign keeper
+                        sign_keeper[current_qubit, current_batch] *= sgn_I
 
-                    # Updating sign keeper
-                    sign_keeper[current_qubit] *= sgn_err
-
-                else:
-
-                    # Update sign keeper
-                    sign_keeper[current_qubit] *= sgn_I
-
-                # Add gamma keeper
-                gamma_keeper[current_qubit] *= current_gamma
-                    
-            
+                    # Add gamma keeper
+                    gamma_keeper[current_qubit, current_batch] *= current_gamma
+                
             elif error_type == "X_ERR":
-                    
-                # Creating current random number
-                current_rdm_nmbr = np.random.rand()
+
+                #############################################################################
+                # Looping over Batch number and simulating batch_nuberm fo different outcomes
+                #############################################################################
             
-                # Checking if error is applied or not
-                if current_rdm_nmbr < current_err_prob:
+                for current_batch in range(batch_size):
+                  
+                    # Creating current random number
+                    current_rdm_nmbr = np.random.rand()
+                    
+                    # Checking if error is applied or not
+                    if current_rdm_nmbr < current_err_prob:
 
-                    # Here we have only one option besides the identity for the inverse
-                    chosen_pauli = "X"
+                        # Here we have only one option besides the identity for the inverse
+                        chosen_pauli = "X"
 
-                    # Add Pauli into nosieless Circ
-                    flip.set_pauli_flip(chosen_pauli, qubit_index = current_qubit, instance_index = 0)
+                        # Add Pauli into nosieless Circ
+                        flip.set_pauli_flip(chosen_pauli, qubit_index = current_qubit, instance_index = current_batch)
 
-                    # Updating sign keeper
-                    sign_keeper[current_qubit] *= sgn_err
+                        # Updating sign keeper
+                        sign_keeper[current_qubit, current_batch] *= sgn_err
 
-                else:
+                    else:
 
-                    # Update sign keeper
-                    sign_keeper[current_qubit] *= sgn_I
+                        # Update sign keeper
+                        sign_keeper[current_qubit, current_batch] *= sgn_I
 
-                # Add gamma keeper
-                gamma_keeper[current_qubit] *= current_gamma
+                    # Add gamma keeper
+                    gamma_keeper[current_qubit, current_batch] *= current_gamma
 
         # Updating Boundaries for adding instructions to the flip sim
         current_tick = all_noisy_ticks[i] - 1
@@ -160,19 +216,3 @@ def pauli_injector(circuit : stim.Circuit,
     ########################################
 
     return meas_mask.astype(bool), det_mask.astype(bool), obs_mask.astype(bool), sign_keeper, gamma_keeper
-
-
-"""
-                elif error_type == "DEPOL2":
-
-                    # Choose Pauli for depol
-                    pauli_random = np.random.rand()
-
-                    if 
-                    chosen_pauli = 0
-
-                    # Iterate over both qubits
-                    for i in 
-
-                    flip.set_pauli_flip(chosen_pauli, qubit_index = current_qubit, instance_index = 0)
-                """

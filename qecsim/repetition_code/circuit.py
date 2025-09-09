@@ -5,7 +5,7 @@ import sinter
 import matplotlib.pyplot as plt
 import os
 
-__all__ = ["repetition-code"]
+__all__ = ["repetition_code"]
 
 def repetition_code(distance : int, Rounds : int, before_measurement_flip_prob : float = 0.0, 
                     before_round_data_depol : float = 0.0,

@@ -30,6 +30,8 @@ def return_noise_pos(circuit : stim.Circuit) -> np.array:
 
     for tick, inst in enumerate(circuit):
 
+        # NEED TO CHECK FOR REPEAT BLOCK!
+
         # Filter Different Error Channels
         if inst.name in {"DEPOLARIZE1"}:
 
