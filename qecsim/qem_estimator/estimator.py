@@ -48,60 +48,66 @@ def mc_estimator(circuit : stim.Circuit, circuit_noiseless : stim.Circuit, numbe
 
     for i in range(number_samples):
 
-        ###########################################
-        # Sample form the identity Circuit one shot
-        ###########################################
+        block_sum = 0
 
-        noisy_samples = sampler_I.sample(shots = 1, append_observables = True)
+        for _ in range(number_shots):
 
-        ####################
-        # Run pauli injector
-        ####################
+            ###########################################
+            # Sample form the identity Circuit one shot
+            ###########################################
 
-        """
-        Maybe we runs x instance of the injector and we take the mean of the result?
-        """
+            noisy_samples = sampler_I.sample(shots = 1, append_observables = True)
 
-        pauli_frame_meas = pauli_injector(circuit = circuit_noiseless, noise_info = noisy_info)
+            ####################
+            # Run pauli injector
+            ####################
 
-        # Extract Frames
-        meas_frame : np.array = pauli_frame_meas[0]
-        log_frame : np.array = pauli_frame_meas[2]
-        sgn_keeper : np.array = pauli_frame_meas[3]
+            """
+            Maybe we runs x instance of the injector and we take the mean of the result?
+            """
 
-        #########################
-        # XOR Measurement results
-        #########################
+            pauli_frame_meas = pauli_injector(circuit = circuit_noiseless, noise_info = noisy_info)
 
-        # Extract gamma
-        gamma_frame : np.array = pauli_frame_meas[4]
-        
-        # Multiplying all gammas/signs together as we look at the log operator
-        full_gmsgn = 1
+            # Extract Frames
+            meas_frame : np.array = pauli_frame_meas[0]
+            log_frame : np.array = pauli_frame_meas[2]
+            sgn_keeper : np.array = pauli_frame_meas[3]
 
-        for value in gamma_frame:
-            full_gmsgn *= value
+            #########################
+            # XOR Measurement results
+            #########################
 
-        for value in sgn_keeper:
-            full_gmsgn *= value
+            # Extract gamma
+            gamma_frame : np.array = pauli_frame_meas[4]
+            
+            # Multiplying all gammas/signs together as we look at the log operator
+            full_gmsgn = 1
 
-        # XOR logical Operator and multiply all gammas to it
-        obs_bits = noisy_samples[0, -circuit.num_observables:]
-        xored_vec = obs_bits.astype(bool) ^ log_frame     
-        xored_res = bool(xored_vec[0])       
+            for value in gamma_frame:
+                full_gmsgn *= value
 
-        # Convert into non boolian result
-        non_bool_res = 0
+            for value in sgn_keeper:
+                full_gmsgn *= value
 
-        if xored_res == True:
-            non_bool_res = -1 * full_gmsgn
-        else:
-            non_bool_res = 1 * full_gmsgn
+            # XOR logical Operator and multiply all gammas to it
+            obs_bits = noisy_samples[0, -circuit.num_observables:]
+            xored_vec = obs_bits.astype(bool) ^ log_frame     
+            xored_res = bool(xored_vec[0])       
 
-        ##########################
-        # Return Final Measurement
-        ##########################
+            # Convert into non boolian result
+            non_bool_res = 0
 
-        mean_res[i] = non_bool_res
+            if xored_res == True:
+                non_bool_res = -1 * full_gmsgn
+            else:
+                non_bool_res = 1 * full_gmsgn
+
+            ##########################
+            # Return Final Measurement
+            ##########################
+
+            block_sum += non_bool_res
+
+        mean_res[i] = block_sum / float(number_shots)
 
     return mean_res
