@@ -1,15 +1,62 @@
 import stim
-import sinter
-import os
-import matplotlib.pyplot as plt
-import pickle
+from typing import Dict, Tuple, List, Mapping, Any
+from dataclasses import dataclass
+
+from qecsim.lattice_surgery.geometry import build_lattice
+from .stabilizers import populate_stab_to_data
+from .initial import initial
+from .repetition_circ import repetition_circ
+from .reset_circ import reset
+from .final_m_circuit import final_m
+from .switched_round import switched_circ
+from .switched_init import switched_circ_init
+from .dataclasses import Config, Patch, Context
+
+Coord = complex
+Label = str
+Index = int
+Pair = Tuple[Coord, Coord]
 
 __all__ = ["Rotated_Surface_Code"]
 
-def Rotated_Surface_Code(distance: int, rounds : int, init_state : str, log_obs : str,
-                         before_measurement_flip_prob:float = 0.0, 
-                         before_round_depol_data:float = 0.0, after_reset_flip_prob:float = 0.0,
-                         after_clifford_depol:float = 0.0) -> stim.Circuit:
+# -------------------------
+# Helper Functions
+# -------------------------
+
+def _add_boundary_labels(distance: int, qubit_coords: Dict[Coord, Label]) -> None:
+    
+    """
+    Adds the neseccary Boundary and Surgery Stabilizers needed
+    """
+
+    max_coord = 2 * distance
+
+    # Z-boundary stabilizers
+    for y in range(2, max_coord, 4):
+        coord_ancilla = complex(0, y)
+        qubit_coords[coord_ancilla] = "Z-STAB-BOUND-L"
+
+    for y in range(4, max_coord, 4):
+        coord_ancilla = complex(max_coord, y)
+        qubit_coords[coord_ancilla] = "Z-STAB-BOUND-R"
+
+    # X-boundary stabilizers
+    for y in range(4, max_coord, 4):
+        coord_ancilla = complex(y, 0)
+        qubit_coords[coord_ancilla] = "X-STAB-BOUND-U"
+
+    for y in range(2, max_coord, 4):
+        coord_ancilla = complex(y, max_coord)
+        qubit_coords[coord_ancilla] = "X-STAB-BOUND-B"
+
+# -----------------------------------------
+# Public function -> Building final circuit
+# -----------------------------------------
+
+def Rotated_Surface_Code(distance: int, rounds : int, *, state_init : str, log_obs : str, flow_observable: str,
+                    noise_depol_data_init : float = 0.0, noise_measure_flip : float = 0.0,
+                    noise_after_reset : float = 0.0, noise_after_clifford_depol : float = 0.0) -> stim.Circuit:
+    
     '''
     Generates Rotated-Surface-Code
 
@@ -34,155 +81,30 @@ def Rotated_Surface_Code(distance: int, rounds : int, init_state : str, log_obs 
         stim.Circuit: Comiled Circuit in Stim format
     '''
 
-    #------------Preliminary-Setup------------
+    #########################################
+    # Input fixed run settings into dataclass
+    #########################################
+    cfg = Config(distance= distance, state_init = state_init, obs = log_obs, rounds = rounds)
 
-    #Checking Distance
-    if distance <= 2:
-        raise ValueError("Length must be a minimum of 3")
-    
-    #Checking Odd Distance
-    if distance % 2 == 0:
-        raise ValueError("Distance must be odd")
+    ###############################################################
+    # 1. Build independent square patches (using geometry function)
+    ###############################################################
+    qubit_coords: Dict[Coord, Label] = build_lattice(distance, offset=0+0j, starting_stabilizer_x=True)
 
-    #Implementing Coordinate for Qubits
-    qubit_coords: dict[complex, str] = {}
-    stab_to_data: dict[list[complex], str] = {}
+    #######################################################################################
+    # 2. Insert boundary & surgery labels (Only get activated in splitting/merging process)
+    #######################################################################################
+    _add_boundary_labels(distance, qubit_coords)
 
-    #----------Coordinate-Setup----------------
+    ################################################################################
+    # 3. Adding the Mapping from Stabilizer to Data for later CX gate implementation
+    ################################################################################
+    stab_to_data: Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords, is_flipped = False)
+    stab_to_data_flipped: Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords, is_flipped = True)
 
-    #Data/Stab Coords
-    start_with_x = True
-
-    for real in range(distance * 2):
-        stab_counter = 0  # Reset for each row
-
-        for imag in range(distance * 2):
-
-        # Create Data Coords
-            if real % 2 != 0 and imag % 2 != 0:
-                coord = complex(real, imag)
-                qubit_coords[coord] = "DATA"
-
-        # Check Stabilizer Positions
-            elif real % 2 == 0 and imag % 2 == 0:
-                # Exclude Boundary
-                if real != 0 and imag != 0:
-                    coord = complex(real, imag)
-
-                    # Decide which stabilizer to use
-                    if start_with_x:
-                        # Even positions are X, odd are Z
-                        if stab_counter % 2 == 0:
-                            qubit_coords[coord] = "X-STAB"
-                        else:
-                            qubit_coords[coord] = "Z-STAB"
-                    else:
-                        # Even positions are Z, odd are X
-                        if stab_counter % 2 == 0:
-                            qubit_coords[coord] = "Z-STAB"
-                        else:
-                            qubit_coords[coord] = "X-STAB"
-
-                    stab_counter += 1
-
-        # After finishing a row, flip the starting stabilizer for the next row
-        if real % 2 == 0 and real != 0:
-            start_with_x = not start_with_x
-
-    #Create Boundary Stab Coords
-    max_coord = 2 * distance
-
-    if distance % 2 == 0:
-        # Z-boundary stabilizers
-        for y in range(4, max_coord, 4):
-            coord = complex(0, y)
-            qubit_coords[coord] = "Z-STAB-BOUND-L"
-
-        for y in range(2, max_coord, 4):
-            coord = complex(max_coord, y)
-            qubit_coords[coord] = "Z-STAB-BOUND-R"
-
-        # X-boundary stabilizers
-        for x in range(2, max_coord, 4):
-            coord = complex(x, 0)
-            qubit_coords[coord] = "X-STAB-BOUND-U"
-
-        for x in range(4, max_coord, 4):
-            coord = complex(x, max_coord)
-            qubit_coords[coord] = "X-STAB-BOUND-B"
-
-    else:
-        # Z-boundary stabilizers
-        for y in range(2, max_coord, 4):
-            coord = complex(0, y)
-            qubit_coords[coord] = "Z-STAB-BOUND-L"
-
-        for y in range(4, max_coord, 4):
-            coord = complex(max_coord, y)
-            qubit_coords[coord] = "Z-STAB-BOUND-R"
-
-        # X-boundary stabilizers
-        for x in range(4, max_coord, 4):
-            coord = complex(x, 0)
-            qubit_coords[coord] = "X-STAB-BOUND-U"
-
-        for x in range(2, max_coord, 4):
-            coord = complex(x, max_coord)
-            qubit_coords[coord] = "X-STAB-BOUND-B"
-
-    """
-        BOUNDARY CX STABILIZER IMPLEMENTATION BELOW:
-        -> very specific implementation! 
-        -> If the ordering changes Stabilizers get non deterministic result 
-           (Look at Det. Timeslice in order to see why this is the correct implementation -> CX all in the correct "pattern")
-    """
-    
-    #Coordinates of Data qubits for each Stabilizer
-    for coords,string in qubit_coords.items():
-        #Already in Correct Orientation for Measurement of CX
-        if string == "X-STAB":
-            new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-            new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
-            new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
-            new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
-            stab_to_data[new_cord1, coords] = "1-CX"
-            stab_to_data[new_cord2, coords] = "2-CX"
-            stab_to_data[new_cord3, coords] = "3-CX"
-            stab_to_data[new_cord4, coords] = "4-CX"
-
-        elif string == "Z-STAB":
-            new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-            new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-            new_cord3 = (coords.real - 1) + (coords.imag - 1) * 1j
-            new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
-            stab_to_data[coords, new_cord1] = "1-CX"
-            stab_to_data[coords, new_cord2] = "2-CX"
-            stab_to_data[coords, new_cord3] = "3-CX"
-            stab_to_data[coords, new_cord4] = "4-CX"
-
-        elif string == "Z-STAB-BOUND-L":
-            new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-            new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
-            stab_to_data[coords, new_cord1] = "1-CX"
-            stab_to_data[coords, new_cord2] = "2-CX"
-
-        elif string == "Z-STAB-BOUND-R":
-            new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-            new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
-            stab_to_data[coords, new_cord1] = "3-CX"
-            stab_to_data[coords, new_cord2] = "4-CX"
-        
-        elif string == "X-STAB-BOUND-U":
-            new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-            new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
-            stab_to_data[new_cord1, coords] = "4-CX"
-            stab_to_data[new_cord2, coords] = "3-CX"
-
-        elif string == "X-STAB-BOUND-B":
-            new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-            new_cord2 = (coords.real + 1 ) + (coords.imag - 1) * 1j
-            stab_to_data[new_cord1, coords] = "2-CX"
-            stab_to_data[new_cord2, coords] = "1-CX"
+    ###############################################
+    # 4. Indexing All Qubits From given Coordinates
+    ###############################################
 
     #Indexing Qubits
     q2i: dict[complex, int] = {q: i for i, q in enumerate(
@@ -192,613 +114,179 @@ def Rotated_Surface_Code(distance: int, rounds : int, init_state : str, log_obs 
     #Reverse Indexing
     i2q: dict[int, complex] = {i: q for q, i in q2i.items()}
 
-    #Indexing Z and X Stabilizers
-    x_stab_index = [q2i[q] for q, qtype in qubit_coords.items() if qtype in {"X-STAB","X-STAB-BOUND-U", "X-STAB-BOUND-B"}]
-    z_stab_index = [q2i[q] for q, qtype in qubit_coords.items() if qtype in {"Z-STAB","Z-STAB-BOUND-L", "Z-STAB-BOUND-R"}]
+    ##########################################################
+    # Adding Indexes and shared information into lct dataclass
+    ##########################################################
 
-    #Indexing Data-Qubits
-    data = [q2i[q] for q, qtype in qubit_coords.items() if qtype == "DATA"]
-    
-    #Building Circuit
-    inital_circuit = stim.Circuit()
-    round_circuit = stim.Circuit()
-    final_circuit = stim.Circuit()
+    lct = Context(q2i= q2i, i2q= i2q, stab_to_data = stab_to_data, stab_to_data_flipped = stab_to_data_flipped)
+    patches : Dict[str, Patch] = {"patch": Patch.from_coords(qubit_coords, q2i),}
 
-    #-----BUILDING-INITILIZATION-CIRCUIT----
+    ###################################
+    # 5. Building Initilization Circuit
+    ###################################
 
-    #Appending Coords
-    for q, i in q2i.items():
-        inital_circuit.append("QUBIT_COORDS", [i], [q.real, q.imag])
+    initial_circuit = initial(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
+                              after_r_flip = noise_after_reset, after_c_depol_prob = noise_after_clifford_depol)
+   
+    ################################
+    # 6. Building repetition Circuit
+    ################################
 
-    #Appending Reset (In Theory not needed right now -> Later: Init. in X-Basis)
+    repet_circ = repetition_circ(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
+                              after_r_flip = noise_after_reset, after_c_depol_prob = noise_after_clifford_depol)
 
-    if init_state in {"0", "1"}:
-        inital_circuit.append("RZ", data + x_stab_index + z_stab_index)
+    ########################################################################
+    # Implement additional Circuit if Init and Measure Basis is not the same
+    ########################################################################
 
-        #Create logical X Data String:
-        data_log = []
+    """
+    We now rund d rounds with flipped stabilizer roles
+    -> i.e. X stabilizers convert to z stabilizers and x to z
+    -> Flipped the stabs_to_data formalism and changed inside the function the role of x and z stab indices
+    """
 
-        for imag in range(1,(distance * 2),2):
-            data_log.append(q2i[3 + imag * 1j])
+    # Determining if flip is needed
+    if state_init in {"0", "1"} and log_obs in {"X"}:
+        flip_needed = True
+    elif state_init in {"+", "-"} and log_obs in {"Z"}:
+        flip_needed = True
+    else:
+        flip_needed = False
 
-        if init_state == "1":
-            inital_circuit.append("X", data_log)
+    # Adding the needed circuits
+    if flip_needed is True: 
 
-    elif init_state in {"+", "-"}:
-        inital_circuit.append("RX", data)
+        repet_switch_init = switched_circ_init(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
+                                after_r_flip = noise_after_reset, after_c_depol_prob = noise_after_clifford_depol)
 
-        # ancilla are still init in 0
-        inital_circuit.append("R", x_stab_index + z_stab_index)
+        repet_switched = switched_circ(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
+                                after_r_flip = noise_after_reset, after_c_depol_prob = noise_after_clifford_depol)
+        
+        initial_circuit += repet_circ
+        initial_circuit += repet_switch_init
+        initial_circuit += repet_switched
+        
+    else:
+        initial_circuit += repet_circ
 
-        #Create logical X Data String:
-        data_log = []
+    #######################################################################
+    # 9. Retrieving final Circuit with postion of parity ZZ XX Measurements
+    #######################################################################
 
-        for real in range(1,(distance * 2),2):
-            data_log.append(q2i[real + 3j])
+    log_x = []
+    log_z = []
 
-        if init_state == "-":
-            inital_circuit.append("Z", data_log)
+    for imag in range(1, distance * 2, 2):
+        log_x.append(q2i[1 + imag * 1j])
+
+    for real in range(1, distance * 2, 2):
+        log_z.append(q2i[real + 1j])
+
+    ##################################
+    # 10. Building logical Observables
+    ##################################
+
+    if flow_observable == "X -> Z":
+        if state_init in {"+", "-"}:
+            if log_obs in {"Z"}:
+            
+                left = '*'.join(f"X{i}" for i in log_x)
+                right = '*'.join(f"Z{i}" for i in log_z)
+                result = f"{left} -> {right}"
+
+                #(included_measurements,) = initial_circuit.solve_flow_measurements([stim.Flow(result),])
+
+            else:
+                return ValueError("Wrong target basis for selected flow")
+            
+        else:
+            return ValueError("Wrong control basis for selected flow")
+
+    elif flow_observable == "X -> X":
+        if state_init in {"+", "-"}:
+            if log_obs in {"X"}:
+
+                left = '*'.join(f"X{i}" for i in log_x)
+                right = '*'.join(f"X{i}" for i in log_x)
+                result = f"{left} -> {right}"
+
+                (included_measurements,) = initial_circuit.solve_flow_measurements([
+                stim.Flow(result),
+                ])
+
+            else:
+                return ValueError("Invalid target basis for selected flow")
+            
+        else:
+            return ValueError("Invalid control state")
+        
+    elif flow_observable == "Z -> X":
+        if state_init in {"0", "1"}:
+            if log_obs in {"X"}:
+
+                left = '*'.join(f"Z{i}" for i in log_z)
+                right = '*'.join(f"X{i}" for i in log_x)
+                result = f"{left} -> {right}"
+
+                (included_measurements,) = initial_circuit.solve_flow_measurements([
+                stim.Flow(result),
+                ])
+
+            else:
+                return ValueError("Wrong target basis for selected flow")
+            
+        else:
+            return ValueError("Wrong control basis for selected flow")
+
+    elif flow_observable == "Z -> Z":   
+        if state_init in {"0", "1"}:
+            if log_obs in {"Z"}:
+
+                left = '*'.join(f"Z{i}" for i in log_z)
+                right = '*'.join(f"Z{i}" for i in log_z)
+                result = f"{left} -> {right}"
+
+                (included_measurements,) = initial_circuit.solve_flow_measurements([
+                stim.Flow(result),
+                ])
+
+            else:
+                return ValueError("Invalid target state")
+            
+        else:
+            return ValueError("Wrong control basis for selected flow")
 
     else:
-        ValueError("Not a valid init Basis")
+        return ValueError("Invalid Flow selected")
 
-    #-------Adding-After-Reset-Flip-Prob.------------
+    ###############################
+    # 11. Adding State initiliztion
+    ###############################
 
-    if after_reset_flip_prob > 0:
-        inital_circuit.append("X_ERROR", data + x_stab_index + z_stab_index, after_reset_flip_prob)
+    state_init_circuit = reset(lct = lct, patches = patches, cfg = cfg)
 
-    #-------Continue-Circuit------------
+    final_measurement = final_m(lct = lct, patches = patches, cfg = cfg, flow = flow_observable, before_m_flip_prob = noise_measure_flip, is_flipped = flip_needed)
 
-    inital_circuit.append("TICK")
+    state_init_circuit += initial_circuit
 
-    #-------Adding-Before-Round-Depol.-Data------------
+    ##################################################
+    # 12. Adding logical Observable given by stim.Flow
+    ##################################################
 
-    if before_round_depol_data > 0:
-        inital_circuit.append("DEPOLARIZE1", data, before_round_depol_data)
+    # Calculating target rec pos
+    rec_pos = []
 
-    #-------Continue-Circuit------------
+    #for index in included_measurements:
+    #    current_rec_tar = initial_circuit.num_measurements - index
+    #    rec_pos.append(- current_rec_tar)
 
-    #1) Reset/ Basis
-    inital_circuit.append("H", x_stab_index)
+    #state_init_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
 
-    #-------Adding-After-Clifford-Depol.------------
+    ##########################
+    # Adding final measurement
+    ##########################
 
-    if after_clifford_depol > 0:
-        inital_circuit.append("DEPOLARIZE1", x_stab_index, after_clifford_depol)
-        
-    #-------Continue-Circuit------------
+    state_init_circuit += final_measurement
 
-    inital_circuit.append("TICK")
+    return state_init_circuit
 
-    #2) CX Operations
-
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "1-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            inital_circuit.append("CX", index_pairs)
-    
-    #-------Adding-After-Clifford-Depol.------------
-
-    if after_clifford_depol > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "1-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                inital_circuit.append("DEPOLARIZE2", index_pairs, after_clifford_depol)
-
-    #-------Continue-Circuit------------
-
-    inital_circuit.append("TICK")
-            
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "2-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            inital_circuit.append("CX", index_pairs)
-    
-    #-------Adding-After-Clifford-Depol.------------
-
-    if after_clifford_depol > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "2-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                inital_circuit.append("DEPOLARIZE2", index_pairs, after_clifford_depol)
-
-    #-------Continue-Circuit------------
-
-    inital_circuit.append("TICK")
-
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "3-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            inital_circuit.append("CX", index_pairs)
-    
-    #-------Adding-After-Clifford-Depol.------------
-
-    if after_clifford_depol > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "3-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                inital_circuit.append("DEPOLARIZE2", index_pairs, after_clifford_depol)
-
-    #-------Continue-Circuit------------
-
-    inital_circuit.append("TICK")
-        
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "4-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            inital_circuit.append("CX", index_pairs)
-
-    #-------Adding-After-Clifford-Depol.------------
-
-    if after_clifford_depol > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "4-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                inital_circuit.append("DEPOLARIZE2", index_pairs, after_clifford_depol)
-
-    #-------Continue-Circuit------------
-    
-    inital_circuit.append("TICK")
-
-    #3) Basis/ Measurement
-    inital_circuit.append("H", x_stab_index)
-
-    #-------Adding-After-Clifford-Depol.------------
-
-    if after_clifford_depol > 0:
-        inital_circuit.append("DEPOLARIZE1", x_stab_index, after_clifford_depol)
-
-    #-------Continue-Circuit------------
-
-    inital_circuit.append("TICK")
-
-    #-------Adding-Before-Measurement-Flip-Prob.------------
-
-    if before_measurement_flip_prob > 0:
-        inital_circuit.append("X_ERROR", x_stab_index + z_stab_index, before_measurement_flip_prob)
-
-    #-------Continue-Circuit------------
-    
-    inital_circuit.append("MR", x_stab_index + z_stab_index)
-
-    #-------Adding-After-Reset-Flip-Prob.------------
-
-    if after_reset_flip_prob > 0:
-        inital_circuit.append("X_ERROR", x_stab_index + z_stab_index, after_reset_flip_prob)
-
-    #-------Continue-Circuit------------
-
-    inital_circuit.append("TICK")
-
-    #4) DETECTORS -> Measure only deterministic-Stabilizers!
-
-    if init_state in {"0", "1"}:
-        num_measurements_initial = len(z_stab_index)
-        
-        for index, q_index in enumerate(z_stab_index):
-            current_tar = -1 * num_measurements_initial + index
-            inital_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
-
-    elif init_state in {"+", "-"}:
-        num_measurements_initial = len(x_stab_index + z_stab_index)
-        
-        for index, q_index in enumerate(x_stab_index):
-            current_tar = -1 * num_measurements_initial + index
-            inital_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
-
-    #-----BUILDING-REPETITION-CIRC------
-
-    #-------Adding-Before-Round-Depol.-Data------------
-
-    if before_round_depol_data > 0:
-        round_circuit.append("DEPOLARIZE1", data, before_round_depol_data)
-
-    #-------Continue-Circuit------------
-
-    #1) Reset/ Basis
-    round_circuit.append("H", x_stab_index)
-
-    #-------Adding-After-Clifford-Depol.------------
-
-    if after_clifford_depol > 0:
-        round_circuit.append("DEPOLARIZE1", x_stab_index, after_clifford_depol)
-
-    #-------Continue-Circuit------------
-
-    round_circuit.append("TICK")
-
-    #2) CX Operations
-
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "1-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            round_circuit.append("CX", index_pairs)
-    
-    #-------Adding-After-Clifford-Depol.------------
-
-    if after_clifford_depol > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "1-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                round_circuit.append("DEPOLARIZE2", index_pairs, after_clifford_depol)
-
-    #-------Continue-Circuit------------
-
-    round_circuit.append("TICK")
-            
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "2-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            round_circuit.append("CX", index_pairs)
-    
-    #-------Adding-After-Clifford-Depol.------------
-
-    if after_clifford_depol > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "2-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                round_circuit.append("DEPOLARIZE2", index_pairs, after_clifford_depol)
-
-    #-------Continue-Circuit------------
-
-    round_circuit.append("TICK")
-
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "3-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            round_circuit.append("CX", index_pairs)
-    
-    #-------Adding-After-Clifford-Depol.------------
-
-    if after_clifford_depol > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "3-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                round_circuit.append("DEPOLARIZE2", index_pairs, after_clifford_depol)
-
-    #-------Continue-Circuit------------
-
-    round_circuit.append("TICK")
-        
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "4-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            round_circuit.append("CX", index_pairs)
-    
-    #-------Adding-After-Clifford-Depol.------------
-
-    if after_clifford_depol > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "4-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                round_circuit.append("DEPOLARIZE2", index_pairs, after_clifford_depol)
-
-    #-------Continue-Circuit------------
-    
-    round_circuit.append("TICK")
-
-    #3) Basis/ Measurement
-    round_circuit.append("H", x_stab_index)
-
-    #-------Adding-After-Clifford-Depol.------------
-
-    if after_clifford_depol > 0:
-        round_circuit.append("DEPOLARIZE1", x_stab_index, after_clifford_depol)
-
-    #-------Continue-Circuit------------
-
-    round_circuit.append("TICK")
-
-    #-------Adding-Before-Measurement-Flip-Prob.-------
-
-    if before_measurement_flip_prob > 0:
-        round_circuit.append("X_ERROR", x_stab_index + z_stab_index, before_measurement_flip_prob)
-
-    #-------Continue-Circuit----------
-
-    round_circuit.append("MR", x_stab_index + z_stab_index)
-
-    #-------Adding-After-Reset-Flip-Prob.------------
-
-    if after_reset_flip_prob > 0:
-        round_circuit.append("X_ERROR", x_stab_index + z_stab_index, after_reset_flip_prob)
-
-    #-------Continue-Circuit------------
-
-    #-> Shifting Coords in Time-Dimension to have 3D timelike Detector graph (Needed for decoding)
-    round_circuit.append("SHIFT_COORDS", arg= (0,0,1))
-
-    #4) Detectors
-    num_measurements_repeat = len(x_stab_index + z_stab_index)
-
-    for index, q_index in enumerate(x_stab_index + z_stab_index):
-        prev_tar = -2 * num_measurements_repeat + index
-        current_tar = -1 * num_measurements_repeat + index
-        round_circuit.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)], 
-                             (i2q[q_index].real, i2q[q_index].imag, 0))
-        
-    round_circuit.append("TICK")
-
-    #5) Building Repeat Block
-    final_circuit += round_circuit * (rounds - 1)
-
-    #-------Adding-Before-Measurement-Flip-Prob.----------
-
-    if before_measurement_flip_prob > 0:
-        final_circuit.append("X_ERROR", data, before_measurement_flip_prob)
-
-    #-------Continue-Circuit----------
-
-    if log_obs in {"Z"}:
-
-        #6) Implementing Final Measurement-Round -> Detectors compromised by last round stab. measurements & Data parity checks from final measurement
-        final_circuit.append("M", data)
-
-        # -> Defining Data to measurement indexing
-        Index_to_rec_data : dict[int, int] = {q: i for i, q in enumerate(reversed(data))}
-        Index_to_rec_ancilla: dict[int, int] = {q: i for i, q in enumerate(reversed(x_stab_index + z_stab_index))}
-
-        """
-        Why do we only check the Z stabilizers in the last measurement round and not also the x stabilizers as we did before
-        -> We need to meassure the X stabilizers in the X basis but we already meassured in the z basis (XZ do not commute)
-        """
-        
-        for q, qtype in qubit_coords.items():
-
-            if qtype == "Z-STAB":
-                #Needed Data Qubits
-                upper_left = (q.real - 1) + (q.imag - 1) * 1j
-                upper_right = q.real + 1 + (q.imag - 1) * 1j
-                lower_left = q.real - 1 + (q.imag + 1) * 1j
-                lower_right = q.real + 1 + (q.imag + 1) * 1j
-
-                #Finding the Correct Data Index
-                index_upper_left = q2i[upper_left]
-                index_upper_right = q2i[upper_right]
-                index_lower_left = q2i[lower_left]
-                index_lower_right = q2i[lower_right]
-
-                #Defining the current record targets
-                current_record = [-Index_to_rec_data[index_upper_left] - 1, -Index_to_rec_data[index_upper_right] - 1,
-                                -Index_to_rec_data[index_lower_left] - 1, -Index_to_rec_data[index_lower_right] - 1]
-
-                #Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [- Index_to_rec_ancilla[ancilla_index] - 1 - len(data)]
-
-                #Combining the record targets
-                final_record = current_record + last_record
-                
-                #Appending Detector
-                final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
-
-            elif qtype == "Z-STAB-BOUND-L":
-                #Needed Data Qubits
-                upper_right = q.real + 1 + (q.imag - 1) * 1j
-                lower_right = q.real + 1 + (q.imag + 1) * 1j
-
-                #Finding the Correct Data Index
-                index_upper_right = q2i[upper_right]
-                index_lower_right = q2i[lower_right]
-
-                #Defining the current record targets
-                current_record = [-Index_to_rec_data[index_upper_right] - 1, -Index_to_rec_data[index_lower_right] - 1]
-
-                #Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [- Index_to_rec_ancilla[ancilla_index] - 1 - len(data)]
-
-                #Combining the record targets
-                final_record = current_record + last_record
-                
-                #Appending Detector
-                final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
-
-            elif qtype == "Z-STAB-BOUND-R":
-                #Needed Data Qubits
-                upper_left = (q.real - 1) + (q.imag - 1) * 1j
-                lower_left = q.real - 1 + (q.imag + 1) * 1j
-
-                #Finding the Correct Data Index
-                index_upper_left = q2i[upper_left]
-                index_lower_left = q2i[lower_left]
-
-                #Defining the current record targets
-                current_record = [-Index_to_rec_data[index_upper_left] - 1, -Index_to_rec_data[index_lower_left] - 1]
-
-                #Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [- Index_to_rec_ancilla[ancilla_index] - 1 - len(data)]
-
-                #Combining the record targets
-                final_record = current_record + last_record
-                
-                #Appending Detector
-                final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
-
-        # Adding the logical observable
-        log_z = []
-
-        for real in range(1, (distance * 2), 2):
-            log_z.append(q2i[real + 1j])
-
-        tar_rec = []
-
-        for rec_pos, index in enumerate(data):
-            if index in log_z:
-                tar_rec.append(rec_pos)
-
-        final_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data) + k) for k in tar_rec], 0)
-    
-    elif log_obs in {"X"}:
-
-        #6) Implementing Final Measurement-Round -> Detectors compromised by last round stab. measurements & Data parity checks from final measurement
-        final_circuit.append("MX", data)
-
-        # -> Defining Data to measurement indexing
-        Index_to_rec_data : dict[int, int] = {q: i for i, q in enumerate(reversed(data))}
-        Index_to_rec_ancilla: dict[int, int] = {q: i for i, q in enumerate(reversed(x_stab_index + z_stab_index))}
-
-        for q, qtype in qubit_coords.items():
-
-            if qtype == "X-STAB":
-                #Needed Data Qubits
-                upper_left = (q.real - 1) + (q.imag - 1) * 1j
-                upper_right = q.real + 1 + (q.imag - 1) * 1j
-                lower_left = q.real - 1 + (q.imag + 1) * 1j
-                lower_right = q.real + 1 + (q.imag + 1) * 1j
-
-                #Finding the Correct Data Index
-                index_upper_left = q2i[upper_left]
-                index_upper_right = q2i[upper_right]
-                index_lower_left = q2i[lower_left]
-                index_lower_right = q2i[lower_right]
-
-                #Defining the current record targets
-                current_record = [-Index_to_rec_data[index_upper_left] - 1, -Index_to_rec_data[index_upper_right] - 1,
-                                -Index_to_rec_data[index_lower_left] - 1, -Index_to_rec_data[index_lower_right] - 1]
-
-                #Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [- Index_to_rec_ancilla[ancilla_index] - 1 - len(data)]
-
-                #Combining the record targets
-                final_record = current_record + last_record
-                
-                #Appending Detector
-                final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
-
-            elif qtype == "X-STAB-BOUND-U":
-                #Needed Data Qubits
-                lower_right = q.real + 1 + (q.imag + 1) * 1j
-                lower_left = q.real - 1 + (q.imag + 1) * 1j
-
-                #Finding the Correct Data Index
-                index_lower_right = q2i[lower_right]
-                index_lower_left = q2i[lower_left]
-
-                #Defining the current record targets
-                current_record = [-Index_to_rec_data[index_lower_right] - 1, -Index_to_rec_data[index_lower_left] - 1]
-
-                #Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [- Index_to_rec_ancilla[ancilla_index] - 1 - len(data)]
-
-                #Combining the record targets
-                final_record = current_record + last_record
-                
-                #Appending Detector
-                final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
-
-            elif qtype == "X-STAB-BOUND-B":
-                #Needed Data Qubits
-                upper_right = (q.real + 1) + (q.imag - 1) * 1j
-                upper_left = q.real - 1 + (q.imag - 1) * 1j
-
-                #Finding the Correct Data Index
-                index_upper_right = q2i[upper_right]
-                index_upper_left = q2i[upper_left]
-
-                #Defining the current record targets
-                current_record = [-Index_to_rec_data[index_upper_right] - 1, -Index_to_rec_data[index_upper_left] - 1]
-
-                #Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [- Index_to_rec_ancilla[ancilla_index] - 1 - len(data)]
-
-                #Combining the record targets
-                final_record = current_record + last_record
-                
-                #Appending Detector
-                final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
-
-        # Adding the logical observable
-        log_x = []
-
-        for imag in range(1, (distance * 2), 2):
-            log_x.append(q2i[3 + imag*1j])
-
-        tar_rec = []
-
-        for rec_pos, index in enumerate(data):
-            if index in log_x:
-                tar_rec.append(rec_pos)
-
-        final_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data) + k) for k in tar_rec], 0)
-
-    #8) Outputting final Circuit
-    inital_circuit += final_circuit
-
-    return inital_circuit
