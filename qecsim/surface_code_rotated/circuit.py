@@ -8,8 +8,11 @@ from .initial import initial
 from .repetition_circ import repetition_circ
 from .reset_circ import reset
 from .final_m_circuit import final_m
-from .switched_round import switched_circ
-from .switched_init import switched_circ_init
+from .h_switched_round import h_switched_circ
+from .h_switched_init import h_switched_circ_init
+from .y_initial import y_initial
+from .y_repetition_circ import y_repetition_circ
+from .y_switch import y_switch_circ
 from .dataclasses import Config, Patch, Context
 
 Coord = complex
@@ -23,7 +26,7 @@ __all__ = ["Rotated_Surface_Code"]
 # Helper Functions
 # -------------------------
 
-def _add_boundary_labels(distance: int, qubit_coords: Dict[Coord, Label]) -> None:
+def _add_boundary_labels(distance: int, qubit_coords: Dict[Coord, Label], y_basis : bool = False) -> None:
     
     """
     Adds the neseccary Boundary and Surgery Stabilizers needed
@@ -31,29 +34,59 @@ def _add_boundary_labels(distance: int, qubit_coords: Dict[Coord, Label]) -> Non
 
     max_coord = 2 * distance
 
-    # Z-boundary stabilizers
-    for y in range(2, max_coord, 4):
-        coord_ancilla = complex(0, y)
-        qubit_coords[coord_ancilla] = "Z-STAB-BOUND-L"
+    if not y_basis:
+        # Z-boundary stabilizers
+        for y in range(2, max_coord, 4):
+            coord_ancilla = complex(0, y)
+            qubit_coords[coord_ancilla] = "Z-STAB-BOUND-L"
 
-    for y in range(4, max_coord, 4):
-        coord_ancilla = complex(max_coord, y)
-        qubit_coords[coord_ancilla] = "Z-STAB-BOUND-R"
+        for y in range(4, max_coord, 4):
+            coord_ancilla = complex(max_coord, y)
+            qubit_coords[coord_ancilla] = "Z-STAB-BOUND-R"
 
-    # X-boundary stabilizers
-    for y in range(4, max_coord, 4):
-        coord_ancilla = complex(y, 0)
-        qubit_coords[coord_ancilla] = "X-STAB-BOUND-U"
+        # X-boundary stabilizers
+        for y in range(4, max_coord, 4):
+            coord_ancilla = complex(y, 0)
+            qubit_coords[coord_ancilla] = "X-STAB-BOUND-U"
 
-    for y in range(2, max_coord, 4):
-        coord_ancilla = complex(y, max_coord)
-        qubit_coords[coord_ancilla] = "X-STAB-BOUND-B"
+        for y in range(2, max_coord, 4):
+            coord_ancilla = complex(y, max_coord)
+            qubit_coords[coord_ancilla] = "X-STAB-BOUND-B"
+
+    else:
+        # Z-boundary stabilizers
+        for y in range(4, max_coord, 4):
+            coord_ancilla = complex(y, max_coord)
+            qubit_coords[coord_ancilla] = "Z-STAB-BOUND-B"
+
+        for y in range(4, max_coord, 4):
+            coord_ancilla = complex(max_coord, y)
+            qubit_coords[coord_ancilla] = "Z-STAB-BOUND-R"
+
+        # Additional after H
+        for y in range(2, max_coord, 4):
+            coord_ancilla = complex(max_coord, y)
+            qubit_coords[coord_ancilla] = "Z-STAB-BOUND-R-H"
+
+        # X-boundary stabilizers
+        for y in range(4, max_coord, 4):
+            coord_ancilla = complex(y, 0)
+            qubit_coords[coord_ancilla] = "X-STAB-BOUND-U"
+
+        for y in range(4, max_coord, 4):
+            coord_ancilla = complex(0, y)
+            qubit_coords[coord_ancilla] = "X-STAB-BOUND-L"
+
+        # Additional after H
+        for y in range(2, max_coord, 4):
+            coord_ancilla = complex(y, 0)
+            qubit_coords[coord_ancilla] = "X-STAB-BOUND-U-H"
 
 # -----------------------------------------
 # Public function -> Building final circuit
 # -----------------------------------------
 
-def Rotated_Surface_Code(distance: int, rounds : int, *, state_init : str, log_obs : str, flow_observable: str,
+def Rotated_Surface_Code(distance: int, rounds : int, *, state_init : str, log_obs : str, logical_H : bool = False,
                     noise_depol_data_init : float = 0.0, noise_measure_flip : float = 0.0,
                     noise_after_reset : float = 0.0, noise_after_clifford_depol : float = 0.0) -> stim.Circuit:
     
@@ -91,19 +124,21 @@ def Rotated_Surface_Code(distance: int, rounds : int, *, state_init : str, log_o
     ###############################################################
     qubit_coords: Dict[Coord, Label] = build_lattice(distance, offset=0+0j, starting_stabilizer_x=True)
 
-    #######################################################################################
-    # 2. Insert boundary & surgery labels (Only get activated in splitting/merging process)
-    #######################################################################################
-    _add_boundary_labels(distance, qubit_coords)
+    ####################
+    # 2. Insert boundary
+    ####################
 
-    ################################################################################
-    # 3. Adding the Mapping from Stabilizer to Data for later CX gate implementation
-    ################################################################################
-    stab_to_data: Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords, is_flipped = False)
-    stab_to_data_flipped: Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords, is_flipped = True)
+    """
+    As we need one x and one z edge for y init, we need to differentiate the boundray labels
+    """
+    
+    if state_init in {"+i", "-i"}:
+        _add_boundary_labels(distance, qubit_coords, y_basis = True)
+    else:
+        _add_boundary_labels(distance, qubit_coords, y_basis = False)
 
     ###############################################
-    # 4. Indexing All Qubits From given Coordinates
+    # 3. Indexing All Qubits From given Coordinates
     ###############################################
 
     #Indexing Qubits
@@ -114,30 +149,71 @@ def Rotated_Surface_Code(distance: int, rounds : int, *, state_init : str, log_o
     #Reverse Indexing
     i2q: dict[int, complex] = {i: q for q, i in q2i.items()}
 
+    #######################################################################################################
+    # 4. Adding the Mapping from Stabilizer to Data for later CX gate implementation and add into dataclass
+    #######################################################################################################
+
+    """
+    stab_to_data_switch: For the implementation fo the XCY gates for the Y basis init
+    stab_to-data_flipped: For the logical H gate implementation -> Switch of X and Z stabilizers
+    """
+
+    if state_init in {"+i", "-i"}:
+        stab_to_data: Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords, y_basis = True)
+        stab_to_data_switch, stab_to_data_xcy = populate_stab_to_data(qubit_coords, y_basis = True, y_switch = True , distance = distance)
+        lct = Context(q2i= q2i, i2q= i2q, stab_to_data = stab_to_data, stab_to_data_modified = stab_to_data_switch, 
+                      stab_to_data_modified2 = stab_to_data_xcy)
+
+    elif logical_H:
+        stab_to_data: Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords)
+        stab_to_data_flipped: Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords, is_flipped = True)
+        lct = Context(q2i= q2i, i2q= i2q, stab_to_data = stab_to_data, stab_to_data_modified = stab_to_data_flipped)
+    else:
+        stab_to_data: Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords)
+        lct = Context(q2i= q2i, i2q= i2q, stab_to_data = stab_to_data)
+
     ##########################################################
     # Adding Indexes and shared information into lct dataclass
     ##########################################################
 
-    lct = Context(q2i= q2i, i2q= i2q, stab_to_data = stab_to_data, stab_to_data_flipped = stab_to_data_flipped)
     patches : Dict[str, Patch] = {"patch": Patch.from_coords(qubit_coords, q2i),}
 
     ###################################
     # 5. Building Initilization Circuit
     ###################################
 
-    initial_circuit = initial(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
+    # Check whether we need Y basis initilization
+    if state_init in {"+i", "-i"}:
+        initial_circuit = y_initial(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
                               after_r_flip = noise_after_reset, after_c_depol_prob = noise_after_clifford_depol)
-   
+
+    else:
+        initial_circuit = initial(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
+                              after_r_flip = noise_after_reset, after_c_depol_prob = noise_after_clifford_depol)
+
     ################################
     # 6. Building repetition Circuit
     ################################
 
-    repet_circ = repetition_circ(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
+    if state_init in {"+i", "-i"}:
+        repet_circ = y_repetition_circ(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
+                              after_r_flip = noise_after_reset, after_c_depol_prob = noise_after_clifford_depol)
+        
+        switch_circ = y_switch_circ(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
                               after_r_flip = noise_after_reset, after_c_depol_prob = noise_after_clifford_depol)
 
-    ########################################################################
-    # Implement additional Circuit if Init and Measure Basis is not the same
-    ########################################################################
+        initial_circuit += repet_circ
+        initial_circuit += switch_circ       
+        
+    else:
+        repet_circ = repetition_circ(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
+                              after_r_flip = noise_after_reset, after_c_depol_prob = noise_after_clifford_depol)
+        
+        initial_circuit += repet_circ
+
+    #############################################################
+    # Implement additional Circuit if Logical H gate was selected
+    #############################################################
 
     """
     We now rund d rounds with flipped stabilizer roles
@@ -146,9 +222,9 @@ def Rotated_Surface_Code(distance: int, rounds : int, *, state_init : str, log_o
     """
 
     # Determining if flip is needed
-    if state_init in {"0", "1"} and log_obs in {"X"}:
+    if state_init in {"0", "1"} and log_obs in {"X"} and logical_H == True:
         flip_needed = True
-    elif state_init in {"+", "-"} and log_obs in {"Z"}:
+    elif state_init in {"+", "-"} and log_obs in {"Z"} and logical_H == True:
         flip_needed = True
     else:
         flip_needed = False
@@ -156,108 +232,15 @@ def Rotated_Surface_Code(distance: int, rounds : int, *, state_init : str, log_o
     # Adding the needed circuits
     if flip_needed is True: 
 
-        repet_switch_init = switched_circ_init(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
+        repet_switch_init = h_switched_circ_init(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
                                 after_r_flip = noise_after_reset, after_c_depol_prob = noise_after_clifford_depol)
 
-        repet_switched = switched_circ(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
+        repet_switched = h_switched_circ(lct = lct, patches = patches, cfg = cfg, before_round_depol = noise_depol_data_init, before_m_flip_prob = noise_measure_flip, 
                                 after_r_flip = noise_after_reset, after_c_depol_prob = noise_after_clifford_depol)
         
         initial_circuit += repet_circ
         initial_circuit += repet_switch_init
         initial_circuit += repet_switched
-        
-    else:
-        initial_circuit += repet_circ
-
-    #######################################################################
-    # 9. Retrieving final Circuit with postion of parity ZZ XX Measurements
-    #######################################################################
-
-    log_x = []
-    log_z = []
-
-    for imag in range(1, distance * 2, 2):
-        log_x.append(q2i[1 + imag * 1j])
-
-    for real in range(1, distance * 2, 2):
-        log_z.append(q2i[real + 1j])
-
-    ##################################
-    # 10. Building logical Observables
-    ##################################
-
-    if flow_observable == "X -> Z":
-        if state_init in {"+", "-"}:
-            if log_obs in {"Z"}:
-            
-                left = '*'.join(f"X{i}" for i in log_x)
-                right = '*'.join(f"Z{i}" for i in log_z)
-                result = f"{left} -> {right}"
-
-                #(included_measurements,) = initial_circuit.solve_flow_measurements([stim.Flow(result),])
-
-            else:
-                return ValueError("Wrong target basis for selected flow")
-            
-        else:
-            return ValueError("Wrong control basis for selected flow")
-
-    elif flow_observable == "X -> X":
-        if state_init in {"+", "-"}:
-            if log_obs in {"X"}:
-
-                left = '*'.join(f"X{i}" for i in log_x)
-                right = '*'.join(f"X{i}" for i in log_x)
-                result = f"{left} -> {right}"
-
-                (included_measurements,) = initial_circuit.solve_flow_measurements([
-                stim.Flow(result),
-                ])
-
-            else:
-                return ValueError("Invalid target basis for selected flow")
-            
-        else:
-            return ValueError("Invalid control state")
-        
-    elif flow_observable == "Z -> X":
-        if state_init in {"0", "1"}:
-            if log_obs in {"X"}:
-
-                left = '*'.join(f"Z{i}" for i in log_z)
-                right = '*'.join(f"X{i}" for i in log_x)
-                result = f"{left} -> {right}"
-
-                (included_measurements,) = initial_circuit.solve_flow_measurements([
-                stim.Flow(result),
-                ])
-
-            else:
-                return ValueError("Wrong target basis for selected flow")
-            
-        else:
-            return ValueError("Wrong control basis for selected flow")
-
-    elif flow_observable == "Z -> Z":   
-        if state_init in {"0", "1"}:
-            if log_obs in {"Z"}:
-
-                left = '*'.join(f"Z{i}" for i in log_z)
-                right = '*'.join(f"Z{i}" for i in log_z)
-                result = f"{left} -> {right}"
-
-                (included_measurements,) = initial_circuit.solve_flow_measurements([
-                stim.Flow(result),
-                ])
-
-            else:
-                return ValueError("Invalid target state")
-            
-        else:
-            return ValueError("Wrong control basis for selected flow")
-
-    else:
-        return ValueError("Invalid Flow selected")
 
     ###############################
     # 11. Adding State initiliztion
@@ -265,28 +248,23 @@ def Rotated_Surface_Code(distance: int, rounds : int, *, state_init : str, log_o
 
     state_init_circuit = reset(lct = lct, patches = patches, cfg = cfg)
 
-    final_measurement = final_m(lct = lct, patches = patches, cfg = cfg, flow = flow_observable, before_m_flip_prob = noise_measure_flip, is_flipped = flip_needed)
+    final_measurement = final_m(lct = lct, patches = patches, cfg = cfg, before_m_flip_prob = noise_measure_flip, is_flipped = flip_needed)
 
     state_init_circuit += initial_circuit
 
-    ##################################################
-    # 12. Adding logical Observable given by stim.Flow
-    ##################################################
-
-    # Calculating target rec pos
-    rec_pos = []
-
-    #for index in included_measurements:
-    #    current_rec_tar = initial_circuit.num_measurements - index
-    #    rec_pos.append(- current_rec_tar)
-
-    #state_init_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
+    return(state_init_circuit)
 
     ##########################
     # Adding final measurement
     ##########################
 
-    state_init_circuit += final_measurement
+    if isinstance(final_measurement, tuple):
 
-    return state_init_circuit
+        state_init_circuit += final_measurement[0]
+        return state_init_circuit, final_measurement[1]
+    
+    else:
+        state_init_circuit += final_measurement
+        return state_init_circuit
+
 

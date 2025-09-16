@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import Dict, List, Tuple, Mapping
+from dataclasses import dataclass, field
+from typing import Dict, List, Tuple, Mapping, Optional
 
 Coord = complex
 Label = str
@@ -25,6 +25,8 @@ class Patch:
     data:    List[Index]
     x_stab:  List[Index]
     z_stab:  List[Index]
+    upper_h:  List[Index]
+    right_h:  List[Index]
 
     #Create Factory to build up the Lists from the coords and the q2i dict
 
@@ -41,8 +43,10 @@ class Patch:
         return cls(
             coords = coords,
             data   = pick_up("DATA"),
-            x_stab = pick_up("X-STAB", "X-STAB-BOUND-U", "X-STAB-BOUND-B"),
-            z_stab = pick_up("Z-STAB", "Z-STAB-BOUND-L", "Z-STAB-BOUND-R"),
+            x_stab = pick_up("X-STAB", "X-STAB-BOUND-U", "X-STAB-BOUND-B", "X-STAB-BOUND-L"),
+            z_stab = pick_up("Z-STAB", "Z-STAB-BOUND-L", "Z-STAB-BOUND-R", "Z-STAB-BOUND-B"),
+            upper_h = pick_up("X-STAB-BOUND-U-H"),
+            right_h = pick_up("Z-STAB-BOUND-R-H"),
         )
 
 @dataclass
@@ -51,4 +55,5 @@ class Context:
     q2i: Dict[Coord, Index]
     i2q: Dict[Index, Coord]
     stab_to_data: Dict[Pair, str]
-    stab_to_data_flipped: Dict[Pair, str]
+    stab_to_data_modified: Optional[Dict[Pair, str]] = field(default_factory=dict)
+    stab_to_data_modified2: Optional[Dict[Pair, str]] = field(default_factory=dict)

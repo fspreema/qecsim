@@ -1,5 +1,6 @@
 from typing import Dict, Tuple, Mapping
 import stim
+import numpy as np
 from dataclasses import dataclass
 from .dataclasses import Config, Patch, Context
 
@@ -60,7 +61,7 @@ def reset(*, lct : Context, patches: dict[str, Patch],
         reset_circuit.append("RX", data)
 
         # ancilla are still init in 0
-        reset_circuit.append("R", x_stab_index + z_stab_index)
+        reset_circuit.append("RZ", x_stab_index + z_stab_index)
 
         #Create logical X Data String:
         data_log = []
@@ -70,6 +71,41 @@ def reset(*, lct : Context, patches: dict[str, Patch],
 
         if init_state == "-":
             reset_circuit.append("Z", data_log)
+
+    elif init_state in {"+i", "-i"}:
+
+        """
+        Look at Crumble circuit for a better understanding
+        -> Half Half initlization of x and z basis
+        """
+
+        data_rx = []
+        data_rz = []
+
+        xs = [i2q[i].real for i in data]
+        ys = [i2q[i].imag for i in data]
+
+        # Calc threshold for diagonal cut        
+        s0 = (min(xs)+max(xs))/2 + (min(ys)+max(ys))/2
+
+        skip_coord = 1 + 1j
+
+        for data_index in data:
+            c = i2q[data_index]
+            if c == skip_coord:
+                continue
+            
+            # Diagonal Cut
+            if (c.real + c.imag) >= s0 + 1:
+                data_rz.append(q2i[c])
+            else:
+                data_rx.append(q2i[c])
+
+        reset_circuit.append("RX", data_rx)
+        reset_circuit.append("RZ", data_rz)
+
+        # ancilla are still init in 0
+        reset_circuit.append("RZ", x_stab_index + z_stab_index)
 
     else:
         ValueError("Not a valid init Basis")
