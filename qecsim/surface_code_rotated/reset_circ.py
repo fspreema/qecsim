@@ -24,6 +24,7 @@ def reset(*, lct : Context, patches: dict[str, Patch],
     distance = cfg.distance
     init_state = cfg.state_init
     stab_to_data = lct.stab_to_data
+    log_obs = cfg.obs
 
     #-Retrieving Data Coords
     data = patch.data
@@ -57,6 +58,22 @@ def reset(*, lct : Context, patches: dict[str, Patch],
         if init_state == "1":
             reset_circuit.append("X", data_log)
 
+        if log_obs == "X":
+
+            """
+            We need to remove the added Pauli measurement from the end of the circuit
+            -> Else the X paulis tring would anticommute with the RZ reset of the data
+            """
+
+            # Getting corresponding logical string and rec
+            log_x = []
+
+            for imag in range(1, (distance * 2), 2):
+                log_x.append(q2i[1 + imag*1j])
+
+            # XORing the observable away
+            reset_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in log_x], 0)
+
     elif init_state in {"+", "-"}:
         reset_circuit.append("RX", data)
 
@@ -71,6 +88,22 @@ def reset(*, lct : Context, patches: dict[str, Patch],
 
         if init_state == "-":
             reset_circuit.append("Z", data_log)
+
+        if log_obs == "Z":
+
+            """
+            We need to remove the added Pauli measurement from the end of the circuit
+            -> Else the Z paulis tring would anticommute with the RZ reset of the data
+            """
+
+            # Getting corresponding logical string and rec
+            log_z = []
+
+            for real in range(1, (distance * 2), 2):
+                log_z.append(q2i[real + 1j])
+
+            # XORing the observable away
+            reset_circuit.append("OBSERVABLE_INCLUDE", [f"Z{index}" for index in log_z], 0)
 
     elif init_state in {"+i", "-i"}:
 

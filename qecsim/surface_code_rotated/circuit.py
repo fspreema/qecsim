@@ -252,7 +252,7 @@ def Rotated_Surface_Code(distance: int, rounds : int, *, state_init : str, log_o
 
     state_init_circuit += initial_circuit
 
-    return(state_init_circuit)
+    #return(state_init_circuit)
 
     ##########################
     # Adding final measurement

@@ -51,16 +51,10 @@ def final_m(*, lct : Context, patches: dict[str, Patch],
     #-------Continue-Circuit----------
 
     # Adding final measurement of all Data qubits
-    if is_flipped == True:
-        if log_obs in {"X"}:
-            final_circuit.append("MX", data)
-        elif log_obs in {"Z"}:
-            final_circuit.append("MZ", data)
-    else:
-        if log_obs in {"Z"}:
-            final_circuit.append("MZ", data)
-        elif log_obs in {"X"}:
-            final_circuit.append("MX", data)
+    if log_obs in {"X"}:
+        final_circuit.append("MX", data)
+    elif log_obs in {"Z"}:
+        final_circuit.append("MZ", data)
 
     # Defining Data to measurement indexing
     Index_to_rec_data : dict[int, int] = {q: i for i, q in enumerate(reversed(data))}
@@ -182,15 +176,18 @@ def final_m(*, lct : Context, patches: dict[str, Patch],
                 for real in range(1, (distance * 2), 2):
                     log_z.append(q2i[real + 1j])
 
+                final_circuit.append("OBSERVABLE_INCLUDE", [f"Z{index}" for index in log_z], 0)
+
+                # For later decoding we need the measurement record postiions of the logical operator
                 tar_rec = []
 
                 for rec_pos, index in enumerate(data):
                     if index in log_z:
                         tar_rec.append(rec_pos)
 
-                measurements = [-len(data) + k for k in tar_rec]
-
-                return(final_circuit, measurements)
+                rec_list = [-len(data) + k for k in tar_rec]
+                
+                return(final_circuit, rec_list)
             
         # Every circuit which is not inside these conditions can not have a 
         # determinist result and does not need the observable       
@@ -219,14 +216,17 @@ def final_m(*, lct : Context, patches: dict[str, Patch],
                 for imag in range(1, (distance * 2), 2):
                     log_x.append(q2i[1 + imag*1j])
 
+                final_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in log_x], 0)
+
+                # For later decoding we need the measurement record postiions of the logical operator
                 tar_rec = []
 
                 for rec_pos, index in enumerate(data):
                     if index in log_x:
                         tar_rec.append(rec_pos)
 
-                measurements = [-len(data) + k for k in tar_rec]
-
-                return(final_circuit, measurements)
+                rec_list = [-len(data) + k for k in tar_rec]
+                
+                return(final_circuit, rec_list)
             
     return(final_circuit)

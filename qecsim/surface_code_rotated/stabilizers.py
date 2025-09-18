@@ -263,17 +263,19 @@ def _attach_boundary_cx(patch: Dict[Coord, Label], stab_to_data: Dict[Tuple[Coor
             else:
 
                 for coords,string in patch.items():
-
-                    # As the H gates was applied we need to flip the corressponding stabilizer schedule
-                    # ATTENTION -> ONLY FLIP THESE WHICH WHERE FLIPPED I.E. on only one diagonal half
-
+                    """
+                    As the H gates was applied we need to flip the corressponding stabilizer schedule
+                    
+                    * ATTENTION -> ONLY FLIP THESE WHICH WHERE FLIPPED I.E. on only one diagonal half
+                                -> Additional Boundary Stabs do CX both ways i.e. detecting z and x errors!
+                    """
                     if string == "X-STAB-BOUND-L":
                         new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
                         stab_to_data[new_cord1, coords] = "B1-CX"
                         stab_to_data[new_cord2, coords] = "B2-CX"
 
-                    elif string in {"Z-STAB-BOUND-R", "Z-STAB-BOUND-R-H"}:
+                    elif string in {"Z-STAB-BOUND-R"}:
                         new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
 
@@ -286,8 +288,22 @@ def _attach_boundary_cx(patch: Dict[Coord, Label], stab_to_data: Dict[Tuple[Coor
                             stab_to_data[new_cord2, coords] = "B2-CX"
                         else:
                             stab_to_data[new_cord1, coords] = "B1-CX"
+
+                    elif string in {"Z-STAB-BOUND-R-H"}:
+                        # H Boundary has mixed cx direction
+                        new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
+                        new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
+                        stab_to_data[new_cord1, coords] = "B1-CX"
+                        stab_to_data[coords, new_cord2] = "B2-CX"
+
+                    elif string in {"X-STAB-BOUND-U-H"}:
+                        # H Boundary has mixed direction
+                        new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
+                        new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                        stab_to_data[new_cord1, coords] = "B1-CX"
+                        stab_to_data[coords, new_cord2] = "B2-CX"
                         
-                    elif string in {"X-STAB-BOUND-U", "X-STAB-BOUND-U-H"}:
+                    elif string in {"X-STAB-BOUND-U"}:
                         new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
                         new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
                         stab_to_data[coords, new_cord1] = "B1-CX"
