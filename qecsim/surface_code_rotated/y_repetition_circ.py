@@ -112,13 +112,10 @@ def y_repetition_circ(*, lct : Context, patches: dict[str, Patch],
 
             # Removing corner CX
             if coord_pairs[0] != y_index and coord_pairs[1] != y_index:
-
-                #Adding rest of the qubits
                 index_pairs = []
                 index_pairs.append(q2i[coord_pairs[1]])
                 index_pairs.append(q2i[coord_pairs[0]])
                 round_circuit.append("CX", index_pairs)
-    
     #-------Adding-After-Clifford-Depol.------------
 
     if after_c_depol_prob > 0:

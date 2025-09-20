@@ -24,7 +24,7 @@ def populate_stab_to_data(patch: Dict[Coord, Label], is_flipped : bool = False, 
 
     if not y_switch:
         stab_to_data: Dict[Tuple[Coord, Coord], Label] = {}
-        _attach_interior_cx(patch, stab_to_data, is_flipped, y_switch, distance)
+        _attach_interior_cx(patch, stab_to_data, is_flipped, y_switch, y_basis, distance)
         _attach_boundary_cx(patch, stab_to_data, is_flipped, y_basis, y_switch, distance)
 
         return stab_to_data
@@ -32,7 +32,7 @@ def populate_stab_to_data(patch: Dict[Coord, Label], is_flipped : bool = False, 
     else:
         stab_to_data: Dict[Tuple[Coord, Coord], Label] = {}
         stab_to_data_xcy: Dict[Tuple[Coord, Coord], Label] = {}
-        _attach_interior_cx(patch, stab_to_data, is_flipped, y_switch, distance, stab_to_data_xcy)
+        _attach_interior_cx(patch, stab_to_data, is_flipped, y_switch, y_basis, distance, stab_to_data_xcy)
         _attach_boundary_cx(patch, stab_to_data, is_flipped, y_basis, y_switch, distance)
 
         return stab_to_data, stab_to_data_xcy
@@ -42,7 +42,7 @@ def populate_stab_to_data(patch: Dict[Coord, Label], is_flipped : bool = False, 
 # ------------------------------
 
 def _attach_interior_cx(patch: Dict[Coord, Label], stab_to_data: Dict[Tuple[Coord, Coord], str], flipped : bool, 
-                        y_switch : bool, distance : int, stab_to_data_xcy: Dict[Tuple[Coord, Coord], str] = {}):
+                        y_switch : bool, y_basis : bool, distance : int, stab_to_data_xcy: Dict[Tuple[Coord, Coord], str] = {}):
     """
     Adds the 4-body CX Schedule for the *interior* stabilizers
     """
@@ -51,27 +51,53 @@ def _attach_interior_cx(patch: Dict[Coord, Label], stab_to_data: Dict[Tuple[Coor
 
         if not y_switch:
 
-            for coords,string in patch.items():
-                #Already in Correct Orientation for Measurement of CX
-                if string == "X-STAB":
-                    new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
-                    new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
-                    stab_to_data[new_cord1, coords] = "1-CX"
-                    stab_to_data[new_cord2, coords] = "2-CX"
-                    stab_to_data[new_cord3, coords] = "3-CX"
-                    stab_to_data[new_cord4, coords] = "4-CX"
+            if not y_basis:
 
-                elif string == "Z-STAB":
-                    new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                    new_cord3 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
-                    stab_to_data[coords, new_cord1] = "1-CX"
-                    stab_to_data[coords, new_cord2] = "2-CX"
-                    stab_to_data[coords, new_cord3] = "3-CX"
-                    stab_to_data[coords, new_cord4] = "4-CX"
+                for coords,string in patch.items():
+                    #Already in Correct Orientation for Measurement of CX
+                    if string == "X-STAB":
+                        new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
+                        new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
+                        new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
+                        new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
+                        stab_to_data[new_cord1, coords] = "1-CX"
+                        stab_to_data[new_cord2, coords] = "2-CX"
+                        stab_to_data[new_cord3, coords] = "3-CX"
+                        stab_to_data[new_cord4, coords] = "4-CX"
+
+                    elif string == "Z-STAB":
+                        new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
+                        new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
+                        new_cord3 = (coords.real - 1) + (coords.imag - 1) * 1j
+                        new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
+                        stab_to_data[coords, new_cord1] = "1-CX"
+                        stab_to_data[coords, new_cord2] = "2-CX"
+                        stab_to_data[coords, new_cord3] = "3-CX"
+                        stab_to_data[coords, new_cord4] = "4-CX"
+
+            else:
+
+                for coords,string in patch.items():
+                    #Already in Correct Orientation for Measurement of CX
+                    if string == "X-STAB":
+                        new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
+                        new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
+                        new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
+                        new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
+                        stab_to_data[new_cord1, coords] = "4-CX"
+                        stab_to_data[new_cord2, coords] = "3-CX"
+                        stab_to_data[new_cord3, coords] = "2-CX"
+                        stab_to_data[new_cord4, coords] = "1-CX"
+
+                    elif string == "Z-STAB":
+                        new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
+                        new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
+                        new_cord3 = (coords.real - 1) + (coords.imag - 1) * 1j
+                        new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
+                        stab_to_data[coords, new_cord1] = "4-CX"
+                        stab_to_data[coords, new_cord2] = "3-CX"
+                        stab_to_data[coords, new_cord3] = "2-CX"
+                        stab_to_data[coords, new_cord4] = "1-CX"
 
         elif y_switch:
 
@@ -80,10 +106,10 @@ def _attach_interior_cx(patch: Dict[Coord, Label], stab_to_data: Dict[Tuple[Coor
             filtered_stabs_z : list[complex] = []
 
             for i in range(distance - 1):
-                cords_z = 4 + (i * 2) + 2j + (i * 2) * 1j
-                cords_x = 2 + (i * 2) + 2j + (i * 2) * 1j
-                filtered_stabs_z.append(cords_z)
-                filtered_stabs_x.append(cords_x)
+                stabs_z = 2 + (i * 2) + 2j + (i * 2) * 1j
+                stabs_x = 4 + (i * 2) + 2j + (i * 2) * 1j
+                filtered_stabs_z.append(stabs_z)
+                filtered_stabs_x.append(stabs_x)
 
             # Filtering out Stabilizers without H applied -> Normal CX-Schedule
             stabs_norm_dict : dict = {}
@@ -100,9 +126,9 @@ def _attach_interior_cx(patch: Dict[Coord, Label], stab_to_data: Dict[Tuple[Coor
             # Implementing Solo XCY Gate (Other one in the CX Schedule)
             for coords,string in patch.items():
 
-                if coords in filtered_stabs_z:
+                if coords in filtered_stabs_x:
                     new_cord = (coords.real - 1) + (coords.imag + 1) * 1j
-                    stab_to_data_xcy[new_cord, coords] = "1-XCY"
+                    stab_to_data_xcy[coords, new_cord] = "1TICK"
 
 
             for coords,string in stabs_norm_dict.items():
@@ -113,29 +139,28 @@ def _attach_interior_cx(patch: Dict[Coord, Label], stab_to_data: Dict[Tuple[Coor
                     new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
                     new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
 
-                    # Checking whether normal CX or the XCY gate
-                    if coords not in filtered_stabs_x:
-                        stab_to_data[new_cord1, coords] = "1-CX"
-                        stab_to_data[new_cord2, coords] = "2-CX"
-                        stab_to_data[new_cord3, coords] = "3-CX"
-                        stab_to_data[new_cord4, coords] = "4-CX"
-
-                    else:
-                        stab_to_data[new_cord2, coords] = "2-CX"
-                        stab_to_data[coords, new_cord2] = "2-XCY"
-                        stab_to_data[new_cord4, coords] = "4-CX"
-
-
+                    stab_to_data[new_cord1, coords] = "2TICK"
+                    stab_to_data[new_cord2, coords] = "3TICK"
+                    stab_to_data[new_cord3, coords] = "4TICK"
+                    stab_to_data[new_cord4, coords] = "5TICK"
 
                 elif string == "Z-STAB":
                     new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
                     new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                     new_cord3 = (coords.real - 1) + (coords.imag - 1) * 1j
                     new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
-                    stab_to_data[coords, new_cord1] = "1-CX"
-                    stab_to_data[coords, new_cord2] = "2-CX"
-                    stab_to_data[coords, new_cord3] = "3-CX"
-                    stab_to_data[coords, new_cord4] = "4-CX"
+                    
+                    # Checking whether normal CX or the XCY gate
+                    if coords not in filtered_stabs_z:
+                        stab_to_data[coords, new_cord1] = "2TICK"
+                        stab_to_data[coords, new_cord2] = "3TICK"
+                        stab_to_data[coords, new_cord3] = "4TICK"
+                        stab_to_data[coords, new_cord4] = "5TICK"
+
+                    else:
+                        stab_to_data[new_cord2, coords] = "3.5TICK"
+                        stab_to_data[coords, new_cord3] = "4TICK"
+                        stab_to_data[coords, new_cord4] = "5TICK"
 
             """
             I HAVE NO CLUE WHY ONLY WEIGHT 3 instead of weight 4
@@ -149,10 +174,13 @@ def _attach_interior_cx(patch: Dict[Coord, Label], stab_to_data: Dict[Tuple[Coor
                     new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
                     new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
 
-                    stab_to_data[coords, new_cord1] = "1-CX"
-                    stab_to_data[coords, new_cord2] = "2-CX"
-                    stab_to_data[new_cord3, coords] = "3-CX"
-                    stab_to_data[new_cord1, coords] = "4-CX"
+                    #Exclude the x stabs next to the diagonal:
+                    if coords not in filtered_stabs_x:
+                        stab_to_data[coords, new_cord1] = "2TICK"
+
+                    stab_to_data[coords, new_cord2] = "3TICK"
+                    stab_to_data[new_cord3, coords] = "4TICK"
+                    stab_to_data[new_cord1, coords] = "5TICK"
 
 
                 elif string == "Z-STAB":
@@ -160,13 +188,11 @@ def _attach_interior_cx(patch: Dict[Coord, Label], stab_to_data: Dict[Tuple[Coor
                     new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                     new_cord3 = (coords.real - 1) + (coords.imag - 1) * 1j
                     
-                    #Exclude the z stabs next to the diagonal:
-                    if coords not in filtered_stabs_z:
-                        stab_to_data[new_cord1, coords] = "1-CX"
-
-                    stab_to_data[new_cord2, coords] = "2-CX"
-                    stab_to_data[coords, new_cord3] = "3-CX"
-                    stab_to_data[coords, new_cord1] = "4-CX"
+                    stab_to_data[new_cord2, coords] = "3TICK"
+                    stab_to_data[coords, new_cord3] = "4TICK"
+                    stab_to_data[new_cord1, coords] = "2TICK"
+                    # HOTFIX: DATASET WILL OVERWRITE 2TICK if they are the same
+                    stab_to_data[coords , new_cord1, 2] = "5TICK"
 
     else:
 
@@ -236,29 +262,29 @@ def _attach_boundary_cx(patch: Dict[Coord, Label], stab_to_data: Dict[Tuple[Coor
 
                 for coords,string in patch.items():
 
-                    if string == "X-STAB-BOUND-L":
+                    if string == "Z-STAB-BOUND-L":
                         new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
-                        stab_to_data[new_cord1, coords] = "2-CX"
-                        stab_to_data[new_cord2, coords] = "1-CX"
+                        stab_to_data[coords, new_cord1] = "4-CX"
+                        stab_to_data[coords, new_cord2] = "3-CX"
 
-                    elif string == "Z-STAB-BOUND-R":
+                    elif string == "X-STAB-BOUND-R":
                         new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
-                        stab_to_data[coords, new_cord1] = "3-CX"
-                        stab_to_data[coords, new_cord2] = "4-CX"
+                        stab_to_data[new_cord1, coords] = "3-CX"
+                        stab_to_data[new_cord2, coords] = "1-CX"
                         
-                    elif string == "X-STAB-BOUND-U":
+                    elif string == "Z-STAB-BOUND-U":
                         new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
                         new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
-                        stab_to_data[new_cord1, coords] = "4-CX"
-                        stab_to_data[new_cord2, coords] = "3-CX"
+                        stab_to_data[coords, new_cord1] = "1-CX"
+                        stab_to_data[coords, new_cord2] = "3-CX"
 
-                    elif string == "Z-STAB-BOUND-B":
+                    elif string == "X-STAB-BOUND-B":
                         new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real + 1 ) + (coords.imag - 1) * 1j
-                        stab_to_data[coords, new_cord1] = "1-CX"
-                        stab_to_data[coords,new_cord2] = "2-CX"
+                        stab_to_data[new_cord1, coords] = "3-CX"
+                        stab_to_data[new_cord2, coords] = "4-CX"
 
             else:
 
@@ -269,13 +295,13 @@ def _attach_boundary_cx(patch: Dict[Coord, Label], stab_to_data: Dict[Tuple[Coor
                     * ATTENTION -> ONLY FLIP THESE WHICH WHERE FLIPPED I.E. on only one diagonal half
                                 -> Additional Boundary Stabs do CX both ways i.e. detecting z and x errors!
                     """
-                    if string == "X-STAB-BOUND-L":
+                    if string == "Z-STAB-BOUND-L":
                         new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
-                        stab_to_data[new_cord1, coords] = "B1-CX"
-                        stab_to_data[new_cord2, coords] = "B2-CX"
+                        stab_to_data[coords, new_cord1] = "2TICK"
+                        stab_to_data[coords, new_cord2] = "3TICK"
 
-                    elif string in {"Z-STAB-BOUND-R"}:
+                    elif string in {"X-STAB-BOUND-R"}:
                         new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
 
@@ -284,36 +310,41 @@ def _attach_boundary_cx(patch: Dict[Coord, Label], stab_to_data: Dict[Tuple[Coor
                         lower_coord = (distance * 2) + lower_boundary * 1j
 
                         if coords != lower_coord:
-                            stab_to_data[new_cord1, coords] = "B1-CX"
-                            stab_to_data[new_cord2, coords] = "B2-CX"
-                        else:
-                            stab_to_data[new_cord1, coords] = "B1-CX"
+                            stab_to_data[coords, new_cord2,] = "2TICK"
+                            
+                        stab_to_data[coords, new_cord1] = "3TICK"
 
-                    elif string in {"Z-STAB-BOUND-R-H"}:
+                    elif string in {"X-STAB-BOUND-R-H"}:
                         # H Boundary has mixed cx direction
                         new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
-                        stab_to_data[new_cord1, coords] = "B1-CX"
-                        stab_to_data[coords, new_cord2] = "B2-CX"
+                        stab_to_data[coords, new_cord1] = "4TICK"
+                        stab_to_data[new_cord2, coords] = "2TICK"
+                        stab_to_data[coords, new_cord2] = "5TICK"
 
-                    elif string in {"X-STAB-BOUND-U-H"}:
+                    elif string in {"Z-STAB-BOUND-U-H"}:
                         # H Boundary has mixed direction
                         new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
                         new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
-                        stab_to_data[new_cord1, coords] = "B1-CX"
-                        stab_to_data[coords, new_cord2] = "B2-CX"
+
+                        if new_cord1 != 1 + 1j:
+                            stab_to_data[coords, new_cord1] = "2TICK"
+
+                        stab_to_data[new_cord2, coords] = "4TICK"
+                        stab_to_data[new_cord1, coords] = "5TICK"
+
                         
-                    elif string in {"X-STAB-BOUND-U"}:
+                    elif string in {"Z-STAB-BOUND-U"}:
                         new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
                         new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
-                        stab_to_data[coords, new_cord1] = "B1-CX"
-                        stab_to_data[coords, new_cord2] = "B2-CX"
+                        stab_to_data[new_cord1, coords] = "2TICK"
+                        stab_to_data[new_cord2, coords] = "3TICK"
 
-                    elif string == "Z-STAB-BOUND-B":
+                    elif string == "X-STAB-BOUND-B":
                         new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real + 1 ) + (coords.imag - 1) * 1j
-                        stab_to_data[coords, new_cord1] = "B2-CX"
-                        stab_to_data[coords, new_cord2] = "B1-CX"
+                        stab_to_data[new_cord1, coords] = "3TICK"
+                        stab_to_data[new_cord2, coords] = "2TICK"
                     
 
     else:

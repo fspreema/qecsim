@@ -57,30 +57,30 @@ def _add_boundary_labels(distance: int, qubit_coords: Dict[Coord, Label], y_basi
         # Z-boundary stabilizers
         for y in range(4, max_coord, 4):
             coord_ancilla = complex(y, max_coord)
-            qubit_coords[coord_ancilla] = "Z-STAB-BOUND-B"
+            qubit_coords[coord_ancilla] = "X-STAB-BOUND-B"
 
         for y in range(4, max_coord, 4):
             coord_ancilla = complex(max_coord, y)
-            qubit_coords[coord_ancilla] = "Z-STAB-BOUND-R"
+            qubit_coords[coord_ancilla] = "X-STAB-BOUND-R"
 
         # Additional after H
         for y in range(2, max_coord, 4):
             coord_ancilla = complex(max_coord, y)
-            qubit_coords[coord_ancilla] = "Z-STAB-BOUND-R-H"
+            qubit_coords[coord_ancilla] = "X-STAB-BOUND-R-H"
 
         # X-boundary stabilizers
         for y in range(4, max_coord, 4):
             coord_ancilla = complex(y, 0)
-            qubit_coords[coord_ancilla] = "X-STAB-BOUND-U"
+            qubit_coords[coord_ancilla] = "Z-STAB-BOUND-U"
 
         for y in range(4, max_coord, 4):
             coord_ancilla = complex(0, y)
-            qubit_coords[coord_ancilla] = "X-STAB-BOUND-L"
+            qubit_coords[coord_ancilla] = "Z-STAB-BOUND-L"
 
         # Additional after H
         for y in range(2, max_coord, 4):
             coord_ancilla = complex(y, 0)
-            qubit_coords[coord_ancilla] = "X-STAB-BOUND-U-H"
+            qubit_coords[coord_ancilla] = "Z-STAB-BOUND-U-H"
 
 # -----------------------------------------
 # Public function -> Building final circuit
@@ -122,7 +122,11 @@ def Rotated_Surface_Code(distance: int, rounds : int, *, state_init : str, log_o
     ###############################################################
     # 1. Build independent square patches (using geometry function)
     ###############################################################
-    qubit_coords: Dict[Coord, Label] = build_lattice(distance, offset=0+0j, starting_stabilizer_x=True)
+
+    if state_init in {"+i", "-i"}:
+        qubit_coords: Dict[Coord, Label] = build_lattice(distance, offset=0+0j, starting_stabilizer_x=False)
+    else: 
+        qubit_coords: Dict[Coord, Label] = build_lattice(distance, offset=0+0j, starting_stabilizer_x=True)
 
     ####################
     # 2. Insert boundary
@@ -160,7 +164,7 @@ def Rotated_Surface_Code(distance: int, rounds : int, *, state_init : str, log_o
 
     if state_init in {"+i", "-i"}:
         stab_to_data: Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords, y_basis = True)
-        stab_to_data_switch, stab_to_data_xcy = populate_stab_to_data(qubit_coords, y_basis = True, y_switch = True , distance = distance)
+        stab_to_data_switch, stab_to_data_xcy = populate_stab_to_data(qubit_coords, y_basis = True, y_switch = True, distance = distance)
         lct = Context(q2i= q2i, i2q= i2q, stab_to_data = stab_to_data, stab_to_data_modified = stab_to_data_switch, 
                       stab_to_data_modified2 = stab_to_data_xcy)
 
@@ -252,7 +256,7 @@ def Rotated_Surface_Code(distance: int, rounds : int, *, state_init : str, log_o
 
     state_init_circuit += initial_circuit
 
-    #return(state_init_circuit)
+    return(state_init_circuit)
 
     ##########################
     # Adding final measurement

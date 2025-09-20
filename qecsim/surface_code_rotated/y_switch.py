@@ -34,6 +34,7 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
     #-Retrieving Index from Stabilizers of the Lattices
     x_stab_index = patch.x_stab
     z_stab_index = patch.z_stab
+    switch_stab_apply_h = patch.stab_switch_apply_h
 
     # Finding Upper right qubit index -> need to look in 2-CX
     y_coords = 1 + 1j
@@ -113,14 +114,14 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
         #Parallel Implementation of CX
         if order == "2-CX":
 
-            # Removing corner CX
-            if coord_pairs[0] != y_coords and coord_pairs[1] != y_coords:
-
-                #Adding rest of the qubits
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                pre_switch_circ.append("CX", index_pairs)
+            # Skip if either endpoint equals y_index
+            if any(p == y_coords for p in coord_pairs):
+                continue
+                
+            index_pairs = []
+            index_pairs.append(q2i[coord_pairs[1]])
+            index_pairs.append(q2i[coord_pairs[0]])
+            pre_switch_circ.append("CX", index_pairs)
     
     #-------Adding-After-Clifford-Depol.------------
 
@@ -283,7 +284,7 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
 
     #1) Reset/ Basis
     switch_circ.append("TICK")
-    switch_circ.append("H", x_stab_index + u_h_stabs)
+    switch_circ.append("H", x_stab_index + r_h_stabs)
 
     #-------Adding-After-Clifford-Depol.------------
 
@@ -308,7 +309,7 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
     for coord_pairs, order in stab_to_data_switch_xcy.items():
    
         #Parallel Implementation of CX
-        if order == "1-XCY":
+        if order == "1TICK":
 
             index_pairs = []
             index_pairs.append(q2i[coord_pairs[1]])
@@ -320,7 +321,7 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
     for coord_pairs, order in stab_to_data_switch.items():
    
         #Parallel Implementation of CX
-        if order == "B1-CX":
+        if order == "2TICK":
 
             index_pairs = []
             index_pairs.append(q2i[coord_pairs[1]])
@@ -332,7 +333,7 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
     for coord_pairs, order in stab_to_data_switch.items():
    
         #Parallel Implementation of CX
-        if order == "B2-CX":
+        if order == "3TICK":
 
             index_pairs = []
             index_pairs.append(q2i[coord_pairs[1]])
@@ -344,32 +345,7 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
     for coord_pairs, order in stab_to_data_switch.items():
    
         #Parallel Implementation of CX
-        if order == "1-CX":
-
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            switch_circ.append("CX", index_pairs)
-   
-    switch_circ.append("TICK")
-            
-    for coord_pairs, order in stab_to_data_switch.items():
-
-        #Parallel Implementation of CX
-        if order == "2-CX":
-
-            #Adding rest of the qubits
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            switch_circ.append("CX", index_pairs)
-
-    switch_circ.append("TICK")
-
-    for coord_pairs, order in stab_to_data_switch_xcy.items():
-   
-        #Parallel Implementation of CX
-        if order == "2-XCY":
+        if order == "3.5TICK":
 
             index_pairs = []
             index_pairs.append(q2i[coord_pairs[1]])
@@ -381,31 +357,37 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
     for coord_pairs, order in stab_to_data_switch.items():
    
         #Parallel Implementation of CX
-        if order == "3-CX":
+        if order == "4TICK":
+
             index_pairs = []
             index_pairs.append(q2i[coord_pairs[1]])
             index_pairs.append(q2i[coord_pairs[0]])
             switch_circ.append("CX", index_pairs)
-
-    #-------Continue-Circuit------------
-
+   
     switch_circ.append("TICK")
-        
+
     for coord_pairs, order in stab_to_data_switch.items():
    
         #Parallel Implementation of CX
-        if order == "4-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            switch_circ.append("CX", index_pairs)
+        if order == "5TICK":
+
+            if len(coord_pairs) == 2:
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                switch_circ.append("CX", index_pairs)
+            else:
+                index_pairs = []
+                index_pairs.append(q2i[coord_pairs[1]])
+                index_pairs.append(q2i[coord_pairs[0]])
+                switch_circ.append("CX", index_pairs)
 
     #-------Continue-Circuit------------
     
     switch_circ.append("TICK")
 
     #3) Basis/ Measurement
-    switch_circ.append("H", x_stab_index)
+    switch_circ.append("H", switch_stab_apply_h)
 
     #-------Adding-After-Clifford-Depol.------------
 
@@ -435,6 +417,8 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
         there is no need to do anything i.e. old ancilla index is compared with new ancilla index
 
     """
+
+
     num_measurements_repeat = len(x_stab_index + z_stab_index + r_h_stabs + u_h_stabs)
     current_mes_offset = len(r_h_stabs + u_h_stabs)
 
@@ -444,10 +428,16 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
             prev_tar = -2 * num_measurements_repeat + current_mes_offset + index
             current_tar = -1 * num_measurements_repeat + index
             
-            switch_circ.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)], 
-                                (i2q[q_index].real, i2q[q_index].imag, 0))
+            #switch_circ.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
         
     #2) Newly generated Stabilizer -> Detectors with only one measurement record
+
+    for index, q_index in enumerate(chain(x_stab_index, z_stab_index, r_h_stabs, u_h_stabs)):
+
+        if q_index in (r_h_stabs + u_h_stabs):
+            current_tar = -1 * num_measurements_repeat + index
+            #switch_circ.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+
 
     full_switch = pre_switch_circ + switch_circ
 

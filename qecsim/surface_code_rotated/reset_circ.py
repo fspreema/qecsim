@@ -130,9 +130,9 @@ def reset(*, lct : Context, patches: dict[str, Patch],
             
             # Diagonal Cut
             if (c.real + c.imag) >= s0 + 1:
-                data_rz.append(q2i[c])
-            else:
                 data_rx.append(q2i[c])
+            else:
+                data_rz.append(q2i[c])
 
         reset_circuit.append("RX", data_rx)
         reset_circuit.append("RZ", data_rz)

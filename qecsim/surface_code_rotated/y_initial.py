@@ -103,8 +103,6 @@ def y_initial(*, lct : Context, patches: dict[str, Patch],
 
             # Removing corner CX
             if coord_pairs[0] != y_index and coord_pairs[1] != y_index:
-
-                #Adding rest of the qubits
                 index_pairs = []
                 index_pairs.append(q2i[coord_pairs[1]])
                 index_pairs.append(q2i[coord_pairs[0]])
@@ -118,6 +116,7 @@ def y_initial(*, lct : Context, patches: dict[str, Patch],
    
         #Parallel Implementation of CX
             if order == "2-CX":
+
                 index_pairs = []
                 index_pairs.append(q2i[coord_pairs[1]])
                 index_pairs.append(q2i[coord_pairs[0]])
@@ -244,9 +243,9 @@ def y_initial(*, lct : Context, patches: dict[str, Patch],
             
         # Diagonal Cut at s0 +1 -> filter out
         if (c.real + c.imag) >= s0 + 1:
-            data_rz.append(c)
-        else:
             data_rx.append(c)
+        else:
+            data_rz.append(c)
 
     # Filter Stabs -> Every X stabilizer with data_rx valid and z with only data_z 
     # -> if stabilizer with data_rx & data_rz -> invalid
@@ -257,11 +256,11 @@ def y_initial(*, lct : Context, patches: dict[str, Patch],
     # Determine the neighbouring Data qubits to each Stabilizer
     OFFSETS = {
         "Z-STAB":           [(-1, -1), (+1, -1), (-1, +1), (+1, +1)],
-        "X-STAB-BOUND-L":   [(+1, -1), (+1, +1)],
-        "Z-STAB-BOUND-R":   [(-1, -1), (-1, +1)],
+        "Z-STAB-BOUND-L":   [(+1, -1), (+1, +1)],
+        "X-STAB-BOUND-R":   [(-1, -1), (-1, +1)],
         "X-STAB":           [(-1, -1), (+1, -1), (-1, +1), (+1, +1)],
-        "X-STAB-BOUND-U":   [(-1, +1), (+1, +1)],
-        "Z-STAB-BOUND-B":   [(-1, -1), (+1, -1)],
+        "Z-STAB-BOUND-U":   [(-1, +1), (+1, +1)],
+        "X-STAB-BOUND-B":   [(-1, -1), (+1, -1)],
     }
 
     # Unified detector construction
