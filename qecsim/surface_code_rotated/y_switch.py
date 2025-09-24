@@ -1,16 +1,15 @@
-from typing import Dict, Tuple, Mapping
-from itertools import chain
 import stim
-from dataclasses import dataclass
-from .dataclasses import Config, Patch, Context
+from .dataclasses import Config, Patch, Context, NoiseModel, CircuitResult
 
 Coord = complex
 
 __all__ = ["y_switch_circ"]
 
-def y_switch_circ(*, lct : Context, patches: dict[str, Patch], 
-            cfg : Config, before_round_depol : float, before_m_flip_prob : float, 
-            after_r_flip : float, after_c_depol_prob : float) -> stim.Circuit:
+def y_switch_circ(*, 
+                  lct: Context, 
+                  patches: dict[str, Patch], 
+                  cfg: Config,
+                  noise: NoiseModel) -> CircuitResult:
     
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -40,19 +39,6 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
     y_coords = 1 + 1j
     y_index = q2i[y_coords]
 
-    #------------------------------------------------------
-    # Creating list of Logical X/Z string and their indices
-    #------------------------------------------------------
-    """
-    -> Used for swithcing of the state in a given basis
-    """
-
-    # Ancilla
-    a_log_obs_z_index : list[complex] = []
-
-    for real in range(1, (distance * 2), 2):
-        a_log_obs_z_index.append(q2i[real + 1j])
-
     ###########################
     # Define Repetition Circuit
     ###########################
@@ -61,10 +47,13 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
 
     pre_switch_circ = stim.Circuit()
 
+    #pre_switch_circ.append("R", x_stab_index + z_stab_index)
+    #pre_switch_circ.append("TICK")
+
     #-------Adding-Before-Round-Depol.-Data------------
 
-    if before_round_depol > 0:
-        pre_switch_circ.append("DEPOLARIZE1", data, before_round_depol)
+    if noise.before_round_depol > 0:
+        pre_switch_circ.append("DEPOLARIZE1", data, noise.before_round_depol)
 
     #-------Continue-Circuit------------
 
@@ -73,8 +62,8 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
 
     #-------Adding-After-Clifford-Depol.------------
 
-    if after_c_depol_prob > 0:
-        pre_switch_circ.append("DEPOLARIZE1", x_stab_index, after_c_depol_prob)
+    if noise.after_c_depol_prob > 0:
+        pre_switch_circ.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
 
     #-------Continue-Circuit------------
 
@@ -94,7 +83,7 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
     
     #-------Adding-After-Clifford-Depol.------------
 
-    if after_c_depol_prob > 0:
+    if noise.after_c_depol_prob > 0:
                 
         for coord_pairs, order in stab_to_data.items():
    
@@ -103,7 +92,7 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
                 index_pairs = []
                 index_pairs.append(q2i[coord_pairs[1]])
                 index_pairs.append(q2i[coord_pairs[0]])
-                pre_switch_circ.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+                pre_switch_circ.append("DEPOLARIZE2", index_pairs, noise.after_c_depol_prob)
 
     #-------Continue-Circuit------------
 
@@ -125,7 +114,7 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
     
     #-------Adding-After-Clifford-Depol.------------
 
-    if after_c_depol_prob > 0:
+    if noise.after_c_depol_prob > 0:
                 
         for coord_pairs, order in stab_to_data.items():
    
@@ -134,7 +123,7 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
                 index_pairs = []
                 index_pairs.append(q2i[coord_pairs[1]])
                 index_pairs.append(q2i[coord_pairs[0]])
-                pre_switch_circ.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+                pre_switch_circ.append("DEPOLARIZE2", index_pairs, noise.after_c_depol_prob)
 
     #-------Continue-Circuit------------
 
@@ -151,7 +140,7 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
     
     #-------Adding-After-Clifford-Depol.------------
 
-    if after_c_depol_prob > 0:
+    if noise.after_c_depol_prob > 0:
                 
         for coord_pairs, order in stab_to_data.items():
    
@@ -160,7 +149,7 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
                 index_pairs = []
                 index_pairs.append(q2i[coord_pairs[1]])
                 index_pairs.append(q2i[coord_pairs[0]])
-                pre_switch_circ.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+                pre_switch_circ.append("DEPOLARIZE2", index_pairs, noise.after_c_depol_prob)
 
     #-------Continue-Circuit------------
 
@@ -177,7 +166,7 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
     
     #-------Adding-After-Clifford-Depol.------------
 
-    if after_c_depol_prob > 0:
+    if noise.after_c_depol_prob > 0:
                 
         for coord_pairs, order in stab_to_data.items():
    
@@ -186,7 +175,7 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
                 index_pairs = []
                 index_pairs.append(q2i[coord_pairs[1]])
                 index_pairs.append(q2i[coord_pairs[0]])
-                pre_switch_circ.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+                pre_switch_circ.append("DEPOLARIZE2", index_pairs, noise.after_c_depol_prob)
 
     #-------Continue-Circuit------------
     
@@ -197,8 +186,8 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
 
     #-------Adding-After-Clifford-Depol.------------
 
-    if after_c_depol_prob > 0:
-        pre_switch_circ.append("DEPOLARIZE1", x_stab_index, after_c_depol_prob)
+    if noise.after_c_depol_prob > 0:
+        pre_switch_circ.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
 
     #-------Continue-Circuit------------
 
@@ -206,8 +195,8 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
 
     #-------Adding-Before-Measurement-Flip-Prob.-------
 
-    if before_m_flip_prob > 0:
-        pre_switch_circ.append("X_ERROR", x_stab_index + z_stab_index, before_m_flip_prob)
+    if noise.before_m_flip_prob > 0:
+        pre_switch_circ.append("X_ERROR", x_stab_index + z_stab_index, noise.before_m_flip_prob)
 
     #-------Continue-Circuit----------
 
@@ -277,8 +266,8 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
 
     #-------Adding-Before-Round-Depol.-Data------------
 
-    if before_round_depol > 0:
-        switch_circ.append("DEPOLARIZE1", data, before_round_depol)
+    if noise.before_round_depol > 0:
+        switch_circ.append("DEPOLARIZE1", data, noise.before_round_depol)
 
     #-------Continue-Circuit------------
 
@@ -288,8 +277,8 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
 
     #-------Adding-After-Clifford-Depol.------------
 
-    if after_c_depol_prob > 0:
-        switch_circ.append("DEPOLARIZE1", x_stab_index, after_c_depol_prob)
+    if noise.after_c_depol_prob > 0:
+        switch_circ.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
 
     #-------Continue-Circuit------------
 
@@ -391,14 +380,16 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
 
     #-------Adding-After-Clifford-Depol.------------
 
-    if after_c_depol_prob > 0:
-        switch_circ.append("DEPOLARIZE1", x_stab_index, after_c_depol_prob)
+    if noise.after_c_depol_prob > 0:
+        switch_circ.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
 
     #-------Continue-Circuit------------
 
     switch_circ.append("TICK")
 
     switch_circ.append("MR", x_stab_index + z_stab_index + r_h_stabs + u_h_stabs)
+
+    switch_circ.append("TICK")
 
     #-> Shifting Coords in Time-Dimension to have 3D timelike Detector graph (Needed for decoding)
     switch_circ.append("SHIFT_COORDS", arg = (0,0,1))
@@ -408,37 +399,271 @@ def y_switch_circ(*, lct : Context, patches: dict[str, Patch],
     ###########################################################
 
     #1) Deterministic Detectors which can be build up by the old stabilizers
+
+    previous_round = pre_switch_circ.num_measurements
+    offset = len(r_h_stabs + u_h_stabs)
+    current_round = switch_circ.num_measurements
+
+    # size and lookup for the *previous* (pre-switch) measurement block
+    prev_block = x_stab_index + z_stab_index
+    prev_block_size = len(prev_block)
+
+    for index, q_index in enumerate(x_stab_index + z_stab_index + r_h_stabs + u_h_stabs):
+
+        role = patch.coords[i2q[q_index]]
+        coord = i2q[q_index]
+
+        if role == "X-STAB":
+            # skip stabs on the Y-cut
+            if q_index in index_nh:
+                # find this stabilizers position in the previous block
+                try:
+                    prev_idx = prev_block.index(q_index)
+                except ValueError:
+                    continue
+                prev_tar = - current_round - prev_block_size + prev_idx
+                current_tar = - current_round + index
+                switch_circ.append(
+                    "DETECTOR",
+                    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                    (coord.real, coord.imag, 0)
+                )
+
+        elif role in {"X-STAB-BOUND-R"}:
+
+            if q2i[(coord.real - 1 + 1j * coord.imag + 1j)] in index_h:
+                try:
+                    prev_idx = prev_block.index(q_index)
+                except ValueError:
+                    continue
+                prev_tar = - current_round - prev_block_size + prev_idx
+                current_tar = - current_round + index
+                switch_circ.append(
+                    "DETECTOR",
+                    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                    (coord.real, coord.imag, 0)
+                )
+
+        elif role in {"X-STAB-BOUND-B", "Z-STAB-BOUND-L", "Z-STAB-BOUND-U"}:
+            try:
+                prev_idx = prev_block.index(q_index)
+            except ValueError:
+                continue
+            prev_tar = - current_round - prev_block_size + prev_idx
+            current_tar = - current_round + index
+            switch_circ.append(
+                "DETECTOR",
+                [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                (coord.real, coord.imag, 0)
+            )
+
+        elif role == "Z-STAB":
+            # skip stabs on the Y-cut
+            if q_index in index_nh:
+                try:
+                    prev_idx = prev_block.index(q_index)
+                except ValueError:
+                    continue
+                prev_tar = - current_round - prev_block_size + prev_idx
+                current_tar = - current_round + index
+                switch_circ.append(
+                    "DETECTOR",
+                    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                    (coord.real, coord.imag, 0)
+                )
+
     """
-    Here we switch analogue to logical H; this means the following: 
-    -> x and z stabs from the upper half of the lattice are flipped (i.e. where the h gates where applied)
-    -> X and Z are the same for the lower half
+    We need to look at the switch circuit and what detectors we need, we do this the following way
 
-    --> As we meassure x with old z on one half (So the cx have switched roles) and x with x, z with z on the other half
-        there is no need to do anything i.e. old ancilla index is compared with new ancilla index
+    ####################
+    # FLOW MEASUREMENTS:
+    ####################
 
+    *  S -> 1 Contarction of stabilizers (These checks stop exisiting as we have a bsis switch)
+    *  1 -> S Creation ofs tabilizers (These get created as we have a basis switch)
     """
 
+    # Add Detector for the Z stabilizers on the Diagonal     
+    for coords, label in patch.coords.items():
+        if label in {"X-STAB"}:
 
-    num_measurements_repeat = len(x_stab_index + z_stab_index + r_h_stabs + u_h_stabs)
-    current_mes_offset = len(r_h_stabs + u_h_stabs)
+            if q2i[coords] in index_h:
 
-    for index, q_index in enumerate(chain(x_stab_index, z_stab_index, r_h_stabs, u_h_stabs)):
+                new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
+                new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
+                new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
+                new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
 
-        if q_index in (x_stab_index + z_stab_index):
-            prev_tar = -2 * num_measurements_repeat + current_mes_offset + index
-            current_tar = -1 * num_measurements_repeat + index
-            
-            #switch_circ.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+                if coords in [2 + i + 1j * i for i in range(2,distance + 2, 2)]:
         
-    #2) Newly generated Stabilizer -> Detectors with only one measurement record
+                    old_stab = [new_cord1, new_cord2, new_cord3, new_cord4]
+                    new_stab_z = [new_cord2, new_cord3]
+                    new_stab_x = [new_cord4]
+                    
+                    x_new = '*'.join([f"X{q2i[q]}" for q in new_stab_x] + [f"Z{q2i[q]}" for q in new_stab_z])
+                    x_old = '*'.join(f"X{i}" for i in [q2i[current] for current in old_stab])
+                    prev_round = f"{1} -> {x_old}"
+                    switch_round_conc = f"{x_old} -> {1}"
+                    switch_round_crea = f"{x_new} -> {1}"
 
-    for index, q_index in enumerate(chain(x_stab_index, z_stab_index, r_h_stabs, u_h_stabs)):
+                    # -> Frist Contract (Old Circuit before siwtch)
+                    (included_measurements_prev,) = pre_switch_circ.solve_flow_measurements([
+                        stim.Flow(prev_round),
+                    ])
 
-        if q_index in (r_h_stabs + u_h_stabs):
-            current_tar = -1 * num_measurements_repeat + index
-            #switch_circ.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+                    (included_measurements_conc,) = switch_circ.solve_flow_measurements([
+                    stim.Flow(switch_round_conc),
+                    ])
 
+                    (included_measurements_crea,) = switch_circ.solve_flow_measurements([
+                    stim.Flow(switch_round_crea),
+                    ])
+
+                    # Buidling new x stab off diagonal stabilizers
+                
+                # Adding the other weight 3 Stabilizers
+                else:
+
+                    old_stab = [new_cord1, new_cord2, new_cord3, new_cord4]
+                    new_stab_z = [new_cord2, new_cord3, new_cord4]
+                    
+                    x_new = '*'.join([f"Z{q2i[q]}" for q in new_stab_z])
+                    x_old = '*'.join(f"X{i}" for i in [q2i[current] for current in old_stab])
+                    prev_round = f"{1} -> {x_old}"
+                    switch_round_conc = f"{x_old} -> {1}"
+                    switch_round_crea = f"{x_new} -> {1}"
+
+                    # -> Frist Contract (Old Circuit before siwtch)
+                    (included_measurements_prev,) = pre_switch_circ.solve_flow_measurements([
+                    stim.Flow(switch_round_conc),
+                    ])
+
+                    (included_measurements_conc,) = switch_circ.solve_flow_measurements([
+                    stim.Flow(switch_round_conc),
+                    ])
+
+                    (included_measurements_crea,) = switch_circ.solve_flow_measurements([
+                    stim.Flow(switch_round_crea),
+                    ])
+
+                    #included_measurements_prev = [- pre_switch_circ.num_measurements + i for i in included_measurements_prev]
+
+                    #full_meas = included_measurements_conc + included_measurements_prev
+
+                    #for i in full_meas:
+                        #current_tar = - switch_circ.num_measurements + i
+                        #switch_circ.append("DETECTOR", [stim.target_rec(current_tar)], 
+                                    #(coords.real, coords.imag, 0))
+                    
+        elif label in {"Z-STAB"}:
+
+            new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
+            new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
+            new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
+            new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
+                
+            if coords in [2 + i + 2j + 1j * i for i in range(0,distance, 2)]:
+
+                old_stab = [new_cord1, new_cord2, new_cord3, new_cord4]
+                
+                x_old = '*'.join(f"Z{i}" for i in [q2i[current] for current in old_stab])
+
+                switch_round_conc = f"{x_old} -> {1}"
+
+                (included_measurements_conc,) = switch_circ.solve_flow_measurements([
+                stim.Flow(switch_round_conc),
+                ])
+
+                # Buidling new Diagonal detectors
+                #for index in included_measurements_conc:
+                    #prev_tar = -1 * current_round - previous_round + index - 1
+                    #current_tar = -1 * current_round + index - 1
+                    #switch_circ.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)], 
+                                    #(i2q[q_index].real, i2q[q_index].imag, 0))
+                    
+            if q2i[coords] in index_h:
+
+                old_stab = [new_cord1, new_cord2, new_cord3, new_cord4]
+                new_stab = [new_cord2, new_cord3, new_cord4]
+                z_old = '*'.join(f"X{i}" for i in [q2i[current] for current in old_stab])
+                z_new = '*'.join(f"X{i}" for i in [q2i[current] for current in new_stab])
+
+                stabs_contraction = f"{z_old} -> {1}"
+                stabs_creation = f"{1} -> {z_new}"
+
+                (included_measurements_conc,) = switch_circ.solve_flow_measurements([
+                                                stim.Flow(stabs_contraction),
+                                                ])
+                
+                (included_measurements_creat,) = switch_circ.solve_flow_measurements([
+                                                stim.Flow(stabs_creation),
+                                                ])
+
+                # Buidling new Diagonal detectors
+                # for index_old, index_new in zip(included_measurements_conc, included_measurements_creat):
+                #     prev_tar = -1 * current_round - previous_round + index_old - 1
+                #     current_tar = -1 * current_round + index_new - 1
+                #     switch_circ.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)], 
+                #                    (i2q[q_index].real, i2q[q_index].imag, 0))
+                    
+        elif label in {"Z-STAB-BOUND-U-H"}:
+
+            new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
+            new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
+            new_stab = [new_cord3, new_cord4]
+            new_stab_index = [q2i[new_cord3], q2i[new_cord4]]
+
+            # Filter for Boundary who has X and Z checks
+            if y_index not in new_stab_index:
+
+                z_new = '*'.join(f"X{i}" for i in [q2i[current] for current in new_stab])
+                switch_round_conc = f"{1} -> {z_new}"
+
+                (included_measurements_conc,) = switch_circ.solve_flow_measurements([
+                stim.Flow(switch_round_conc),
+                ])
+
+                # Buidling new Diagonal detectors
+                #for index in included_measurements_conc:
+                    #current_tar = -1 * current_round + index - 1
+                    #switch_circ.append("DETECTOR", [stim.target_rec(current_tar)], 
+                                    #(i2q[q_index].real, i2q[q_index].imag, 0))
+
+            else:
+                z_new = '*'.join([f"Z{new_stab_index[0]}"] + [f"X{new_stab_index[1]}"])
+                switch_round_conc = f"{1} -> {z_new}"
+
+                (included_measurements_conc,) = switch_circ.solve_flow_measurements([
+                stim.Flow(switch_round_conc),
+                ])
+
+                # Buidling new Diagonal detectors
+                #for index in included_measurements_conc:
+                    #current_tar = -1 * current_round + index - 1
+                    #switch_circ.append("DETECTOR", [stim.target_rec(current_tar)], 
+                                    #(i2q[q_index].real, i2q[q_index].imag, 0))
+                    
+        elif label in {"X-STAB-BOssUND-R-H"}:
+
+            new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
+            new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
+            new_stab = [new_cord2, new_cord4]
+            new_stab_index = [q2i[new_cord2], q2i[new_cord4]]
+                
+            x_new = '*'.join(f"Z{i}" for i in [q2i[current] for current in new_stab])
+
+            switch_round_conc = f"{1} -> {x_new}"
+
+            (included_measurements_conc,) = switch_circ.solve_flow_measurements([
+            stim.Flow(switch_round_conc),
+            ])
+
+            # Buidling new Diagonal detectors
+            #for index in included_measurements_conc:
+                #current_tar = -1 * current_round + index - 1
+                #switch_circ.append("DETECTOR", [stim.target_rec(current_tar)], 
+                                #(i2q[q_index].real, i2q[q_index].imag, 0))
 
     full_switch = pre_switch_circ + switch_circ
 
-    return(full_switch)
+    return CircuitResult(circuit=full_switch)

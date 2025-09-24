@@ -1,15 +1,16 @@
-from typing import Dict, Tuple, Mapping
 import stim
 import numpy as np
-from dataclasses import dataclass
-from .dataclasses import Config, Patch, Context
+from .dataclasses import Config, Patch, Context, CircuitResult
 
 Coord = complex
 
 __all__ = ["reset"]
 
-def reset(*, lct : Context, patches: dict[str, Patch], 
-            cfg : Config) -> stim.Circuit:
+def reset(*, 
+        lct: Context, 
+        patches: dict[str, Patch], 
+        cfg: Config,
+        logical_h: bool) -> CircuitResult:
     
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -23,7 +24,6 @@ def reset(*, lct : Context, patches: dict[str, Patch],
     i2q = lct.i2q
     distance = cfg.distance
     init_state = cfg.state_init
-    stab_to_data = lct.stab_to_data
     log_obs = cfg.obs
 
     #-Retrieving Data Coords
@@ -60,19 +60,21 @@ def reset(*, lct : Context, patches: dict[str, Patch],
 
         if log_obs == "X":
 
-            """
-            We need to remove the added Pauli measurement from the end of the circuit
-            -> Else the X paulis tring would anticommute with the RZ reset of the data
-            """
+            if not logical_h:
 
-            # Getting corresponding logical string and rec
-            log_x = []
+                """
+                We need to remove the added Pauli measurement from the end of the circuit
+                -> Else the X paulis tring would anticommute with the RZ reset of the data
+                """
 
-            for imag in range(1, (distance * 2), 2):
-                log_x.append(q2i[1 + imag*1j])
+                # Getting corresponding logical string and rec
+                log_x = []
 
-            # XORing the observable away
-            reset_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in log_x], 0)
+                for imag in range(1, (distance * 2), 2):
+                    log_x.append(q2i[1 + imag*1j])
+
+                # XORing the observable away
+                reset_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in log_x], 0)
 
     elif init_state in {"+", "-"}:
         reset_circuit.append("RX", data)
@@ -91,19 +93,21 @@ def reset(*, lct : Context, patches: dict[str, Patch],
 
         if log_obs == "Z":
 
-            """
-            We need to remove the added Pauli measurement from the end of the circuit
-            -> Else the Z paulis tring would anticommute with the RZ reset of the data
-            """
+            if not logical_h:
 
-            # Getting corresponding logical string and rec
-            log_z = []
+                """
+                We need to remove the added Pauli measurement from the end of the circuit
+                -> Else the Z paulis tring would anticommute with the RZ reset of the data
+                """
 
-            for real in range(1, (distance * 2), 2):
-                log_z.append(q2i[real + 1j])
+                # Getting corresponding logical string and rec
+                log_z = []
 
-            # XORing the observable away
-            reset_circuit.append("OBSERVABLE_INCLUDE", [f"Z{index}" for index in log_z], 0)
+                for real in range(1, (distance * 2), 2):
+                    log_z.append(q2i[real + 1j])
+
+                # XORing the observable away
+                reset_circuit.append("OBSERVABLE_INCLUDE", [f"Z{index}" for index in log_z], 0)
 
     elif init_state in {"+i", "-i"}:
 
@@ -143,4 +147,4 @@ def reset(*, lct : Context, patches: dict[str, Patch],
     else:
         ValueError("Not a valid init Basis")
 
-    return reset_circuit
+    return CircuitResult(circuit=reset_circuit)

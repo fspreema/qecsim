@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Mapping, Optional
 
+import stim
+
 Coord = complex
 Label = str
 Index = int
@@ -9,6 +11,29 @@ Pair  = Tuple[Coord, Coord]
 #--------------------------
 # Helper Dataclasses
 #--------------------------
+
+@dataclass
+class NoiseModel:
+    """Group all noise probabilites used by sub-builders"""
+    before_round_depol: float = 0.0
+    before_m_flip_prob: float = 0.0
+    after_r_flip: float = 0.0
+    after_c_depol_prob: float = 0.0
+
+@dataclass
+class CircuitResult:
+    """Uniform return type for circuit-building functions."""
+    circuit: stim.Circuit
+    obs_indices: Optional[list[int]] = None
+
+    def __iadd__(self, other: "CircuitResult | stim.Circuit") -> "CircuitResult":
+        """Allow `result += other` regardless of other’s type."""
+        if isinstance(other, CircuitResult):
+            self.circuit += other.circuit
+            # No automatic merge of obs indices; caller decides how to use them
+        else:
+            self.circuit += other
+        return self
 
 @dataclass
 class Config:

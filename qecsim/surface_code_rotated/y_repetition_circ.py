@@ -1,15 +1,15 @@
-from typing import Dict, Tuple, Mapping
 import stim
-from dataclasses import dataclass
-from .dataclasses import Config, Patch, Context
+from .dataclasses import Config, Patch, Context, NoiseModel, CircuitResult
 
 Coord = complex
 
 __all__ = ["y_repetition_circ"]
 
-def y_repetition_circ(*, lct : Context, patches: dict[str, Patch], 
-            cfg : Config, before_round_depol : float, before_m_flip_prob : float, 
-            after_r_flip : float, after_c_depol_prob : float) -> stim.Circuit:
+def y_repetition_circ(*, 
+                      lct : Context, 
+                      patches: dict[str, Patch], 
+                      cfg : Config, 
+                      noise: NoiseModel) -> CircuitResult:
     
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -59,8 +59,8 @@ def y_repetition_circ(*, lct : Context, patches: dict[str, Patch],
 
     #-------Adding-Before-Round-Depol.-Data------------
 
-    if before_round_depol > 0:
-        round_circuit.append("DEPOLARIZE1", data, before_round_depol)
+    if noise.before_round_depol > 0:
+        round_circuit.append("DEPOLARIZE1", data, noise.before_round_depol)
 
     #-------Continue-Circuit------------
 
@@ -69,8 +69,8 @@ def y_repetition_circ(*, lct : Context, patches: dict[str, Patch],
 
     #-------Adding-After-Clifford-Depol.------------
 
-    if after_c_depol_prob > 0:
-        round_circuit.append("DEPOLARIZE1", x_stab_index, after_c_depol_prob)
+    if noise.after_c_depol_prob > 0:
+        round_circuit.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
 
     #-------Continue-Circuit------------
 
@@ -78,108 +78,25 @@ def y_repetition_circ(*, lct : Context, patches: dict[str, Patch],
 
     #2) CX Operations
 
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "1-CX":
+    def _pairs_for(order: str) -> list[list[int]]:
+        # Return the Pairs needed at the current order
+        return [[q2i[cp[1]], q2i[cp[0]]] for cp, o in stab_to_data.items() if o == order]
 
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            round_circuit.append("CX", index_pairs)
-    
-    #-------Adding-After-Clifford-Depol.------------
+    def _append_by_order(op: str, order: str, noise: float = 0.0) -> None:
+        # Getting pair info
+        for pair in _pairs_for(order):
+            #Adding Pair on Operation
+            if op == "CX":
+                round_circuit.append(op, pair)
+            elif op == "DEPOLARIZE2":
+                round_circuit.append(op, pair, noise)
 
-    if after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "1-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                round_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
-
-    #-------Continue-Circuit------------
-
-    round_circuit.append("TICK")
-            
-    for coord_pairs, order in stab_to_data.items():
-
-        #Parallel Implementation of CX
-        if order == "2-CX":
-
-            # Removing corner CX
-            if coord_pairs[0] != y_index and coord_pairs[1] != y_index:
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                round_circuit.append("CX", index_pairs)
-    #-------Adding-After-Clifford-Depol.------------
-
-    if after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "2-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                round_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
-
-    #-------Continue-Circuit------------
-
-    round_circuit.append("TICK")
-
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "3-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            round_circuit.append("CX", index_pairs)
-    
-    #-------Adding-After-Clifford-Depol.------------
-
-    if after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "3-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                round_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
-
-    #-------Continue-Circuit------------
-
-    round_circuit.append("TICK")
-        
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "4-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            round_circuit.append("CX", index_pairs)
-    
-    #-------Adding-After-Clifford-Depol.------------
-
-    if after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "4-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                round_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
+    # Adding all the CX gates
+    for order in ("1-CX", "2-CX", "3-CX", "4-CX"):
+        _append_by_order("CX", order)
+        if noise.after_c_depol_prob > 0:
+            _append_by_order("DEPOLARIZE2", order, noise.after_c_depol_prob)
+        round_circuit.append("TICK")
 
     #-------Continue-Circuit------------
     
@@ -190,8 +107,8 @@ def y_repetition_circ(*, lct : Context, patches: dict[str, Patch],
 
     #-------Adding-After-Clifford-Depol.------------
 
-    if after_c_depol_prob > 0:
-        round_circuit.append("DEPOLARIZE1", x_stab_index, after_c_depol_prob)
+    if noise.after_c_depol_prob > 0:
+        round_circuit.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
 
     #-------Continue-Circuit------------
 
@@ -199,8 +116,8 @@ def y_repetition_circ(*, lct : Context, patches: dict[str, Patch],
 
     #-------Adding-Before-Measurement-Flip-Prob.-------
 
-    if before_m_flip_prob > 0:
-        round_circuit.append("X_ERROR", x_stab_index + z_stab_index, before_m_flip_prob)
+    if noise.before_m_flip_prob > 0:
+        round_circuit.append("X_ERROR", x_stab_index + z_stab_index, noise.before_m_flip_prob)
 
     #-------Continue-Circuit----------
 
@@ -208,8 +125,8 @@ def y_repetition_circ(*, lct : Context, patches: dict[str, Patch],
 
     #-------Adding-After-Reset-Flip-Prob.------------
 
-    if after_r_flip > 0:
-        round_circuit.append("X_ERROR", x_stab_index + z_stab_index, after_r_flip)
+    if noise.after_r_flip > 0:
+        round_circuit.append("X_ERROR", x_stab_index + z_stab_index, noise.after_r_flip)
 
     #-------Continue-Circuit------------
 
@@ -229,4 +146,4 @@ def y_repetition_circ(*, lct : Context, patches: dict[str, Patch],
 
     rep_circ = round_circuit * int((rounds - 2) / 2)
 
-    return(rep_circ)
+    return CircuitResult(circuit=rep_circ)
