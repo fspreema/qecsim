@@ -58,6 +58,7 @@ def y_switch_circ(*,
     #-------Continue-Circuit------------
 
     #1) Reset/ Basis
+    pre_switch_circ.append("TICK")
     pre_switch_circ.append("H", x_stab_index)
 
     #-------Adding-After-Clifford-Depol.------------
@@ -71,115 +72,31 @@ def y_switch_circ(*,
 
     #2) CX Operations
 
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "1-CX":
+    #2) CX Operations
 
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            pre_switch_circ.append("CX", index_pairs)
-    
-    #-------Adding-After-Clifford-Depol.------------
+    def _pairs_for(order: str) -> list[list[int]]:
+        # Return the Pairs needed at the current order
+        return [[q2i[cp[1]], q2i[cp[0]]] for cp, o in stab_to_data.items() if o == order]
 
-    if noise.after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "1-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                pre_switch_circ.append("DEPOLARIZE2", index_pairs, noise.after_c_depol_prob)
+    def _append_by_order(op: str, order: str, noise: float = 0.0) -> None:
+        # Getting pair info
+        for pair in _pairs_for(order):
+            # Checking for upper corner CX and leave it out!
+            if y_index not in pair:
+                #Adding Pair on Operation
+                if op == "CX":
+                    pre_switch_circ.append(op, pair)
+                elif op == "DEPOLARIZE2":
+                    pre_switch_circ.append(op, pair, noise)
 
-    #-------Continue-Circuit------------
-
-    pre_switch_circ.append("TICK")
-            
-    for coord_pairs, order in stab_to_data.items():
-
-        #Parallel Implementation of CX
-        if order == "2-CX":
-
-            # Skip if either endpoint equals y_index
-            if any(p == y_coords for p in coord_pairs):
-                continue
-                
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            pre_switch_circ.append("CX", index_pairs)
-    
-    #-------Adding-After-Clifford-Depol.------------
-
-    if noise.after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "2-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                pre_switch_circ.append("DEPOLARIZE2", index_pairs, noise.after_c_depol_prob)
+    # Adding all the CX gates
+    for order in ("1-CX", "2-CX", "3-CX", "4-CX"):
+        _append_by_order("CX", order)
+        if noise.after_c_depol_prob > 0:
+            _append_by_order("DEPOLARIZE2", order, noise.after_c_depol_prob)
+        pre_switch_circ.append("TICK")
 
     #-------Continue-Circuit------------
-
-    pre_switch_circ.append("TICK")
-
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "3-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            pre_switch_circ.append("CX", index_pairs)
-    
-    #-------Adding-After-Clifford-Depol.------------
-
-    if noise.after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "3-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                pre_switch_circ.append("DEPOLARIZE2", index_pairs, noise.after_c_depol_prob)
-
-    #-------Continue-Circuit------------
-
-    pre_switch_circ.append("TICK")
-        
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "4-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            pre_switch_circ.append("CX", index_pairs)
-    
-    #-------Adding-After-Clifford-Depol.------------
-
-    if noise.after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "4-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                pre_switch_circ.append("DEPOLARIZE2", index_pairs, noise.after_c_depol_prob)
-
-    #-------Continue-Circuit------------
-    
-    pre_switch_circ.append("TICK")
 
     #3) Basis/ Measurement
     pre_switch_circ.append("H", x_stab_index)
@@ -388,8 +305,6 @@ def y_switch_circ(*,
     switch_circ.append("TICK")
 
     switch_circ.append("MR", x_stab_index + z_stab_index + r_h_stabs + u_h_stabs)
-
-    switch_circ.append("TICK")
 
     #-> Shifting Coords in Time-Dimension to have 3D timelike Detector graph (Needed for decoding)
     switch_circ.append("SHIFT_COORDS", arg = (0,0,1))

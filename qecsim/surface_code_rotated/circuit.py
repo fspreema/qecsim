@@ -11,7 +11,7 @@ from .h_switched_init import h_switched_circ_init
 from .y_initial import y_initial
 from .y_repetition_circ import y_repetition_circ
 from .y_switch import y_switch_circ
-from .y_final import y_final_circ
+from .y_rev_switch_circ import y_rev_switch_circ
 from .y_memory import y_memory_circ
 from .dataclasses import Config, Patch, Context, NoiseModel, CircuitResult
 
@@ -194,8 +194,9 @@ def rotated_surface_code(distance: int,
     if is_y:
         stab_to_data: dict[tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords, y_basis = True)
         stab_to_data_switch, stab_to_data_xcy = populate_stab_to_data(qubit_coords, y_basis = True, y_switch = True, distance = distance)
+        stab_to_data_memory: dict[tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords, y_basis = True, y_memory= True)
         lct = Context(q2i= q2i, i2q= i2q, stab_to_data = stab_to_data, stab_to_data_modified = stab_to_data_switch, 
-                      stab_to_data_modified2 = stab_to_data_xcy)
+                      stab_to_data_modified2 = stab_to_data_xcy, stab_to_data_modified3 = stab_to_data_memory)
 
     elif logical_h:
         stab_to_data: dict[tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords)
@@ -273,23 +274,20 @@ def rotated_surface_code(distance: int,
     if state_init not in {"+i", "-i"}:
         final_measurement = final_m(lct = lct, patches = patches, cfg = cfg, noise = noise, is_flipped = flip_needed)
         state_init_circuit += initial_circuit
-        
-    else:
-        final_measurement = y_final_circ(lct = lct, patches = patches, cfg = cfg, noise = noise)
-        state_init_circuit += initial_circuit
-
-        # Only temporary solution I guess
-        state_init_circuit += state_init_circuit.circuit.missing_detectors()
 
     ##################################
     # Adding Actual Y basis Memory run
     ##################################
 
-    if state_init in {"+i", "-i"}:
-        y_memory = y_memory_circ(lct = lct, patches = patches, cfg = cfg, noise = noise)
-        
+    else:
+        y_memory = y_repetition_circ(lct = lct, patches = patches, cfg = cfg, noise = noise, memory_round= True)
+
+        state_init_circuit += initial_circuit
         state_init_circuit += y_memory
-        state_init_circuit += state_init_circuit.circuit.missing_detectors()
+        #state_init_circuit += state_init_circuit.circuit.missing_detectors()
+
+        # Adding the basis reverse
+        final_measurement = y_rev_switch_circ(lct = lct, patches = patches, cfg = cfg, noise = noise)
 
     ##########################
     # Adding final measurement

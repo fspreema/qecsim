@@ -213,42 +213,42 @@ def y_memory_circ(*,
             if q_index in index_nh:
                 prev_tar = -2 * memory_y.num_measurements + index
                 current_tar = -1 * memory_y.num_measurements + index
-                memory_y.append(
-                    "DETECTOR",
-                    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
-                    (coord.real, coord.imag, 0)
-                )
+                #memory_y.append(
+                #    "DETECTOR",
+                #    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                #    (coord.real, coord.imag, 0)
+                #)
 
         elif role in {"X-STAB-BOUND-R"}:
 
             if q2i[(coord.real - 1 + 1j * coord.imag + 1j)] in index_h:
                 prev_tar = -2 * memory_y.num_measurements + index
                 current_tar = -1 * memory_y.num_measurements + index
-                memory_y.append(
-                    "DETECTOR",
-                    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
-                    (coord.real, coord.imag, 0)
-                )
+                #memory_y.append(
+                #    "DETECTOR",
+                #    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                #    (coord.real, coord.imag, 0)
+                #)
 
         elif role in {"X-STAB-BOUND-B", "Z-STAB-BOUND-L", "Z-STAB-BOUND-U"}:
             prev_tar = -2 * memory_y.num_measurements + index
             current_tar = -1 * memory_y.num_measurements + index
-            memory_y.append(
-                "DETECTOR",
-                [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
-                (coord.real, coord.imag, 0)
-            )
+            #memory_y.append(
+            #    "DETECTOR",
+            #    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+            #    (coord.real, coord.imag, 0)
+            #)
 
         elif role == "Z-STAB":
             # skip stabs on the Y-cut
             if q_index in index_nh:
                 prev_tar = -2 * memory_y.num_measurements + index
                 current_tar = -1 * memory_y.num_measurements + index
-                memory_y.append(
-                    "DETECTOR",
-                    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
-                    (coord.real, coord.imag, 0)
-                )
+                #memory_y.append(
+                #    "DETECTOR",
+                #    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                #    (coord.real, coord.imag, 0)
+                #)
 
     # memory_y += memory_y.missing_detectors()
 

@@ -49,7 +49,9 @@ class Patch:
     coords:  Dict[Coord, Label]
     data:    List[Index]
     x_stab:  List[Index]
-    stab_switch_apply_h : List[Index]
+    stab_switch_apply_h: List[Index]
+    x_stab_memory: List[Index]
+    z_stab_memory: List[Index]
     z_stab:  List[Index]
     upper_h:  List[Index]
     right_h:  List[Index]
@@ -71,6 +73,8 @@ class Patch:
             data   = pick_up("DATA"),
             x_stab = pick_up("X-STAB", "X-STAB-BOUND-U", "X-STAB-BOUND-B", "X-STAB-BOUND-R"),
             stab_switch_apply_h = pick_up("X-STAB", "Z-STAB-BOUND-U", "X-STAB-BOUND-B", "Z-STAB-BOUND-U-H"),
+            x_stab_memory = pick_up("X-STAB", "X-STAB-BOUND-R-H", "X-STAB-BOUND-B"),
+            z_stab_memory = pick_up("Z-STAB", "Z-STAB-BOUND-L", "Z-STAB-BOUND-U-H"),
             z_stab = pick_up("Z-STAB", "Z-STAB-BOUND-L", "Z-STAB-BOUND-R", "Z-STAB-BOUND-U"),
             upper_h = pick_up("Z-STAB-BOUND-U-H"),
             right_h = pick_up("X-STAB-BOUND-R-H"),
@@ -84,3 +88,4 @@ class Context:
     stab_to_data: Dict[Pair, str]
     stab_to_data_modified: Optional[Dict[Pair, str]] = field(default_factory=dict)
     stab_to_data_modified2: Optional[Dict[Pair, str]] = field(default_factory=dict)
+    stab_to_data_modified3: Optional[Dict[Pair, str]] = field(default_factory=dict)

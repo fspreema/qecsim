@@ -36,7 +36,7 @@ def y_initial(*,
     """
 
     # Finding Upper right qubit index -> need to look in 2-CX
-    y_index = 1 + 1j
+    y_index = q2i[1 + 1j]
 
     ########################
     # Define Initial Circuit
@@ -74,11 +74,13 @@ def y_initial(*,
     def _append_by_order(op: str, order: str, noise: float = 0.0) -> None:
         # Getting pair info
         for pair in _pairs_for(order):
-            #Adding Pair on Operation
-            if op == "CX":
-                initial_circuit.append(op, pair)
-            elif op == "DEPOLARIZE2":
-                initial_circuit.append(op, pair, noise)
+            # Checking for upper corner CX and leave it out!
+            if y_index not in pair:
+                #Adding Pair on Operation
+                if op == "CX":
+                    initial_circuit.append(op, pair)
+                elif op == "DEPOLARIZE2":
+                    initial_circuit.append(op, pair, noise)
 
     # Adding all the CX gates
     for order in ("1-CX", "2-CX", "3-CX", "4-CX"):
@@ -88,8 +90,6 @@ def y_initial(*,
         initial_circuit.append("TICK")
 
     #-------Continue-Circuit------------
-    
-    initial_circuit.append("TICK")
 
     #3) Basis/ Measurement
     initial_circuit.append("H", x_stab_index)

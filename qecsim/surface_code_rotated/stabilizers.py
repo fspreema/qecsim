@@ -10,7 +10,8 @@ __all__ = ["populate_stab_to_data"]
 def populate_stab_to_data(patch: dict[Coord, Label], 
                           is_flipped: bool = False, 
                           y_basis: bool = False, 
-                          y_switch: bool = False, 
+                          y_switch: bool = False,
+                          y_memory: bool = False, 
                           distance: int = 0
                           ) -> dict[tuple[Coord, Coord], str] | tuple[dict[tuple[Coord, Coord], str], dict[tuple[Coord, Coord], str]]:
     """
@@ -27,15 +28,20 @@ def populate_stab_to_data(patch: dict[Coord, Label],
     if not y_switch:
         stab_to_data: dict[tuple[Coord, Coord], Label] = {}
         _attach_interior_cx(patch, stab_to_data, is_flipped, y_switch, y_basis, distance)
-        _attach_boundary_cx(patch, stab_to_data, is_flipped, y_basis, y_switch, distance)
+        _attach_boundary_cx(patch, stab_to_data, is_flipped, y_switch, y_basis, y_memory, distance)
 
         return stab_to_data
 
-    else:
-        stab_to_data: dict[tuple[Coord, Coord], Label] = {}
-        stab_to_data_xcy: dict[tuple[Coord, Coord], Label] = {}
-        _attach_interior_cx(patch, stab_to_data, is_flipped, y_switch, y_basis, distance, stab_to_data_xcy)
-        _attach_boundary_cx(patch, stab_to_data, is_flipped, y_basis, y_switch, distance)
+    if y_switch:
+        if not y_memory:
+            stab_to_data: dict[tuple[Coord, Coord], Label] = {}
+            stab_to_data_xcy: dict[tuple[Coord, Coord], Label] = {}
+            _attach_interior_cx(patch, stab_to_data, is_flipped, y_switch, y_basis, distance, stab_to_data_xcy)
+            _attach_boundary_cx(patch, stab_to_data, is_flipped, y_switch, y_basis, y_memory, distance)
+        else:
+            stab_to_data: dict[tuple[Coord, Coord], Label] = {}
+            _attach_interior_cx(patch, stab_to_data, is_flipped, y_switch, y_basis, distance)
+            _attach_boundary_cx(patch, stab_to_data, is_flipped, y_switch, y_basis, y_memory, distance)
 
         return stab_to_data, stab_to_data_xcy
 
@@ -70,8 +76,13 @@ def _assign_orders(
         table[(a, b)] = order
 
 
-def _attach_interior_cx(patch: dict[Coord, Label], stab_to_data: dict[tuple[Coord, Coord], str], flipped : bool, 
-                        y_switch : bool, y_basis : bool, distance : int, stab_to_data_xcy: dict[tuple[Coord, Coord], str] = {}):
+def _attach_interior_cx(patch: dict[Coord, Label], 
+                        stab_to_data: dict[tuple[Coord, Coord], str], 
+                        flipped: bool, 
+                        y_switch: bool, 
+                        y_basis: bool, 
+                        distance: int, 
+                        stab_to_data_xcy: dict[tuple[Coord, Coord], str] = {}):
     """
     Adds the 4-body CX Schedule for the *interior* stabilizers
     """
@@ -80,7 +91,7 @@ def _attach_interior_cx(patch: dict[Coord, Label], stab_to_data: dict[tuple[Coor
     ORDERS_X_NORMAL = ["1-CX", "2-CX", "3-CX", "4-CX"]
     ORDERS_X_YBASIS = ["4-CX", "3-CX", "2-CX", "1-CX"]
     ORDERS_Z_NORMAL = ["1-CX", "3-CX", "2-CX", "4-CX"]
-    ORDERS_Z_YBASIS = ["4-CX", "3-CX", "2-CX", "1-CX"]
+    ORDERS_Z_YBASIS = ["4-CX", "2-CX", "3-CX", "1-CX"]
 
     if not flipped:
         if not y_switch:
@@ -166,11 +177,11 @@ def _attach_interior_cx(patch: dict[Coord, Label], stab_to_data: dict[tuple[Coor
                     # Checking whether normal CX or the XCY gate
                     if coords not in filtered_stabs_z:
                         pairs = [(coords, q1), (coords, q2), (coords, q3), (coords, q4)]
-                        _assign_orders(stab_to_data, pairs, ["2TICK", "3TICK", "4TICK", "5TICK"])
+                        _assign_orders(stab_to_data, pairs, ["2TICK", "4TICK", "3TICK", "5TICK"])
 
                     else:
-                        _assign_orders(stab_to_data, [(q2, coords)], ["3.5TICK"])
-                        _assign_orders(stab_to_data, [(coords, q3), (coords, q4)], ["4TICK", "5TICK"])
+                        _assign_orders(stab_to_data, [(q3, coords)], ["3.5TICK"])
+                        _assign_orders(stab_to_data, [(coords, q2), (coords, q4)], ["4TICK", "5TICK"])
 
             """
             I HAVE NO CLUE WHY ONLY WEIGHT 3 instead of weight 4
@@ -237,8 +248,13 @@ def _assign_boundary_case(
     _assign_orders(table, pairs, case["orders"])
 
 
-def _attach_boundary_cx(patch: dict[Coord, Label], stab_to_data: dict[tuple[Coord, Coord], str], flipped : bool, 
-                        y_basis : bool, y_switch : bool, distance : int):
+def _attach_boundary_cx(patch: dict[Coord, Label], 
+                        stab_to_data: dict[tuple[Coord, Coord], str], 
+                        flipped: bool, 
+                        y_switch: bool,
+                        y_basis: bool, 
+                        y_memory: bool, 
+                        distance : int):
     """
     Adds the 2-body CX Schedule for the *boundary* stabilizers
     """
@@ -281,7 +297,7 @@ def _attach_boundary_cx(patch: dict[Coord, Label], stab_to_data: dict[tuple[Coor
 
         elif y_basis:
 
-            if not y_switch:
+            if not y_switch and not y_memory:
 
                 for coords, qtype in patch.items():
 
@@ -309,7 +325,7 @@ def _attach_boundary_cx(patch: dict[Coord, Label], stab_to_data: dict[tuple[Coor
                         stab_to_data[new_cord1, coords] = "3-CX"
                         stab_to_data[new_cord2, coords] = "4-CX"
 
-            else:
+            elif y_switch and not y_memory:
 
                 for coords, qtype in patch.items():
                     """
@@ -368,6 +384,39 @@ def _attach_boundary_cx(patch: dict[Coord, Label], stab_to_data: dict[tuple[Coor
                         new_cord2 = (coords.real + 1 ) + (coords.imag - 1) * 1j
                         stab_to_data[new_cord1, coords] = "3TICK"
                         stab_to_data[new_cord2, coords] = "2TICK"
+
+            elif y_memory:
+
+                for coords, qtype in patch.items():
+                    """
+                    In the memory Round we switch to the newly introduced boundary operators and deactivate the old ones
+                    """
+
+                    if qtype == "Z-STAB-BOUND-L":
+                        new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
+                        new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                        stab_to_data[coords, new_cord1] = "4-CX"
+                        stab_to_data[coords, new_cord2] = "3-CX"
+
+
+                    elif qtype == "X-STAB-BOUND-R-H":
+                        new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
+                        new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
+                        stab_to_data[new_cord1, coords] = "2-CX"
+                        stab_to_data[new_cord2, coords] = "1-CX"
+
+                    elif qtype == "Z-STAB-BOUND-U-H":
+                        new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
+                        new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                        stab_to_data[new_cord1, coords] = "1-CX"
+                        stab_to_data[new_cord2, coords] = "2-CX"
+
+
+                    elif qtype == "X-STAB-BOUND-B":
+                        new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
+                        new_cord2 = (coords.real + 1 ) + (coords.imag - 1) * 1j
+                        stab_to_data[new_cord1, coords] = "3-CX"
+                        stab_to_data[new_cord2, coords] = "4-CX"
                     
 
     else:

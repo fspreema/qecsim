@@ -9,7 +9,8 @@ def y_repetition_circ(*,
                       lct : Context, 
                       patches: dict[str, Patch], 
                       cfg : Config, 
-                      noise: NoiseModel) -> CircuitResult:
+                      noise: NoiseModel,
+                      memory_round: bool = False) -> CircuitResult:
     
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -18,23 +19,31 @@ def y_repetition_circ(*,
     #-Loading in Patches
     patch = patches["patch"]
 
-    #-Retrieving Global Infomration
+    #-Retrieving Global Information
+    if not memory_round:
+        stab_to_data = lct.stab_to_data
+    else:
+        stab_to_data = lct.stab_to_data_modified3
+
     q2i = lct.q2i
     i2q = lct.i2q
     rounds = cfg.rounds
     distance = cfg.distance
-    init_state = cfg.state_init
-    stab_to_data = lct.stab_to_data
+    
 
     #-Retrieving Data Coords
     data = patch.data
 
     #-Retrieving Index from Stabilizers of the Lattices
-    x_stab_index = patch.x_stab
-    z_stab_index = patch.z_stab
+    if not memory_round:
+        x_stab_index = patch.x_stab
+        z_stab_index = patch.z_stab
+    else:
+        x_stab_index = patch.x_stab_memory
+        z_stab_index = patch.z_stab_memory
 
     # Finding Upper right qubit index -> need to look in 2-CX
-    y_index = 1 + 1j
+    y_index = q2i[1 + 1j]
 
     #------------------------------------------------------
     # Creating list of Logical X/Z string and their indices
@@ -65,6 +74,7 @@ def y_repetition_circ(*,
     #-------Continue-Circuit------------
 
     #1) Reset/ Basis
+    round_circuit.append("TICK")
     round_circuit.append("H", x_stab_index)
 
     #-------Adding-After-Clifford-Depol.------------
@@ -85,11 +95,21 @@ def y_repetition_circ(*,
     def _append_by_order(op: str, order: str, noise: float = 0.0) -> None:
         # Getting pair info
         for pair in _pairs_for(order):
-            #Adding Pair on Operation
-            if op == "CX":
-                round_circuit.append(op, pair)
-            elif op == "DEPOLARIZE2":
-                round_circuit.append(op, pair, noise)
+            if not memory_round:
+                # Checking for upper corner CX and leave it out!
+                if y_index not in pair:
+                    #Adding Pair on Operation
+                    if op == "CX":
+                        round_circuit.append(op, pair)
+                    elif op == "DEPOLARIZE2":
+                        round_circuit.append(op, pair, noise)
+            else:
+                #Adding Pair on Operation
+                if op == "CX":
+                    round_circuit.append(op, pair)
+                elif op == "DEPOLARIZE2":
+                    round_circuit.append(op, pair, noise)
+
 
     # Adding all the CX gates
     for order in ("1-CX", "2-CX", "3-CX", "4-CX"):
@@ -99,8 +119,6 @@ def y_repetition_circ(*,
         round_circuit.append("TICK")
 
     #-------Continue-Circuit------------
-    
-    round_circuit.append("TICK")
 
     #3) Basis/ Measurement
     round_circuit.append("H", x_stab_index)
@@ -136,14 +154,54 @@ def y_repetition_circ(*,
     #4) Detectors
     num_measurements_repeat = len(x_stab_index + z_stab_index)
 
-    for index, q_index in enumerate(x_stab_index + z_stab_index):
-        prev_tar = -2 * num_measurements_repeat + index
-        current_tar = -1 * num_measurements_repeat + index
-        round_circuit.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)], 
-                             (i2q[q_index].real, i2q[q_index].imag, 0))
-        
-    round_circuit.append("TICK")
+    if not memory_round:
+        for index, q_index in enumerate(x_stab_index + z_stab_index):
+            prev_tar = -2 * num_measurements_repeat + index
+            current_tar = -1 * num_measurements_repeat + index
+            round_circuit.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)], 
+                                (i2q[q_index].real, i2q[q_index].imag, 0))
+            
+    else:
+
+        observable_circ = stim.Circuit()
+    
+        ###############################
+        # Define Observable measurement
+        ###############################
+
+        logical_x_string = []
+        logical_z_string = []
+
+        # Finding logical Strings for x and z
+        for imag in range(3, distance * 2, 2):
+            logical_x_string.append(q2i[1 + 1j * imag])
+
+        for real in range(3, distance * 2, 2):
+            logical_z_string.append(q2i[real + 1j])
+
+        # Adding logical z string
+        targets = []
+        for j, idz in enumerate(logical_z_string):
+            targets.append(f"Z{idz}")
+
+        # Adding single Y index
+        targets.append(f"Y{y_index}")
+
+        # Adding logical x string
+        for j, idx in enumerate(logical_x_string):
+            targets.append(f"X{idx}")
+
+        ###########################
+        # Adding logical Observable
+        ###########################
+
+        print(targets)
+
+        observable_circ.append("OBSERVABLE_INCLUDE", targets, 0)
 
     rep_circ = round_circuit * int((rounds - 2) / 2)
+
+    if memory_round:
+        rep_circ += observable_circ
 
     return CircuitResult(circuit=rep_circ)
