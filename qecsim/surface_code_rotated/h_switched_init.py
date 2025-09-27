@@ -1,5 +1,5 @@
 import stim
-from .dataclasses import Config, Patch, Context, NoiseModel, CircuitResult
+from .data_models import Config, Patch, Context, NoiseModel, CircuitResult
 
 Coord = complex
 

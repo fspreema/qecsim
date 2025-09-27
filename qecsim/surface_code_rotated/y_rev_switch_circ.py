@@ -1,6 +1,6 @@
 from itertools import chain
 import stim
-from .dataclasses import Config, Patch, Context, NoiseModel, CircuitResult
+from .data_models import Config, Patch, Context, NoiseModel, CircuitResult
 
 Coord = complex
 
@@ -38,6 +38,8 @@ def y_rev_switch_circ(*,
     #-Retrieving Index from Stabilizers of the Lattices
     x_stab_index = patch.x_stab
     z_stab_index = patch.z_stab
+    x_stab_index_memory = patch.x_stab_memory
+    z_stab_index_memory = patch.z_stab_memory
     switch_stab_apply_h = patch.stab_switch_apply_h
 
     # Finding Upper right qubit index -> need to look in 2-CX
@@ -110,6 +112,8 @@ def y_rev_switch_circ(*,
         if q_type in {"Z-STAB-BOUND-U-H", "Z-STAB-BOUND-U"}:
             h_gates_rep.append(q2i[qubit])
 
+    reversed_switch_circ.append("R", x_stab_index + z_stab_index + r_h_stabs + u_h_stabs)
+    reversed_switch_circ.append("TICK")
     reversed_switch_circ.append("H", switch_stab_apply_h)
     reversed_switch_circ.append("TICK")
 
@@ -220,6 +224,10 @@ def y_rev_switch_circ(*,
     # Adding final Detectors
     ########################
 
+    # Adding the deterministc detectors:
+
+
+
     ###############################
     # Define Observable measurement
     ###############################
@@ -250,25 +258,5 @@ def y_rev_switch_circ(*,
         if j < len(logical_x_string) - 1:
             targets.append(stim.target_combiner())
 
-    reversed_switch_circ.append("TICK")
-
-
-    ###########################
-    # Adding logical Observable
-    ###########################
-
-    logical_x_string = []
-    logical_z_string = []
-
-    # Finding logical Strings for x and z
-    for imag in range(3, distance * 2, 2):
-        logical_x_string.append(q2i[1 + 1j * imag])
-
-    for real in range(3, distance * 2, 2):
-        logical_z_string.append(q2i[real + 1j])
-
-    rec_meas = [- i for i, q in enumerate(logical_z_string + [y_index] + logical_x_string)]
-
-    #reversed_switch_circ.append("OBSERVABLE_INCLUDE", [stim.target_rec(i - 1) for i in rec_meas], 0)
 
     return CircuitResult(circuit=reversed_switch_circ)

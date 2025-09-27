@@ -1,14 +1,14 @@
 import stim
-from .dataclasses import Config, Patch, Context, NoiseModel, CircuitResult
+from .data_models import Config, Patch, Context, NoiseModel, CircuitResult
 
 Coord = complex
 
 __all__ = ["y_initial"]
 
 def y_initial(*, 
-              lct : Context, 
+              lct: Context, 
               patches: dict[str, Patch], 
-              cfg : Config,
+              cfg: Config,
               noise: NoiseModel) -> CircuitResult:
     
     #################################################
@@ -110,7 +110,7 @@ def y_initial(*,
 
     #-------Continue-Circuit------------
     
-    initial_circuit.append("MR", x_stab_index + z_stab_index)
+    initial_circuit.append("M", x_stab_index + z_stab_index)
 
     #-------Adding-After-Reset-Flip-Prob.------------
 
@@ -118,8 +118,6 @@ def y_initial(*,
         initial_circuit.append("X_ERROR", x_stab_index + z_stab_index, noise.after_r_flip)
 
     #-------Continue-Circuit------------
-
-    initial_circuit.append("TICK")
 
     #4) DETECTORS -> Measure only deterministic-Stabilizers!
 
@@ -155,10 +153,10 @@ def y_initial(*,
             continue
             
         # Diagonal Cut at s0 +1 -> filter out
-        if (c.real + c.imag) >= s0 + 1:
-            data_rx.append(c)
-        else:
+        if (c.real + c.imag) >= s0:
             data_rz.append(c)
+        else:
+            data_rx.append(c)
 
     # Filter Stabs -> Every X stabilizer with data_rx valid and z with only data_z 
     # -> if stabilizer with data_rx & data_rz -> invalid
@@ -192,7 +190,6 @@ def y_initial(*,
                 stab_rz.append(q2i[q])
 
     #-Determine-the-postion-in-the-current-measurement-record-
-
     num_measurements_initial = len(z_stab_index)
         
     for index, q_index in enumerate(z_stab_index):

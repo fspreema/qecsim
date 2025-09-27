@@ -1,5 +1,5 @@
 import stim
-from .dataclasses import Config, Patch, Context, CircuitResult, NoiseModel
+from .data_models import Config, Patch, Context, CircuitResult, NoiseModel
 
 __all__ = ["final_m"]
 

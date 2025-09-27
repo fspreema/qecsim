@@ -1,16 +1,17 @@
 import stim
-from .dataclasses import Config, Patch, Context, NoiseModel, CircuitResult
+from .data_models import Config, Patch, Context, NoiseModel, CircuitResult
 
 Coord = complex
 
 __all__ = ["y_repetition_circ"]
 
 def y_repetition_circ(*, 
-                      lct : Context, 
+                      lct: Context, 
                       patches: dict[str, Patch], 
-                      cfg : Config, 
+                      cfg: Config, 
                       noise: NoiseModel,
-                      memory_round: bool = False) -> CircuitResult:
+                      memory_round: bool = False,
+                      ft_round:bool = False) -> CircuitResult:
     
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -74,6 +75,8 @@ def y_repetition_circ(*,
     #-------Continue-Circuit------------
 
     #1) Reset/ Basis
+    round_circuit.append("TICK")
+    round_circuit.append("R", x_stab_index + z_stab_index)
     round_circuit.append("TICK")
     round_circuit.append("H", x_stab_index)
 
@@ -139,12 +142,13 @@ def y_repetition_circ(*,
 
     #-------Continue-Circuit----------
 
-    round_circuit.append("MR", x_stab_index + z_stab_index)
+    round_circuit.append("M", x_stab_index + z_stab_index)
 
     #-------Adding-After-Reset-Flip-Prob.------------
 
     if noise.after_r_flip > 0:
         round_circuit.append("X_ERROR", x_stab_index + z_stab_index, noise.after_r_flip)
+
 
     #-------Continue-Circuit------------
 
@@ -154,54 +158,31 @@ def y_repetition_circ(*,
     #4) Detectors
     num_measurements_repeat = len(x_stab_index + z_stab_index)
 
-    if not memory_round:
+    if not memory_round and not ft_round:
         for index, q_index in enumerate(x_stab_index + z_stab_index):
             prev_tar = -2 * num_measurements_repeat + index
             current_tar = -1 * num_measurements_repeat + index
             round_circuit.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)], 
                                 (i2q[q_index].real, i2q[q_index].imag, 0))
             
+        rep_circ = round_circuit * int((rounds - 2) / 2)
+        
+        return CircuitResult(circuit=rep_circ)
+            
     else:
 
-        observable_circ = stim.Circuit()
-    
-        ###############################
-        # Define Observable measurement
-        ###############################
+        # Adding one circuit without detector and then adding the detectors in the second round
+        pre_round = round_circuit
+        det_round = stim.Circuit()
+        det_round += round_circuit
 
-        logical_x_string = []
-        logical_z_string = []
+        for index, q_index in enumerate(x_stab_index + z_stab_index):
+            prev_tar = -2 * num_measurements_repeat + index
+            current_tar = -1 * num_measurements_repeat + index
+            det_round.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)], 
+                                (i2q[q_index].real, i2q[q_index].imag, 0))
 
-        # Finding logical Strings for x and z
-        for imag in range(3, distance * 2, 2):
-            logical_x_string.append(q2i[1 + 1j * imag])
+        full_run = pre_round 
+        full_run += det_round * (rounds - 1)
 
-        for real in range(3, distance * 2, 2):
-            logical_z_string.append(q2i[real + 1j])
-
-        # Adding logical z string
-        targets = []
-        for j, idz in enumerate(logical_z_string):
-            targets.append(f"Z{idz}")
-
-        # Adding single Y index
-        targets.append(f"Y{y_index}")
-
-        # Adding logical x string
-        for j, idx in enumerate(logical_x_string):
-            targets.append(f"X{idx}")
-
-        ###########################
-        # Adding logical Observable
-        ###########################
-
-        print(targets)
-
-        observable_circ.append("OBSERVABLE_INCLUDE", targets, 0)
-
-    rep_circ = round_circuit * int((rounds - 2) / 2)
-
-    if memory_round:
-        rep_circ += observable_circ
-
-    return CircuitResult(circuit=rep_circ)
+        return CircuitResult(circuit=full_run)

@@ -1,6 +1,6 @@
 import stim
 import numpy as np
-from .dataclasses import Config, Patch, Context, CircuitResult
+from .data_models import Config, Patch, Context, CircuitResult
 
 Coord = complex
 
@@ -133,10 +133,10 @@ def reset(*,
                 continue
             
             # Diagonal Cut
-            if (c.real + c.imag) >= s0 + 1:
-                data_rx.append(q2i[c])
-            else:
+            if (c.real + c.imag) >= s0:
                 data_rz.append(q2i[c])
+            else:
+                data_rx.append(q2i[c])
 
         reset_circuit.append("RX", data_rx)
         reset_circuit.append("RZ", data_rz)

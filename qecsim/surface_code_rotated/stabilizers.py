@@ -402,8 +402,8 @@ def _attach_boundary_cx(patch: dict[Coord, Label],
                     elif qtype == "X-STAB-BOUND-R-H":
                         new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
-                        stab_to_data[new_cord1, coords] = "2-CX"
-                        stab_to_data[new_cord2, coords] = "1-CX"
+                        stab_to_data[coords, new_cord1] = "2-CX"
+                        stab_to_data[coords, new_cord2] = "1-CX"
 
                     elif qtype == "Z-STAB-BOUND-U-H":
                         new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
