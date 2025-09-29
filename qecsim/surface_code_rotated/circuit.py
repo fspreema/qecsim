@@ -270,9 +270,10 @@ def rotated_surface_code(distance: int,
 
     state_init_circuit = reset(lct = lct, patches = patches, cfg = cfg, logical_h = flip_needed)
 
-    if state_init not in {"+i", "-i"}:
+    if not is_y:
         final_measurement = final_m(lct = lct, patches = patches, cfg = cfg, noise = noise, is_flipped = flip_needed)
         state_init_circuit += initial_circuit
+        state_init_circuit += final_measurement
 
     ##################################
     # Adding Actual Y basis Memory run
@@ -282,17 +283,17 @@ def rotated_surface_code(distance: int,
         y_memory = y_repetition_circ(lct = lct, patches = patches, cfg = cfg, noise = noise, memory_round= True)
 
         state_init_circuit += initial_circuit
-        #state_init_circuit += initial_circuit.circuit.missing_detectors()
+        #state_init_circuit += state_init_circuit.circuit.missing_detectors()
         state_init_circuit += y_memory
 
         # Adding the basis reverse
-        final_measurement = y_rev_switch_circ(lct = lct, patches = patches, cfg = cfg, noise = noise)
+        reverse_switch = y_rev_switch_circ(lct = lct, patches = patches, cfg = cfg, noise = noise)
         
         ###########################
         # Adding logical Observable
         ###########################
 
-        logical_circ_contraction = final_measurement
+        logical_circ_contraction = reverse_switch
         logical_circ_creation = switch_circ
 
         logical_x_string = []
@@ -320,13 +321,13 @@ def rotated_surface_code(distance: int,
         (logical_contraction_rec,) = logical_circ_contraction.circuit.solve_flow_measurements([stim.Flow(logical_contraction)])
 
         # Adding the final Measurement Round & Missing Detectors
-        state_init_circuit += final_measurement
+        state_init_circuit += reverse_switch
 
         # Calculating target rec pos
         rec_pos = []
 
-        contraction_records = final_measurement.circuit.num_measurements
-        creation_records= final_measurement.circuit.num_measurements + y_memory.circuit.num_measurements + switch_circ.circuit.num_measurements
+        contraction_records = reverse_switch.circuit.num_measurements
+        creation_records= reverse_switch.circuit.num_measurements + y_memory.circuit.num_measurements + switch_circ.circuit.num_measurements
 
         # Adding the Observable
         for index_creation in logical_creation_rec:
@@ -343,7 +344,13 @@ def rotated_surface_code(distance: int,
         # Y ONLY: Adding needed y_inital rounds in order top guarentee faul tolerance
         #############################################################################
 
-        state_init_circuit += y_repetition_circ(lct = lct, patches = patches, cfg = cfg, noise = noise, ft_round = True)
+        final_measurement = y_repetition_circ(lct = lct, patches = patches, cfg = cfg, noise = noise, ft_round = True)
+        state_init_circuit += final_measurement
+
+        obs_records = []
+        for curr_rec in rec_pos:
+            obs_records.append(curr_rec - final_measurement.circuit.num_measurements)
+
         
     ############################################################
     # Return Circuit and measurement rec postitions for logicals

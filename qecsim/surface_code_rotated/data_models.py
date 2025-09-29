@@ -1,12 +1,11 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Mapping, Optional
-
+from typing import Mapping
 import stim
 
 Coord = complex
 Label = str
 Index = int
-Pair  = Tuple[Coord, Coord]
+Pair  = tuple[Coord, Coord]
 
 #--------------------------
 # Helper Dataclasses
@@ -24,7 +23,7 @@ class NoiseModel:
 class CircuitResult:
     """Uniform return type for circuit-building functions."""
     circuit: stim.Circuit
-    obs_indices: Optional[list[int]] = None
+    obs_indices: list[int] | None = None
 
     def __iadd__(self, other: "CircuitResult | stim.Circuit") -> "CircuitResult":
         """Allow `result += other` regardless of other’s type."""
@@ -38,54 +37,51 @@ class CircuitResult:
 @dataclass
 class Config:
     """Non tunable init setting get passed as *cfg*"""
-    distance : int
-    state_init : str
-    obs : str
-    rounds : int
+    distance: int
+    state_init: str
+    obs: str
+    rounds: int
 
 @dataclass
 class Patch:
-    """All geometry information is stored here i.e. data x_stab indicees"""
-    coords:  Dict[Coord, Label]
-    data:    List[Index]
-    x_stab:  List[Index]
-    stab_switch_apply_h: List[Index]
-    x_stab_memory: List[Index]
-    z_stab_memory: List[Index]
-    z_stab:  List[Index]
-    upper_h:  List[Index]
-    right_h:  List[Index]
-
-    #Create Factory to build up the Lists from the coords and the q2i dict
+    """All geometry information is stored here i.e. data/x_stab indices"""
+    coords: dict[Coord, Label]
+    data: list[Index]
+    x_stab: list[Index]
+    stab_switch_apply_h: list[Index]
+    x_stab_memory: list[Index]
+    z_stab_memory: list[Index]
+    z_stab: list[Index]
+    upper_h: list[Index]
+    right_h: list[Index]
 
     @classmethod
     def from_coords(
         cls,
-        coords: Dict[Coord, Label],
-        q2i : Mapping[Coord, Index],
+        coords: dict[Coord, Label],
+        q2i: Mapping[Coord, Index],
     ) -> "Patch":
-        
-        def pick_up(*labels: str) -> List[Index]:
+        def pick_up(*labels: str) -> list[Index]:
             return [q2i[q] for q, t in coords.items() if t in labels]
-        
+
         return cls(
-            coords = coords,
-            data   = pick_up("DATA"),
-            x_stab = pick_up("X-STAB", "X-STAB-BOUND-U", "X-STAB-BOUND-B", "X-STAB-BOUND-R"),
-            stab_switch_apply_h = pick_up("X-STAB", "Z-STAB-BOUND-U", "X-STAB-BOUND-B", "Z-STAB-BOUND-U-H"),
-            x_stab_memory = pick_up("X-STAB", "Z-STAB-BOUND-U-H", "X-STAB-BOUND-B"),
-            z_stab_memory = pick_up("Z-STAB", "Z-STAB-BOUND-L", "X-STAB-BOUND-R-H"),
-            z_stab = pick_up("Z-STAB", "Z-STAB-BOUND-L", "Z-STAB-BOUND-R", "Z-STAB-BOUND-U"),
-            upper_h = pick_up("Z-STAB-BOUND-U-H"),
-            right_h = pick_up("X-STAB-BOUND-R-H"),
+            coords=coords,
+            data=pick_up("DATA"),
+            x_stab=pick_up("X-STAB", "X-STAB-BOUND-U", "X-STAB-BOUND-B", "X-STAB-BOUND-R"),
+            stab_switch_apply_h=pick_up("X-STAB", "Z-STAB-BOUND-U", "X-STAB-BOUND-B", "Z-STAB-BOUND-U-H"),
+            x_stab_memory=pick_up("X-STAB", "Z-STAB-BOUND-U-H", "X-STAB-BOUND-B"),
+            z_stab_memory=pick_up("Z-STAB", "Z-STAB-BOUND-L", "X-STAB-BOUND-R-H"),
+            z_stab=pick_up("Z-STAB", "Z-STAB-BOUND-L", "Z-STAB-BOUND-R", "Z-STAB-BOUND-U"),
+            upper_h=pick_up("Z-STAB-BOUND-U-H"),
+            right_h=pick_up("X-STAB-BOUND-R-H"),
         )
 
 @dataclass
 class Context:
     """Shared information across all lattices -> used by all helper functions *lct*"""
-    q2i: Dict[Coord, Index]
-    i2q: Dict[Index, Coord]
-    stab_to_data: Dict[Pair, str]
-    stab_to_data_modified: Optional[Dict[Pair, str]] = field(default_factory=dict)
-    stab_to_data_modified2: Optional[Dict[Pair, str]] = field(default_factory=dict)
-    stab_to_data_modified3: Optional[Dict[Pair, str]] = field(default_factory=dict)
+    q2i: dict[Coord, Index]
+    i2q: dict[Index, Coord]
+    stab_to_data: dict[Pair, str]
+    stab_to_data_modified: dict[Pair, str] = field(default_factory=dict)
+    stab_to_data_modified2: dict[Pair, str] = field(default_factory=dict)
+    stab_to_data_modified3: dict[Pair, str] = field(default_factory=dict)

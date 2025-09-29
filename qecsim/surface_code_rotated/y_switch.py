@@ -315,7 +315,6 @@ def y_switch_circ(*,
     #1) Deterministic Detectors which can be build up by the old stabilizers
 
     previous_round = pre_switch_circ.num_measurements
-    offset = len(r_h_stabs + u_h_stabs)
     current_round = switch_circ.num_measurements
 
     for index, q_index in enumerate(x_stab_index + z_stab_index + r_h_stabs + u_h_stabs):
@@ -323,45 +322,68 @@ def y_switch_circ(*,
         # Calc important info
         coord = i2q[q_index]
         role = patch.coords[coord]
+
+        print(coord)
         
         if role == "X-STAB":
+
             # skip stabs on the Y-cut
             if q_index in index_nh:
+                print(q_index)
                 # find this stabilizers position in the previous block
-                #prev_tar = - current_round - previous_round + prev_idx
+                prev_tar = - current_round - previous_round + index
                 current_tar = - current_round + index
-                #switch_circ.append(
-                #    "DETECTOR",
-                #    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
-                #    (coord.real, coord.imag, 0)
-                #)
+                switch_circ.append("DETECTOR",
+                    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                    (coord.real, coord.imag, 0))
+
+
+        elif role == "Z-STAB":
+
+            #skip stabs on the Y-cut
+            if q_index in index_nh:
+
+                prev_tar = - current_round - previous_round + index
+                current_tar = - current_round + index
+                switch_circ.append("DETECTOR",
+                    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                    (coord.real, coord.imag, 0))
+                
+
+        elif role in {"X-STAB-BOUND-B", "Z-STAB-BOUND-L"}:
+            prev_tar = - current_round - previous_round + index
+            current_tar = - current_round + index
+            switch_circ.append("DETECTOR",
+                [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                (coord.real, coord.imag, 0))
 
         elif role in {"X-STAB-BOUND-R"}:
     
             """
-            This Detector gets from weight 3 to weight 4 and includes the measurement from the X-STAB-BOUND-R-H
+            This Detector gets from weight 2 to weight 3 and includes the measurement from the X-STAB-BOUND-R-H
             """
 
             # Important Information of above ancilla
             coord_above = i2q[q_index] - 2j
             index_above = q2i[coord_above]
 
-            print(index, index_above)
-
             # Finding record index
             for index2, q_index2 in enumerate(x_stab_index + z_stab_index + r_h_stabs + u_h_stabs):
                 if q_index2 == index_above:
                     current_tar2 = - current_round + index2
 
-            previous_tar = - previous_round - current_round + index + offset - 1
-            current_tar1 = - current_round + index + offset - 1
+            previous_tar = - previous_round - current_round + index
+            current_tar1 = - current_round + index
             
             # Adding Detector out of all 3 measurements:
-            switch_circ.append(
-                    "DETECTOR",
-                    [stim.target_rec(current_tar1), stim.target_rec(previous_tar), stim.target_rec(current_tar2)],
-                    (coord.real, coord.imag, 0)
-            )
+            #switch_circ.append(
+            #        "DETECTOR",
+            #        [stim.target_rec(current_tar1), stim.target_rec(previous_tar), stim.target_rec(current_tar2)],
+            #        (coord.real, coord.imag, 0)
+            #)
+
+        #for flows in switch_circ.flow_generators():
+        #    print(flows)
 
 
         #     if q2i[(coord.real - 1 + 1j * coord.imag + 1j)] in index_h:
@@ -371,7 +393,7 @@ def y_switch_circ(*,
         #         #    (coord.real, coord.imag, 0)
         #         #)
 
-        # elif role in {"X-STAB-BOUND-B", "Z-STAB-BOUND-L", "Z-STAB-BOUND-U"}:
+        # elif role in {"X-STAB-BOUND-B", "Z-STAB-BOUND-L"}:
         #     #prev_tar = - current_round - previous_round + prev_idx
         #     #current_tar = - current_round + index
         #     #switch_circ.append(
@@ -380,20 +402,7 @@ def y_switch_circ(*,
         #     #    (coord.real, coord.imag, 0)
         #     #)
 
-        # elif role == "Z-STAB":
-        #     # skip stabs on the Y-cut
-        #     if q_index in index_nh:
-        #         try:
-        #             prev_idx = prev_block.index(q_index)
-        #         except ValueError:
-        #             continue
-        #         prev_tar = - current_round - previous_round + prev_idx
-        #         current_tar = - current_round + index
-        #     #    switch_circ.append(
-        #     #        "DETECTOR",
-        #     #        [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
-        #     #        (coord.real, coord.imag, 0)
-        #     #    )
+        # e
 
     full_switch = pre_switch_circ + switch_circ
 

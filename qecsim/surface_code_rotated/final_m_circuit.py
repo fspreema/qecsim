@@ -34,7 +34,9 @@ def final_m(*,
 
     #-Retrieving Global Infomration
     q2i = lct.q2i
+    i2q = lct.i2q
     distance = cfg.distance
+    rounds = cfg.rounds
     init_state = cfg.state_init
     log_obs = cfg.obs
 
@@ -62,20 +64,37 @@ def final_m(*,
 
     #-------Continue-Circuit----------
 
+    ########################################################
+    # Adding mutliple measurement rounds for fault tolerance
+    ########################################################
+
+    """
+    If measuremnt in same basis as initlized, only one readout is neccessary
+    -> Now we implement d rounds of data measurement for non inital basis measurements
+    -> Guarentees faul tolerance (hopefully)
+    """
+
     # Adding final measurement of all Data qubits
-    if log_obs == "X":
-        final_circuit.append("MX", data)
-    elif log_obs == "Z":
-        final_circuit.append("MZ", data)
+    m_circ_x = stim.Circuit()
+    m_circ_x.append("MX", data)
+
+    m_circ_z = stim.Circuit()
+    m_circ_z.append("MZ", data)
+
+
+    # Adding final M round for deterministic measurement basis
+    if not is_flipped:
+
+            if init_state in {"1", "0"} and log_obs == "Z":
+                final_circuit += m_circ_z
+
+            elif init_state in {"+", "-"} and log_obs == "X":
+                final_circuit += m_circ_x
+            
 
     # Defining Data to measurement indexing
     index_to_rec_data : dict[int, int] = {q: i for i, q in enumerate(reversed(data))}
     index_to_rec_ancilla: dict[int, int] = {q: i for i, q in enumerate(reversed(x_stab_index + z_stab_index))}
-
-    """
-    Why do we only check the Z stabilizers in the last measurement round and not also the x stabilizers as we did before
-    -> We need to meassure the X stabilizers in the X basis but we already meassured in the z basis (XZ do not commute)
-    """
 
     # Select which stabilizers form the final detectors
     if is_flipped:
@@ -87,7 +106,22 @@ def final_m(*,
         commuting_stabs = {"Z-STAB", "Z-STAB-BOUND-L", "Z-STAB-BOUND-R"} if log_obs in {"Z"} \
                           else {"X-STAB", "X-STAB-BOUND-U", "X-STAB-BOUND-B"}
 
+    ###############################
     # Unified detector construction
+    ###############################
+    """
+    Here we construct the stabilizers from the last mr round, i.e. measurement of Data is copared with measurement of the ancilla
+    -> Results in 5 components that the detector get build up from
+
+    Non-Determinstic measurements:
+        * Cannot build these detectors as they are not determinstic (Due to emasurement in different basis)
+        + They are fundamentally not fualt tolerant!!
+    """
+
+    # 1) Det circ for comparing stabilizers to data redout -> determinstic measurement basis
+
+    det_circ1 = stim.Circuit()
+
     for q, qtype in qubit_coords.items():
         if qtype not in commuting_stabs:
             continue
@@ -107,9 +141,78 @@ def final_m(*,
 
         #Combining the record targets
         final_record = current_record + last_record
-        
+                    
         #Appending Detector
-        final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
+        det_circ1.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
+
+    # 2) Det circ for comparing data readouts to data readouts -> non-deterministic basis
+
+    det_circ2 = stim.Circuit()
+
+    for index, qubit_index in enumerate(data):
+
+        # Getting coords
+        q = i2q[qubit_index]
+
+        #Defining the current record targets
+        current_record = - len(data) + index
+
+        #Defining the last record targets
+        last_record = -  2 * len(data) + index
+                    
+        #Appending Detector
+        det_circ2.append("DETECTOR", [stim.target_rec(last_record), stim.target_rec(current_record)], arg = (q.real, q.imag, 1))
+    
+
+    if not is_flipped:
+
+        # Det Observable
+        if (init_state in {"1", "0"} and log_obs == "Z") or (init_state in {"+", "-"} and log_obs == "X"):
+
+            final_circuit += det_circ1
+
+        # Non-Det Observable
+        elif init_state in {"1", "0"} and log_obs == "X":
+
+            dirst_det_placed = False
+
+            for _ in range(rounds):
+
+                #Checking if first measurement was placed
+                if dirst_det_placed:
+                    final_circuit += m_circ_x
+                    final_circuit.append("TICK")
+                    final_circuit += det_circ2
+                    final_circuit.append("SHIFT_COORDS", arg=(0,0,1))
+
+                # if first run no detectors!
+                else:
+                    final_circuit += m_circ_x
+                    final_circuit.append("TICK")
+
+                    # Set True
+                    dirst_det_placed = True
+
+        elif init_state in {"+", "-"} and log_obs == "Z":
+
+            dirst_det_placed = False
+
+            for _ in range(rounds):
+
+                #Checking if first measurement was placed
+                if dirst_det_placed:
+                    final_circuit += m_circ_z
+                    final_circuit.append("TICK")
+                    final_circuit += det_circ2
+                    final_circuit.append("SHIFT_COORDS", arg=(0,0,1))
+
+                # if first run no detectors!
+                else:
+                    final_circuit += m_circ_z
+                    final_circuit.append("TICK")
+
+                    # Set True
+                    dirst_det_placed = True
 
     ##############################
     # Defining Logical Observables
@@ -184,8 +287,8 @@ def final_m(*,
                         tar_rec.append(rec_pos)
 
                 rec_list = [-len(data) + k for k in tar_rec]
-                
-                return CircuitResult(circuit=final_circuit, obs_indices=rec_list)
+
+                return CircuitResult(circuit=final_circuit, obs_indices = rec_list)
             
         # Every circuit which is not inside these conditions can not have a 
         # determinist result and does not need the observable       
@@ -218,7 +321,7 @@ def final_m(*,
                         tar_rec.append(rec_pos)
 
                 rec_list = [-len(data) + k for k in tar_rec]
-                
-                return CircuitResult(circuit=final_circuit, obs_indices=rec_list)
-            
+
+                return CircuitResult(circuit=final_circuit, obs_indices = rec_list)
+    
     return CircuitResult(circuit=final_circuit)

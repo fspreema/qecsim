@@ -44,20 +44,8 @@ def y_repetition_circ(*,
         z_stab_index = patch.z_stab_memory
 
     # Finding Upper right qubit index -> need to look in 2-CX
-    y_index = q2i[1 + 1j]
-
-    #------------------------------------------------------
-    # Creating list of Logical X/Z string and their indices
-    #------------------------------------------------------
-    """
-    -> Used for swithcing of the state in a given basis
-    """
-
-    # Ancilla
-    a_log_obs_z_index : list[complex] = []
-
-    for real in range(1, (distance * 2), 2):
-        a_log_obs_z_index.append(q2i[real + 1j])
+    y_coords = 1 + 1j
+    y_index = q2i[y_coords]
 
     ###########################
     # Define Repetition Circuit
@@ -159,6 +147,11 @@ def y_repetition_circ(*,
     num_measurements_repeat = len(x_stab_index + z_stab_index)
 
     if not memory_round and not ft_round:
+
+        ###########################################
+        # Adding normal detectors in repetition run
+        ###########################################
+
         for index, q_index in enumerate(x_stab_index + z_stab_index):
             prev_tar = -2 * num_measurements_repeat + index
             current_tar = -1 * num_measurements_repeat + index
@@ -168,8 +161,104 @@ def y_repetition_circ(*,
         rep_circ = round_circuit * int((rounds - 2) / 2)
         
         return CircuitResult(circuit=rep_circ)
+    
+    elif memory_round and not ft_round:
+
+        #####################################################
+        # Adding Detector from switch to repeating transition
+        #####################################################
+
+        pre_det = stim.Circuit()
+
+        # Getting infromation about the additional newly formed boundary operators:
+        r_h_stabs = patch.right_h
+        u_h_stabs = patch.upper_h
+
+        index_h = []
+        index_x_deg = []
+        index_nh = []
+
+        for cords, qtype in patch.coords.items():
+
+            if cords != y_coords:
+
+                # Diagonal Cut
+                if cords.real > cords.imag:
+                    index_h.append(q2i[cords])
+
+                # Filtering out the X_DAG -> Not on Data
+                elif cords.real == cords.imag:
+                    if qtype != "DATA":
+                        index_x_deg.append(q2i[cords])
+
+                else:
+                    index_nh.append(q2i[cords])
+
+        previous_round = len(x_stab_index + z_stab_index + r_h_stabs + u_h_stabs)
+        current_round = round_circuit.num_measurements
+
+        for index, q_index in enumerate(x_stab_index + z_stab_index):
+
+            # Calc important info
+            coord = i2q[q_index]
+            role = patch.coords[coord]
             
-    else:
+            if role == "X-STAB":
+
+                # skip stabs on the Y-cut
+                if q_index in index_nh:
+                    print(q_index)
+                    # find this stabilizers position in the previous block
+                    prev_tar = - current_round - previous_round + index
+                    current_tar = - current_round + index
+                    pre_det.append("DETECTOR",
+                        [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                        (coord.real, coord.imag, 0))
+
+
+            elif role == "Z-STAB":
+
+                #skip stabs on the Y-cut
+                if q_index in index_nh:
+
+                    prev_tar = - current_round - previous_round + index
+                    current_tar = - current_round + index
+                    pre_det.append("DETECTOR",
+                        [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                        (coord.real, coord.imag, 0))
+                    
+            elif role in {"X-STAB-BOUND-B", "Z-STAB-BOUND-L"}:
+                prev_tar = - current_round - previous_round + index
+                current_tar = - current_round + index
+                pre_det.append("DETECTOR",
+                    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                    (coord.real, coord.imag, 0))
+
+        #######################################  
+        # Adding detectors for repeating rounds
+        #######################################
+
+        pre_round = round_circuit
+        det_round = stim.Circuit()
+        det_round += round_circuit
+
+        for index, q_index in enumerate(x_stab_index + z_stab_index):
+            prev_tar = -2 * num_measurements_repeat + index
+            current_tar = -1 * num_measurements_repeat + index
+            det_round.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)], 
+                                (i2q[q_index].real, i2q[q_index].imag, 0))
+
+        full_run = pre_round
+        full_run += pre_det 
+        full_run += det_round * (rounds - 1)
+
+        return CircuitResult(circuit=full_run)
+    
+    elif ft_round and not memory_round:
+
+        """
+        We need to add the parity measurement needed to determine the y measurement (MY is done inside the switch circ as the last measurement)
+        """
 
         # Adding one circuit without detector and then adding the detectors in the second round
         pre_round = round_circuit
@@ -185,4 +274,9 @@ def y_repetition_circ(*,
         full_run = pre_round 
         full_run += det_round * (rounds - 1)
 
+        partiy_rec = - full_run.num_measurements - 1
+
         return CircuitResult(circuit=full_run)
+    
+    else:
+        return ValueError

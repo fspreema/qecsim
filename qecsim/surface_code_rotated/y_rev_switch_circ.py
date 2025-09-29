@@ -219,44 +219,52 @@ def y_rev_switch_circ(*,
     #-> Shifting Coords in Time-Dimension to have 3D timelike Detector graph (Needed for decoding)
     reversed_switch_circ.append("SHIFT_COORDS", arg = (0,0,1))
 
+    ###########################################################
+    # Adding Detectors (Newly Gen Boundary and Old Stabilizers)
+    ###########################################################
 
-    ########################
-    # Adding final Detectors
-    ########################
+    #1) Deterministic Detectors which can be build up by the old stabilizers
 
-    # Adding the deterministc detectors:
+    previous_round =  len(x_stab_index + z_stab_index)
+    current_round = reversed_switch_circ.num_measurements
+
+    for index, q_index in enumerate(x_stab_index + z_stab_index + r_h_stabs + u_h_stabs):
+
+        # Calc important info
+        coord = i2q[q_index]
+        role = patch.coords[coord]
+        
+        if role == "X-STAB":
+
+            # skip stabs on the Y-cut
+            if q_index in index_nh:
+                print(q_index)
+                # find this stabilizers position in the previous block
+                prev_tar = - current_round - previous_round + index
+                current_tar = - current_round + index
+                reversed_switch_circ.append("DETECTOR",
+                    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                    (coord.real, coord.imag, 0))
 
 
+        elif role == "Z-STAB":
 
-    ###############################
-    # Define Observable measurement
-    ###############################
+            #skip stabs on the Y-cut
+            if q_index in index_nh:
 
-    logical_x_string = []
-    logical_z_string = []
+                prev_tar = - current_round - previous_round + index
+                current_tar = - current_round + index
+                reversed_switch_circ.append("DETECTOR",
+                    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                    (coord.real, coord.imag, 0))
+                
 
-    # Finding logical Strings for x and z
-    for imag in range(3, distance * 2, 2):
-        logical_x_string.append(q2i[1 + 1j * imag])
-
-    for real in range(3, distance * 2, 2):
-        logical_z_string.append(q2i[real + 1j])
-
-    # Adding logical z string
-    targets = []
-    for j, idz in enumerate(logical_z_string):
-        targets.append(stim.target_z(idz))
-        if j < len(logical_z_string) - 1:
-            targets.append(stim.target_combiner())
-
-    # Adding single Y index
-    targets.append(stim.target_y(y_index))
-
-    # Adding logical x string
-    for j, idx in enumerate(logical_x_string):
-        targets.append(stim.target_x(idx))
-        if j < len(logical_x_string) - 1:
-            targets.append(stim.target_combiner())
+        elif role in {"X-STAB-BOUND-B", "Z-STAB-BOUND-L"}:
+            prev_tar = - current_round - previous_round + index
+            current_tar = - current_round + index
+            reversed_switch_circ.append("DETECTOR",
+                [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                (coord.real, coord.imag, 0))
 
 
     return CircuitResult(circuit=reversed_switch_circ)
