@@ -33,6 +33,26 @@ def reset(*,
     x_stab_index = patch.x_stab
     z_stab_index = patch.z_stab
 
+    ##################
+    # Heelper Fuctions
+    ##################
+
+    def _logical_x_indices() -> list[int]:
+        # Vertical string at x=1 (odd grid), along imag axis
+        return [q2i[1 + imag * 1j] for imag in range(1, 2 * distance, 2)]
+
+    def _logical_z_indices() -> list[int]:
+        # Horizontal string at y=1, along real axis
+        return [q2i[real + 1j] for real in range(1, 2 * distance, 2)]
+    
+    def _logical_y_indices() -> list[int]:
+        # Both
+        z_string =  [q2i[real + 1j] for real in range(3, 2 * distance, 2)]
+        x_string = [q2i[1 + imag * 1j] for imag in range(3, 2 * distance, 2)]
+        y_string = [q2i[1 + 1j]]
+
+        return(x_string, y_string, z_string)
+
     ########################
     # Define Initial Circuit
     ########################
@@ -45,7 +65,10 @@ def reset(*,
     for q, i in q2i.items():
         reset_circuit.append("QUBIT_COORDS", [i], [q.real, q.imag])
 
-    #Appending Reset
+    #########################
+    #Appending Resets for 0/1
+    #########################
+
     if init_state in {"0", "1"}:
         reset_circuit.append("RZ", data + x_stab_index + z_stab_index)
 
@@ -60,12 +83,12 @@ def reset(*,
 
         if log_obs == "X":
 
-            if not logical_h:
+            """
+            We need to remove the added Pauli measurement from the end of the circuit
+            -> Else the X paulis tring would anticommute with the RZ reset of the data
+            """
 
-                """
-                We need to remove the added Pauli measurement from the end of the circuit
-                -> Else the X paulis tring would anticommute with the RZ reset of the data
-                """
+            if not logical_h:
 
                 # Getting corresponding logical string and rec
                 log_x = []
@@ -75,6 +98,23 @@ def reset(*,
 
                 # XORing the observable away
                 reset_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in log_x], 0)
+
+        if log_obs == "Y":
+
+            # Getting corresponding logical string and rec
+            log_z = []
+
+            for real in range(1, (distance * 2), 2):
+                log_z.append(q2i[real + 1j])
+
+            # XORing the observable away
+            reset_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in _logical_y_indices()[0]] + 
+                                     [f"Y{index}" for index in _logical_y_indices()[1]] + 
+                                     [f"Z{index}" for index in _logical_y_indices()[2]], 0)
+
+    #########################
+    #Appending Resets for +/-
+    #########################
 
     elif init_state in {"+", "-"}:
         reset_circuit.append("RX", data)
@@ -93,12 +133,12 @@ def reset(*,
 
         if log_obs == "Z":
 
-            if not logical_h:
+            """
+            We need to remove the added Pauli measurement from the end of the circuit
+            -> Else the Z paulis tring would anticommute with the RZ reset of the data
+            """
 
-                """
-                We need to remove the added Pauli measurement from the end of the circuit
-                -> Else the Z paulis tring would anticommute with the RZ reset of the data
-                """
+            if not logical_h:
 
                 # Getting corresponding logical string and rec
                 log_z = []
@@ -108,6 +148,23 @@ def reset(*,
 
                 # XORing the observable away
                 reset_circuit.append("OBSERVABLE_INCLUDE", [f"Z{index}" for index in log_z], 0)
+
+        if log_obs == "Y":
+
+            # Getting corresponding logical string and rec
+            log_z = []
+
+            for real in range(1, (distance * 2), 2):
+                log_z.append(q2i[real + 1j])
+
+            # XORing the observable away
+            reset_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in _logical_y_indices()[0]] + 
+                                     [f"Y{index}" for index in _logical_y_indices()[1]] + 
+                                     [f"Z{index}" for index in _logical_y_indices()[2]], 0)
+
+    ###########################
+    #Appending Resets for +i/-i
+    ###########################
 
     elif init_state in {"+i", "-i"}:
 

@@ -30,7 +30,35 @@ def y_repetition_circ(*,
     i2q = lct.i2q
     rounds = cfg.rounds
     distance = cfg.distance
-    
+
+    # Getting infromation about the additional newly formed boundary operators:
+    r_h_stabs = patch.right_h
+    u_h_stabs = patch.upper_h
+
+    # Finding Upper right qubit index -> need to look in 2-CX
+    y_coords = 1 + 1j
+    y_index = q2i[y_coords]
+
+    #What half is an h applied?
+    index_h = []
+    index_x_deg = []
+    index_nh = []
+
+    for cords, qtype in patch.coords.items():
+
+        if cords != y_coords:
+
+            # Diagonal Cut
+            if cords.real > cords.imag:
+                index_h.append(q2i[cords])
+
+            # Filtering out the X_DAG -> Not on Data
+            elif cords.real == cords.imag:
+                if qtype != "DATA":
+                        index_x_deg.append(q2i[cords])
+
+            else:
+                index_nh.append(q2i[cords])
 
     #-Retrieving Data Coords
     data = patch.data
@@ -42,10 +70,6 @@ def y_repetition_circ(*,
     else:
         x_stab_index = patch.x_stab_memory
         z_stab_index = patch.z_stab_memory
-
-    # Finding Upper right qubit index -> need to look in 2-CX
-    y_coords = 1 + 1j
-    y_index = q2i[y_coords]
 
     ###########################
     # Define Repetition Circuit
@@ -170,30 +194,6 @@ def y_repetition_circ(*,
 
         pre_det = stim.Circuit()
 
-        # Getting infromation about the additional newly formed boundary operators:
-        r_h_stabs = patch.right_h
-        u_h_stabs = patch.upper_h
-
-        index_h = []
-        index_x_deg = []
-        index_nh = []
-
-        for cords, qtype in patch.coords.items():
-
-            if cords != y_coords:
-
-                # Diagonal Cut
-                if cords.real > cords.imag:
-                    index_h.append(q2i[cords])
-
-                # Filtering out the X_DAG -> Not on Data
-                elif cords.real == cords.imag:
-                    if qtype != "DATA":
-                        index_x_deg.append(q2i[cords])
-
-                else:
-                    index_nh.append(q2i[cords])
-
         previous_round = len(x_stab_index + z_stab_index + r_h_stabs + u_h_stabs)
         current_round = round_circuit.num_measurements
 
@@ -205,27 +205,66 @@ def y_repetition_circ(*,
             
             if role == "X-STAB":
 
-                # skip stabs on the Y-cut
-                if q_index in index_nh:
-                    print(q_index)
+                # skip where x-stab & boundary meet
+                if coord.imag != 2:
+
                     # find this stabilizers position in the previous block
                     prev_tar = - current_round - previous_round + index
                     current_tar = - current_round + index
                     pre_det.append("DETECTOR",
                         [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
                         (coord.real, coord.imag, 0))
+                    
+                # combine current record with old z stab boundary h
+                else:
+
+                    #Finding postion of boundary:
+                    right_neighbour = coord.real + 2 + coord.imag * 1j
+                    right_index = q2i[right_neighbour]
+
+                    #Determingin old Index
+                    for curr_idx, q_index in enumerate(x_stab_index + z_stab_index + r_h_stabs + u_h_stabs):
+                        if q_index == right_index:
+                            prev_tar1 = - current_round - previous_round + curr_idx
+
+                    # Determining current index
+                    current_tar = - current_round + index
+
+                    #pre_det.append("DETECTOR",
+                    #    [stim.target_rec(current_tar), stim.target_rec(prev_tar1)],
+                    #    (coord.real, coord.imag, 0))
+
 
 
             elif role == "Z-STAB":
 
-                #skip stabs on the Y-cut
-                if q_index in index_nh:
+                # skip where z-stab & boundary meet
+                if coord.real != distance * 2 - 2:
 
+                    # find this stabilizers position in the previous block
                     prev_tar = - current_round - previous_round + index
                     current_tar = - current_round + index
                     pre_det.append("DETECTOR",
                         [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
                         (coord.real, coord.imag, 0))
+                    
+                # Meeting points becomes weight 3 -> include boundary h 
+                else:
+
+                    #Finding postion of boundary:
+                    right_upper_neighbour = coord.real + 2 + coord.imag * 1j - 2j
+                    right_upper_index = q2i[right_upper_neighbour]
+
+                    for curr_idx, q_index in enumerate(x_stab_index + z_stab_index + r_h_stabs + u_h_stabs):
+                        if q_index == right_upper_index:
+                            prev_tar1 = - current_round - previous_round + curr_idx
+
+                    prev_tar2 = - current_round - previous_round + index
+                    current_tar = - current_round + index
+
+                    #pre_det.append("DETECTOR",
+                    #    [stim.target_rec(current_tar), stim.target_rec(prev_tar2)],
+                    #    (coord.real, coord.imag, 0))
                     
             elif role in {"X-STAB-BOUND-B", "Z-STAB-BOUND-L"}:
                 prev_tar = - current_round - previous_round + index
@@ -233,6 +272,13 @@ def y_repetition_circ(*,
                 pre_det.append("DETECTOR",
                     [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
                     (coord.real, coord.imag, 0))
+                
+            elif role in {"Z-STAB-BOUND-U-H"}:
+                prev_tar = - current_round - previous_round + index
+                current_tar = - current_round + index
+                #pre_det.append("DETECTOR",
+                #    [stim.target_rec(current_tar)],
+                #    (coord.real, coord.imag, 0))
 
         #######################################  
         # Adding detectors for repeating rounds
@@ -260,11 +306,69 @@ def y_repetition_circ(*,
         We need to add the parity measurement needed to determine the y measurement (MY is done inside the switch circ as the last measurement)
         """
 
-        # Adding one circuit without detector and then adding the detectors in the second round
+        ###########################################  
+        # Adding detectors for fault tolerant round
+        ###########################################
+
+        # Adding one circuit with non trivial detectors and then adding the trivial repeating sam index detectors
         pre_round = round_circuit
         det_round = stim.Circuit()
         det_round += round_circuit
 
+        # Non trivial round
+        diagonal_indices = [2 + i + 2j + 1j * i for i in range(0,distance * 2 - 2, 2)]
+        previous_round = len(x_stab_index + z_stab_index + r_h_stabs + u_h_stabs + [y_index])
+        current_round = round_circuit.num_measurements
+
+        for index, q_index in enumerate(x_stab_index + z_stab_index):
+
+            # Calc important info
+            coord = i2q[q_index]
+            role = patch.coords[coord]
+            
+            if role == "X-STAB":
+
+                # skip stabs on the Y-cut
+                if q_index in index_nh:
+
+                    # find this stabilizers position in the previous block
+                    prev_tar = - current_round - previous_round + index
+                    current_tar = - current_round + index
+                    pre_round.append("DETECTOR",
+                        [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                        (coord.real, coord.imag, 0))
+                    
+
+            elif role == "Z-STAB":
+
+                #skip stabs on the Y-cut
+                if q_index in index_nh:
+
+                    prev_tar = - current_round - previous_round + index
+                    current_tar = - current_round + index
+                    pre_round.append("DETECTOR",
+                        [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                        (coord.real, coord.imag, 0))
+                    
+                # Everything but the off diagonal
+                elif i2q[q_index] not in diagonal_indices and coord.real == distance * 2 - 2:
+
+                    top_neighbour = coord.real + coord.imag*1j - 2j
+                    top_index = q2i[top_neighbour]
+
+                    # find this stabilizers position in the previous block (Z stab ancilla nex to it)
+                    for curr_idx, q_index in enumerate(x_stab_index + z_stab_index):
+                        if q_index == top_index:
+                            prev_tar = - current_round - previous_round + curr_idx
+                    
+                    current_tar = - current_round + index
+
+                    #pre_round.append("DETECTOR",
+                    #    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                    #    (coord.real, coord.imag, 0))    
+                    
+
+        # Trivial Det round
         for index, q_index in enumerate(x_stab_index + z_stab_index):
             prev_tar = -2 * num_measurements_repeat + index
             current_tar = -1 * num_measurements_repeat + index
@@ -273,8 +377,6 @@ def y_repetition_circ(*,
 
         full_run = pre_round 
         full_run += det_round * (rounds - 1)
-
-        partiy_rec = - full_run.num_measurements - 1
 
         return CircuitResult(circuit=full_run)
     

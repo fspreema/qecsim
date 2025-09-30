@@ -224,11 +224,14 @@ def y_rev_switch_circ(*,
     ###########################################################
 
     #1) Deterministic Detectors which can be build up by the old stabilizers
+    """
+    Reuse the same procedure as for the switch but reversed
+    """
 
     previous_round =  len(x_stab_index + z_stab_index)
     current_round = reversed_switch_circ.num_measurements
 
-    for index, q_index in enumerate(x_stab_index + z_stab_index + r_h_stabs + u_h_stabs):
+    for index, q_index in enumerate(x_stab_index + z_stab_index + r_h_stabs + u_h_stabs + [y_index]):
 
         # Calc important info
         coord = i2q[q_index]
@@ -238,29 +241,103 @@ def y_rev_switch_circ(*,
 
             # skip stabs on the Y-cut
             if q_index in index_nh:
-                print(q_index)
+
                 # find this stabilizers position in the previous block
                 prev_tar = - current_round - previous_round + index
                 current_tar = - current_round + index
                 reversed_switch_circ.append("DETECTOR",
                     [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
                     (coord.real, coord.imag, 0))
+                
+                
+            # Everything but the off diagonal
+            elif i2q[q_index] not in [2 + i + 1j * i for i in range(2,distance * 2 + 1, 2)]:
 
+                left_neighbour = coord.real - 2 + coord.imag*1j
+                left_index = q2i[left_neighbour]
+
+                # find this stabilizers position in the previous block (Z stab ancilla nex to it)
+                for curr_idx, q_index in enumerate(patch.x_stab_memory + patch.z_stab_memory):
+                    if q_index == left_index:
+                        prev_tar = - current_round - previous_round + curr_idx
+                
+                current_tar = - current_round + index
+                reversed_switch_circ.append("DETECTOR",
+                    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                    (coord.real, coord.imag, 0))
+                
+            # Off Diagonal
+            else:
+                prev_tar = - current_round - previous_round + index
+                current_tar = - current_round + index
+                #reversed_switch_circ.append("DETECTOR",
+                #    [stim.target_rec(current_tar)],
+                #    (coord.real, coord.imag, 0))
 
         elif role == "Z-STAB":
 
+            diagonal_indices = [2 + i + 2j + 1j * i for i in range(0,distance * 2 - 2, 2)]
+
             #skip stabs on the Y-cut
             if q_index in index_nh:
-
                 prev_tar = - current_round - previous_round + index
                 current_tar = - current_round + index
                 reversed_switch_circ.append("DETECTOR",
                     [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
                     (coord.real, coord.imag, 0))
                 
+                
+            # Skip Diagonal
+            elif i2q[q_index] not in diagonal_indices:
+
+                bottom_neighbour = coord.real + coord.imag*1j + 2j
+                bottom_index = q2i[bottom_neighbour]
+
+                # find this stabilizers position in the previous block (Z stab ancilla nex to it)
+                for curr_idx, q_index in enumerate(patch.x_stab_memory + patch.z_stab_memory):
+                    if q_index == bottom_index:
+                        prev_tar = - current_round - previous_round + curr_idx
+                
+                current_tar = - current_round + index
+                reversed_switch_circ.append("DETECTOR",
+                    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                    (coord.real, coord.imag, 0))
+
+            # Diagonal 
+            else:
+                prev_tar = - current_round - previous_round + index
+                current_tar = - current_round + index
+                #reversed_switch_circ.append("DETECTOR",
+                #    [stim.target_rec(current_tar)],
+                #    (coord.real, coord.imag, 0))
 
         elif role in {"X-STAB-BOUND-B", "Z-STAB-BOUND-L"}:
             prev_tar = - current_round - previous_round + index
+            current_tar = - current_round + index
+            reversed_switch_circ.append("DETECTOR",
+                [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                (coord.real, coord.imag, 0))
+            
+        elif role in {"X-STAB-BOUND-R-H"}:
+
+            # find this stabilizers position
+            for curr_idx, curr_q_index in enumerate(patch.x_stab_memory + patch.z_stab_memory):
+                if q_index == curr_q_index:
+                    prev_tar = - current_round - previous_round + curr_idx
+                    
+            current_tar = - current_round + index
+            reversed_switch_circ.append("DETECTOR",
+                [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                (coord.real, coord.imag, 0))
+
+
+        elif role in {"Z-STAB-BOUND-U-H"}:
+
+            # find this stabilizers position
+            for curr_idx, curr_q_index in enumerate(patch.x_stab_memory + patch.z_stab_memory):
+                if q_index == curr_q_index:
+                    prev_tar = - current_round - previous_round + curr_idx
+                    
             current_tar = - current_round + index
             reversed_switch_circ.append("DETECTOR",
                 [stim.target_rec(current_tar), stim.target_rec(prev_tar)],

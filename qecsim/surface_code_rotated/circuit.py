@@ -283,7 +283,6 @@ def rotated_surface_code(distance: int,
         y_memory = y_repetition_circ(lct = lct, patches = patches, cfg = cfg, noise = noise, memory_round= True)
 
         state_init_circuit += initial_circuit
-        #state_init_circuit += state_init_circuit.circuit.missing_detectors()
         state_init_circuit += y_memory
 
         # Adding the basis reverse

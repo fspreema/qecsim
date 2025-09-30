@@ -322,23 +322,42 @@ def y_switch_circ(*,
         # Calc important info
         coord = i2q[q_index]
         role = patch.coords[coord]
-
-        print(coord)
         
         if role == "X-STAB":
 
             # skip stabs on the Y-cut
             if q_index in index_nh:
-                print(q_index)
+
                 # find this stabilizers position in the previous block
                 prev_tar = - current_round - previous_round + index
                 current_tar = - current_round + index
                 switch_circ.append("DETECTOR",
                     [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
                     (coord.real, coord.imag, 0))
+                
+                
+            # Everything but the off diagonal
+            elif i2q[q_index] not in [2 + i + 1j * i for i in range(2,distance * 2 + 1, 2)]:
+
+                bottom_neighbour = coord.real + coord.imag*1j + 2j
+                bottom_index = q2i[bottom_neighbour]
+
+                # find this stabilizers position in the previous block (Z stab ancilla nex to it)
+                for curr_idx, q_index in enumerate(x_stab_index + z_stab_index + r_h_stabs + u_h_stabs):
+                    if q_index == bottom_index:
+                        prev_tar = - current_round - previous_round + curr_idx
+                
+                current_tar = - current_round + index
+                switch_circ.append("DETECTOR",
+                    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                    (coord.real, coord.imag, 0))
+                
+            # Off Diagonal
 
 
         elif role == "Z-STAB":
+
+            diagonal_indices = [2 + i + 2j + 1j * i for i in range(0,distance * 2 - 2, 2)]
 
             #skip stabs on the Y-cut
             if q_index in index_nh:
@@ -349,6 +368,25 @@ def y_switch_circ(*,
                     [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
                     (coord.real, coord.imag, 0))
                 
+                
+            # Skip Diagonal
+            elif i2q[q_index] not in diagonal_indices:
+
+                left_neighbour = coord.real - 2 + coord.imag*1j
+                left_index = q2i[left_neighbour]
+
+                # find this stabilizers position in the previous block (Z stab ancilla nex to it)
+                for curr_idx, q_index in enumerate(x_stab_index + z_stab_index + r_h_stabs + u_h_stabs):
+                    if q_index == left_index:
+                        prev_tar = - current_round - previous_round + curr_idx
+                
+                current_tar = - current_round + index
+                switch_circ.append("DETECTOR",
+                    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                    (coord.real, coord.imag, 0))
+                
+            # Diagonal (Except most bottom entry and first)
+
 
         elif role in {"X-STAB-BOUND-B", "Z-STAB-BOUND-L"}:
             prev_tar = - current_round - previous_round + index
@@ -356,6 +394,34 @@ def y_switch_circ(*,
             switch_circ.append("DETECTOR",
                 [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
                 (coord.real, coord.imag, 0))
+            
+        elif role in {"X-STAB-BOUND-R-H"}:
+    
+            """
+            This Detector goes to the left into the Z stabs
+            """
+
+            bottom_imag = [i for i in range(4, distance * 2, 4)][-1]
+            bottom_real = distance * 2
+
+            btm_idx = bottom_real + bottom_imag * 1j
+
+            if i2q[q_index] != btm_idx:
+
+                left_neighbour = coord.real - 2 + coord.imag*1j
+                left_index = q2i[left_neighbour]
+
+                # find this stabilizers position in the previous block (Z stab ancilla nex to it)
+                for curr_idx, q_index in enumerate(x_stab_index + z_stab_index + r_h_stabs + u_h_stabs):
+                    if q_index == left_index:
+                        prev_tar = - current_round - previous_round + curr_idx
+                    
+                current_tar = - current_round + index
+                switch_circ.append("DETECTOR",
+                    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                    (coord.real, coord.imag, 0))
+                
+            # Bottom boundary weight 3 check
 
         elif role in {"X-STAB-BOUND-R"}:
     
@@ -363,294 +429,49 @@ def y_switch_circ(*,
             This Detector gets from weight 2 to weight 3 and includes the measurement from the X-STAB-BOUND-R-H
             """
 
-            # Important Information of above ancilla
-            coord_above = i2q[q_index] - 2j
-            index_above = q2i[coord_above]
 
-            # Finding record index
-            for index2, q_index2 in enumerate(x_stab_index + z_stab_index + r_h_stabs + u_h_stabs):
-                if q_index2 == index_above:
-                    current_tar2 = - current_round + index2
+        elif role in {"Z-STAB-BOUND-U-H"}:
 
-            previous_tar = - previous_round - current_round + index
-            current_tar1 = - current_round + index
-            
-            # Adding Detector out of all 3 measurements:
-            #switch_circ.append(
-            #        "DETECTOR",
-            #        [stim.target_rec(current_tar1), stim.target_rec(previous_tar), stim.target_rec(current_tar2)],
-            #        (coord.real, coord.imag, 0)
-            #)
+            far_right_real = [i for i in range(2, distance * 2, 4)][0]
+            far_right_imag = 0
 
-        #for flows in switch_circ.flow_generators():
-        #    print(flows)
+            fr_index = far_right_real + far_right_imag * 1j
+
+            # Every H detector compares current M measurement with M on the left (Normal Upper-Boundary)
+            if i2q[q_index] != fr_index:
+
+                bottom_neighbour = coord.real + coord.imag*1j + 2j
+                bottom_index = q2i[bottom_neighbour]
+
+                # find this stabilizers position in the previous block
+                for curr_idx, q_index in enumerate(x_stab_index + z_stab_index + r_h_stabs + u_h_stabs):
+                    if q_index == bottom_index:
+                        prev_tar = - current_round - previous_round + curr_idx
+
+                current_tar = - current_round + index
+                switch_circ.append("DETECTOR",
+                    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                    (coord.real, coord.imag, 0))
 
 
-        #     if q2i[(coord.real - 1 + 1j * coord.imag + 1j)] in index_h:
-        #         #switch_circ.append(
-        #         #    "DETECTOR",
-        #         #    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
-        #         #    (coord.real, coord.imag, 0)
-        #         #)
+        elif role in {"Z-STAB-BOUND-U"}:
 
-        # elif role in {"X-STAB-BOUND-B", "Z-STAB-BOUND-L"}:
-        #     #prev_tar = - current_round - previous_round + prev_idx
-        #     #current_tar = - current_round + index
-        #     #switch_circ.append(
-        #     #    "DETECTOR",
-        #     #    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
-        #     #    (coord.real, coord.imag, 0)
-        #     #)
+            far_left_real = [i for i in range(4, distance * 2, 4)][-1]
+            far_left_imag = 0
 
-        # e
+            fl_index = far_left_real + far_left_imag * 1j
+
+            # Far right detector gets treated normally
+            if i2q[q_index] == fl_index:
+
+                # find this stabilizers position in the previous block
+                prev_tar = - current_round - previous_round + index
+                current_tar = - current_round + index
+                switch_circ.append("DETECTOR",
+                    [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                    (coord.real, coord.imag, 0))
+                
 
     full_switch = pre_switch_circ + switch_circ
 
     return CircuitResult(circuit=full_switch)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    """
-    We need to look at the switch circuit and what detectors we need, we do this the following way
-
-    ####################
-    # FLOW MEASUREMENTS:
-    ####################
-
-    *  S -> 1 Contarction of stabilizers (These checks stop exisiting as we have a bsis switch)
-    *  1 -> S Creation ofs tabilizers (These get created as we have a basis switch)
-    """
-
-    # Add Detector for the Z stabilizers on the Diagonal     
-    for coords, label in patch.coords.items():
-        if label in {"X-STAB"}:
-
-            if q2i[coords] in index_h:
-
-                new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
-                new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
-                new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
-
-                if coords in [2 + i + 1j * i for i in range(2,distance + 2, 2)]:
-        
-                    old_stab = [new_cord1, new_cord2, new_cord3, new_cord4]
-                    new_stab_z = [new_cord2, new_cord3]
-                    new_stab_y = [new_cord4]
-                    
-                    x_new = '*'.join([f"Y{q2i[q]}" for q in new_stab_y] + [f"X{q2i[q]}" for q in new_stab_z])
-                    x_old = '*'.join(f"X{i}" for i in [q2i[current] for current in old_stab])
-                    prev_round = f"{1} -> {x_old}"
-                    switch_round_conc = f"{x_old} -> {1}"
-                    switch_round_crea = f"{1} -> {x_new}"
-
-                    # -> Frist Contract (Old Circuit before siwtch)
-                    (included_measurements_prev,) = pre_switch_circ.solve_flow_measurements([
-                        stim.Flow(prev_round),
-                    ])
-
-                    (included_measurements_conc,) = switch_circ.solve_flow_measurements([
-                    stim.Flow(switch_round_conc),
-                    ])
-
-                    (included_measurements_crea,) = switch_circ.solve_flow_measurements([
-                    stim.Flow(switch_round_crea),
-                    ])
-
-                    # Buidling new x stab off diagonal stabilizers
-                    #print(included_measurements_prev, included_measurements_conc, included_measurements_crea)
-                
-                # Adding the other weight 3 Stabilizers
-                else:
-
-                    old_stab = [new_cord1, new_cord2, new_cord3, new_cord4]
-                    new_stab_z = [new_cord2, new_cord3, new_cord4]
-                    
-                    x_new = '*'.join([f"Z{q2i[q]}" for q in new_stab_z])
-                    x_old = '*'.join(f"Z{i}" for i in [q2i[current] for current in old_stab])
-                    prev_round = f"{1} -> {x_old}"
-                    switch_round_conc = f"{x_old} -> {1}"
-                    switch_round_crea = f"{x_new} -> {1}"
-
-                    # -> Frist Contract (Old Circuit before siwtch)
-                    (included_measurements_prev,) = pre_switch_circ.solve_flow_measurements([
-                    stim.Flow(prev_round),
-                    ])
-
-                    (included_measurements_conc,) = switch_circ.solve_flow_measurements([
-                    stim.Flow(switch_round_conc),
-                    ])
-
-                    (included_measurements_crea,) = switch_circ.solve_flow_measurements([
-                    stim.Flow(switch_round_crea),
-                    ])
-
-                    #print(included_measurements_prev, included_measurements_conc, included_measurements_crea)
-
-                    #included_measurements_prev = [- pre_switch_circ.num_measurements + i for i in included_measurements_prev]
-
-                    #full_meas = included_measurements_conc + included_measurements_prev
-
-                    #for i in full_meas:
-                        #current_tar = - switch_circ.num_measurements + i
-                        #switch_circ.append("DETECTOR", [stim.target_rec(current_tar)], 
-                                    #(coords.real, coords.imag, 0))
-                    
-        elif label in {"Z-STAB"}:
-
-            new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-            new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
-            new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
-            new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
-                
-            if coords in [2 + i + 2j + 1j * i for i in range(0,distance, 2)]:
-
-                old_stab = [new_cord1, new_cord2, new_cord3, new_cord4]
-                x_old = '*'.join(f"Z{i}" for i in [q2i[current] for current in old_stab])
-
-                switch_round_conc = f"{x_old} -> {1}"
-
-                (included_measurements_conc,) = pre_switch_circ.solve_flow_measurements([
-                stim.Flow(switch_round_conc),
-                ])
-
-                #print(included_measurements_conc)
-
-                # Buidling new Diagonal detectors
-                #for index in included_measurements_conc:
-                    #prev_tar = -1 * current_round - previous_round + index - 1
-                    #current_tar = -1 * current_round + index - 1
-                    #switch_circ.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)], 
-                                    #(i2q[q_index].real, i2q[q_index].imag, 0))
-                    
-            if q2i[coords] in index_h:
-
-                old_stab = [new_cord1, new_cord2, new_cord3, new_cord4]
-                new_stab = [new_cord2, new_cord3, new_cord4]
-                z_old = '*'.join(f"X{i}" for i in [q2i[current] for current in old_stab])
-                z_new = '*'.join(f"X{i}" for i in [q2i[current] for current in new_stab])
-
-                stabs_contraction = f"{z_old} -> {1}"
-                stabs_creation = f"{1} -> {z_new}"
-
-                (included_measurements_conc,) = switch_circ.solve_flow_measurements([
-                                                stim.Flow(stabs_contraction),
-                                                ])
-                
-                (included_measurements_creat,) = switch_circ.solve_flow_measurements([
-                                                stim.Flow(stabs_creation),
-                                                ])
-                
-                #print(included_measurements_conc, included_measurements_creat)
-
-                # Buidling new Diagonal detectors
-                # for index_old, index_new in zip(included_measurements_conc, included_measurements_creat):
-                #     prev_tar = -1 * current_round - previous_round + index_old - 1
-                #     current_tar = -1 * current_round + index_new - 1
-                #     switch_circ.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)], 
-                #                    (i2q[q_index].real, i2q[q_index].imag, 0))
-                    
-        elif label in {"Z-STAB-BOUND-U-H"}:
-
-            new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
-            new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
-            new_stab = [new_cord3, new_cord4]
-            new_stab_index = [q2i[new_cord3], q2i[new_cord4]]
-
-            # Filter for Boundary who has X and Z checks
-            if y_index not in new_stab_index:
-
-                z_new = '*'.join(f"X{i}" for i in [q2i[current] for current in new_stab])
-                switch_round_conc = f"{1} -> {z_new}"
-
-                (included_measurements_conc,) = switch_circ.solve_flow_measurements([
-                stim.Flow(switch_round_conc),
-                ])
-
-                # Buidling new Diagonal detectors
-                #for index in included_measurements_conc:
-                #    current_tar = -1 * current_round + index - 1
-                #    switch_circ.append("DETECTOR", [stim.target_rec(current_tar)], 
-                #                    (i2q[q_index].real, i2q[q_index].imag, 0))
-
-            else:
-                z_new = '*'.join([f"X{new_stab_index[0]}"] + [f"X{new_stab_index[1]}"])
-                switch_round_conc = f"{1} -> {z_new}"
-
-                (included_measurements_conc,) = switch_circ.solve_flow_measurements([
-                stim.Flow(switch_round_conc),
-                ])
-
-                # Buidling new Diagonal detectors
-                #for index in included_measurements_conc:
-                    #current_tar = -1 * current_round + index - 1
-                    #switch_circ.append("DETECTOR", [stim.target_rec(current_tar)], 
-                                    #(i2q[q_index].real, i2q[q_index].imag, 0))
-                    
-        elif label in {"X-STAB-BOUND-R-H"}:
-
-            new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
-            new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
-            new_stab = [new_cord2, new_cord4]
-            new_stab_index = [q2i[new_cord2], q2i[new_cord4]]
-                
-            x_new = '*'.join(f"Z{i}" for i in [q2i[current] for current in new_stab])
-
-            switch_round_conc = f"{1} -> {x_new}"
-
-            (included_measurements_conc,) = switch_circ.solve_flow_measurements([
-            stim.Flow(switch_round_conc),
-            ])
-
-            # Buidling new Diagonal detectors
-            #for index in included_measurements_conc:
-            #    current_tar = -1 * current_round + index - 1
-            #    switch_circ.append("DETECTOR", [stim.target_rec(current_tar)], 
-            #                    (i2q[q_index].real, i2q[q_index].imag, 0))
-

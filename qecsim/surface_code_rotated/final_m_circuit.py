@@ -74,12 +74,35 @@ def final_m(*,
     -> Guarentees faul tolerance (hopefully)
     """
 
+    def _logical_x_indices() -> list[int]:
+        # Vertical string at x=1 (odd grid), along imag axis
+        return [q2i[1 + imag * 1j] for imag in range(1, 2 * distance, 2)]
+
+    def _logical_z_indices() -> list[int]:
+        # Horizontal string at y=1, along real axis
+        return [q2i[real + 1j] for real in range(1, 2 * distance, 2)]
+    
+    def _logical_y_indices() -> list[int]:
+        # Both
+        z_string =  [q2i[real + 1j] for real in range(3, 2 * distance, 2)]
+        x_string = [q2i[1 + imag * 1j] for imag in range(3, 2 * distance, 2)]
+        y_string = [q2i[1 + 1j]]
+
+        return(x_string, y_string, z_string)
+
     # Adding final measurement of all Data qubits
     m_circ_x = stim.Circuit()
     m_circ_x.append("MX", data)
 
     m_circ_z = stim.Circuit()
     m_circ_z.append("MZ", data)
+
+    # Getting corresponding logical string and rec for Y Meas (Non Det)
+
+    m_circ_y = stim.Circuit()
+    m_circ_y.append("MY", _logical_y_indices()[1])
+    m_circ_y.append("MX", _logical_y_indices()[0])
+    m_circ_y.append("MZ", _logical_y_indices()[2])
 
 
     # Adding final M round for deterministic measurement basis
@@ -144,24 +167,6 @@ def final_m(*,
                     
         #Appending Detector
         det_circ1.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
-
-    # 2) Det circ for comparing data readouts to data readouts -> non-deterministic basis
-
-    det_circ2 = stim.Circuit()
-
-    for index, qubit_index in enumerate(data):
-
-        # Getting coords
-        q = i2q[qubit_index]
-
-        #Defining the current record targets
-        current_record = - len(data) + index
-
-        #Defining the last record targets
-        last_record = -  2 * len(data) + index
-                    
-        #Appending Detector
-        det_circ2.append("DETECTOR", [stim.target_rec(last_record), stim.target_rec(current_record)], arg = (q.real, q.imag, 1))
     
 
     if not is_flipped:
@@ -174,57 +179,18 @@ def final_m(*,
         # Non-Det Observable
         elif init_state in {"1", "0"} and log_obs == "X":
 
-            dirst_det_placed = False
-
-            for _ in range(rounds):
-
-                #Checking if first measurement was placed
-                if dirst_det_placed:
-                    final_circuit += m_circ_x
-                    final_circuit.append("TICK")
-                    final_circuit += det_circ2
-                    final_circuit.append("SHIFT_COORDS", arg=(0,0,1))
-
-                # if first run no detectors!
-                else:
-                    final_circuit += m_circ_x
-                    final_circuit.append("TICK")
-
-                    # Set True
-                    dirst_det_placed = True
+            final_circuit += m_circ_x
 
         elif init_state in {"+", "-"} and log_obs == "Z":
 
-            dirst_det_placed = False
+            final_circuit += m_circ_z
 
-            for _ in range(rounds):
-
-                #Checking if first measurement was placed
-                if dirst_det_placed:
-                    final_circuit += m_circ_z
-                    final_circuit.append("TICK")
-                    final_circuit += det_circ2
-                    final_circuit.append("SHIFT_COORDS", arg=(0,0,1))
-
-                # if first run no detectors!
-                else:
-                    final_circuit += m_circ_z
-                    final_circuit.append("TICK")
-
-                    # Set True
-                    dirst_det_placed = True
+        elif init_state in {"+", "-", "0", "1"} and log_obs == "Y":
+            final_circuit += m_circ_y
 
     ##############################
     # Defining Logical Observables
     ##############################
-
-    def _logical_x_indices() -> list[int]:
-        # Vertical string at x=1 (odd grid), along imag axis
-        return [q2i[1 + imag * 1j] for imag in range(1, 2 * distance, 2)]
-
-    def _logical_z_indices() -> list[int]:
-        # Horizontal string at y=1, along real axis
-        return [q2i[real + 1j] for real in range(1, 2 * distance, 2)]
 
     if is_flipped:
             
@@ -290,8 +256,22 @@ def final_m(*,
 
                 return CircuitResult(circuit=final_circuit, obs_indices = rec_list)
             
-        # Every circuit which is not inside these conditions can not have a 
-        # determinist result and does not need the observable       
+            if log_obs in {"Y"}:
+
+                final_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in _logical_y_indices()[0]] + 
+                                     [f"Y{index}" for index in _logical_y_indices()[1]] + 
+                                     [f"Z{index}" for index in _logical_y_indices()[2]], 0)
+
+                # For later decoding we need the measurement record postiions of the logical operator
+                tar_rec = []
+
+                for rec_pos, index in enumerate(_logical_y_indices()[0] + _logical_y_indices()[1] + _logical_y_indices()[2]):
+                    tar_rec.append(rec_pos)
+
+                rec_list = [- k -1 for k in tar_rec]
+
+                return CircuitResult(circuit=final_circuit, obs_indices = rec_list)
+                 
         elif init_state in {"0", "1"}:
             if log_obs == "Z":
 
@@ -321,6 +301,22 @@ def final_m(*,
                         tar_rec.append(rec_pos)
 
                 rec_list = [-len(data) + k for k in tar_rec]
+
+                return CircuitResult(circuit=final_circuit, obs_indices = rec_list)
+            
+            if log_obs in {"Y"}:
+
+                final_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in _logical_y_indices()[0]] + 
+                                     [f"Y{index}" for index in _logical_y_indices()[1]] + 
+                                     [f"Z{index}" for index in _logical_y_indices()[2]], 0)
+
+                # For later decoding we need the measurement record postiions of the logical operator
+                tar_rec = []
+
+                for rec_pos, index in enumerate(_logical_y_indices()[0] + _logical_y_indices()[1] + _logical_y_indices()[2]):
+                    tar_rec.append(rec_pos)
+
+                rec_list = [- k -1 for k in tar_rec]
 
                 return CircuitResult(circuit=final_circuit, obs_indices = rec_list)
     
