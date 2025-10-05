@@ -34,7 +34,7 @@ def reset(*,
     z_stab_index = patch.z_stab
 
     ##################
-    # Heelper Fuctions
+    # Helper Fuctions
     ##################
 
     def _logical_x_indices() -> list[int]:

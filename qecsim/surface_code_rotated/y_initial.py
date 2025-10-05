@@ -46,23 +46,8 @@ def y_initial(*,
 
     initial_circuit.append("TICK")
 
-    #-------Adding-Before-Round-Depol.-Data------------
-
-    if noise.before_round_depol > 0:
-        initial_circuit.append("DEPOLARIZE1", data, noise.before_round_depol)
-
-    #-------Continue-Circuit------------
-
     #1) Reset/ Basis
     initial_circuit.append("H", x_stab_index)
-
-    #-------Adding-After-Clifford-Depol.------------
-
-    if noise.after_c_depol_prob > 0:
-        initial_circuit.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
-        
-    #-------Continue-Circuit------------
-
     initial_circuit.append("TICK")
 
     #2) CX Operations
@@ -79,14 +64,10 @@ def y_initial(*,
                 #Adding Pair on Operation
                 if op == "CX":
                     initial_circuit.append(op, pair)
-                elif op == "DEPOLARIZE2":
-                    initial_circuit.append(op, pair, noise)
 
     # Adding all the CX gates
     for order in ("1-CX", "2-CX", "3-CX", "4-CX"):
         _append_by_order("CX", order)
-        if noise.after_c_depol_prob > 0:
-            _append_by_order("DEPOLARIZE2", order, noise.after_c_depol_prob)
         initial_circuit.append("TICK")
 
     #-------Continue-Circuit------------
@@ -94,28 +75,13 @@ def y_initial(*,
     #3) Basis/ Measurement
     initial_circuit.append("H", x_stab_index)
 
-    #-------Adding-After-Clifford-Depol.------------
-
-    if noise.after_c_depol_prob > 0:
-        initial_circuit.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
-
     #-------Continue-Circuit------------
 
     initial_circuit.append("TICK")
 
-    #-------Adding-Before-Measurement-Flip-Prob.------------
-
-    if noise.before_m_flip_prob > 0:
-        initial_circuit.append("X_ERROR", x_stab_index + z_stab_index, noise.before_m_flip_prob)
-
     #-------Continue-Circuit------------
     
     initial_circuit.append("M", x_stab_index + z_stab_index)
-
-    #-------Adding-After-Reset-Flip-Prob.------------
-
-    if noise.after_r_flip > 0:
-        initial_circuit.append("X_ERROR", x_stab_index + z_stab_index, noise.after_r_flip)
 
     #-------Continue-Circuit------------
 
@@ -191,7 +157,7 @@ def y_initial(*,
 
     #-Determine-the-postion-in-the-current-measurement-record-
     num_measurements_initial = len(z_stab_index)
-        
+    """    
     for index, q_index in enumerate(z_stab_index):
 
         if q_index in stab_rz:
@@ -207,5 +173,5 @@ def y_initial(*,
 
             current_tar = -1 * num_measurements_initial + index
             initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
-
+    """
     return CircuitResult(circuit=initial_circuit)

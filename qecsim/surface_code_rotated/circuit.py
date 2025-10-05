@@ -1,5 +1,7 @@
 import stim
 
+from tqecd import annotate_detectors_automatically
+
 from qecsim.lattice_surgery.geometry import build_lattice
 from .stabilizers import populate_stab_to_data
 from .initial import initial
@@ -288,83 +290,120 @@ def rotated_surface_code(distance: int,
         # Adding the basis reverse
         reverse_switch = y_rev_switch_circ(lct = lct, patches = patches, cfg = cfg, noise = noise)
         
-        ###########################
-        # Adding logical Observable
-        ###########################
+        #############################
+        # Adding logical Y Observable
+        #############################
 
-        logical_circ_contraction = reverse_switch
-        logical_circ_creation = switch_circ
+        if log_obs == "Y":
 
-        logical_x_string = []
-        logical_z_string = []
+            logical_circ_contraction = reverse_switch
+            logical_circ_creation = switch_circ
 
-        fixed_coord = (distance * 2) - 1
+            logical_x_string = []
+            logical_z_string = []
 
-        # Finding logical Strings for x and z
-        for imag in range(1, (distance * 2) - 1, 2):
-            logical_x_string.append(q2i[fixed_coord + 1j * imag])
+            fixed_coord = (distance * 2) - 1
 
-        for real in range(1, (distance * 2) - 1, 2):
-            logical_z_string.append(q2i[real + fixed_coord * 1j])
+            # Finding logical Strings for x and z
+            for imag in range(1, (distance * 2) - 1, 2):
+                logical_x_string.append(q2i[fixed_coord + 1j * imag])
+
+            for real in range(1, (distance * 2) - 1, 2):
+                logical_z_string.append(q2i[real + fixed_coord * 1j])
 
 
-        # Adding logical z string
-        logical_xyz_string = '*'.join([f"Z{idz}" for j, idz in enumerate(logical_z_string)] + 
-                                [f"Y{q2i[fixed_coord + fixed_coord * 1j]}"] + 
-                                [f"X{idx}" for j, idx in enumerate(logical_x_string)])
-        
-        logical_creation = f"{1} -> {logical_xyz_string}"
-        logical_contraction = f"{logical_xyz_string} -> {1}"
+            # Adding logical z string
+            logical_xyz_string = '*'.join([f"Z{idz}" for j, idz in enumerate(logical_z_string)] + 
+                                    [f"Y{q2i[fixed_coord + fixed_coord * 1j]}"] + 
+                                    [f"X{idx}" for j, idx in enumerate(logical_x_string)])
+            
+            logical_creation = f"{1} -> {logical_xyz_string}"
+            logical_contraction = f"{logical_xyz_string} -> {1}"
 
-        (logical_creation_rec,) = logical_circ_creation.circuit.solve_flow_measurements([stim.Flow(logical_creation)])
-        (logical_contraction_rec,) = logical_circ_contraction.circuit.solve_flow_measurements([stim.Flow(logical_contraction)])
+            (logical_creation_rec,) = logical_circ_creation.circuit.solve_flow_measurements([stim.Flow(logical_creation)])
+            (logical_contraction_rec,) = logical_circ_contraction.circuit.solve_flow_measurements([stim.Flow(logical_contraction)])
 
-        # Adding the final Measurement Round & Missing Detectors
-        state_init_circuit += reverse_switch
+            # Adding the final Measurement Round & Missing Detectors
+            state_init_circuit += reverse_switch
 
-        # Calculating target rec pos
-        rec_pos = []
+            # Calculating target rec pos
+            rec_pos = []
 
-        contraction_records = reverse_switch.circuit.num_measurements
-        creation_records= reverse_switch.circuit.num_measurements + y_memory.circuit.num_measurements + switch_circ.circuit.num_measurements
+            contraction_records = reverse_switch.circuit.num_measurements
+            creation_records= reverse_switch.circuit.num_measurements + y_memory.circuit.num_measurements + switch_circ.circuit.num_measurements
 
-        # Adding the Observable
-        for index_creation in logical_creation_rec:
-            current_rec_crea = creation_records - index_creation
-            rec_pos.append(- current_rec_crea)
-        
-        for index_contraction in logical_contraction_rec:
-            current_rec_cont = contraction_records - index_contraction
-            rec_pos.append(- current_rec_cont)
+            # Adding the Observable
+            for index_creation in logical_creation_rec:
+                current_rec_crea = creation_records - index_creation
+                rec_pos.append(- current_rec_crea)
+            
+            for index_contraction in logical_contraction_rec:
+                current_rec_cont = contraction_records - index_contraction
+                rec_pos.append(- current_rec_cont)
 
-        state_init_circuit.circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
+            state_init_circuit.circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
 
-        #############################################################################
-        # Y ONLY: Adding needed y_inital rounds in order top guarentee faul tolerance
-        #############################################################################
+            #############################################################################
+            # Y ONLY: Adding needed y_inital rounds in order top guarentee faul tolerance
+            #############################################################################
 
-        final_measurement = y_repetition_circ(lct = lct, patches = patches, cfg = cfg, noise = noise, ft_round = True)
-        state_init_circuit += final_measurement
+            final_measurement = y_repetition_circ(lct = lct, patches = patches, cfg = cfg, noise = noise, ft_round = True)
+            state_init_circuit += final_measurement
 
-        obs_records = []
-        for curr_rec in rec_pos:
-            obs_records.append(curr_rec - final_measurement.circuit.num_measurements)
+        # Calc the measurement rec pos for the X/Z Basis measruement
+        if log_obs in {"X", "Z"}:
 
-        
+            """
+            Adding ft round can be skipped as state was already measured (This is not FT either way)
+            """
+
+            # Adding Empty Meas Circ
+            final_measurement = CircuitResult(circuit= stim.Circuit())
+
+            # Finding full target history within full circuit
+            recs_after = reverse_switch.circuit.num_measurements
+            obs_index = [i - recs_after for i in y_memory.obs_indices]
+
+            final_measurement.obs_indices = obs_index
+
     ############################################################
     # Return Circuit and measurement rec postitions for logicals
     ############################################################
 
     """
-    If another Basis for emasurement then init was chosen one needs the 
+    If another Basis for measurement then init was chosen one needs the 
     measurement observable inices in order to determine the current measurement 
     result per sample
     """
 
-    if final_measurement.obs_indices is not None:
-        return state_init_circuit.circuit , final_measurement.obs_indices
-    
-    else:   
-        return state_init_circuit.circuit
+    if state_init in {"+i", "-i"}:
+
+        if final_measurement.obs_indices is not None:
+
+            annotate_circuit = state_init_circuit.circuit
+
+            # Add all Detectors with package
+            circ_with_dets = annotate_detectors_automatically(annotate_circuit)
+
+            return circ_with_dets , final_measurement.obs_indices
+
+        else:   
+
+            annotate_circuit = state_init_circuit.circuit
+
+            # Add all Detectors with package
+            circ_with_dets = annotate_detectors_automatically(annotate_circuit)
+
+            return circ_with_dets
+        
+    else:
+
+        if final_measurement.obs_indices is not None:
+
+            return state_init_circuit.circuit, final_measurement.obs_indices
+
+        else:   
+
+            return state_init_circuit.circuit
 
 
