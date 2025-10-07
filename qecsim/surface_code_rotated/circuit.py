@@ -107,7 +107,8 @@ def rotated_surface_code(distance: int,
                         noise_depol_data_init: float = 0.0, 
                         noise_measure_flip: float = 0.0,
                         noise_after_reset: float = 0.0, 
-                        noise_after_clifford_depol: float = 0.0) -> stim.Circuit:
+                        noise_after_clifford_depol: float = 0.0,
+                        noise_h_flip_prob: float = 0.0) -> stim.Circuit:
     
     """
     Generates Rotated-Surface-Code
@@ -143,7 +144,7 @@ def rotated_surface_code(distance: int,
         before_round_depol= noise_depol_data_init,
         before_m_flip_prob= noise_measure_flip,
         after_r_flip= noise_after_reset,
-        after_c_depol_prob= noise_after_clifford_depol,
+        after_c_depol_prob= noise_after_clifford_depol
     )
 
     ###############################################################

@@ -9,7 +9,7 @@ description = "Quantum error correction and lattice surgery tools"
 authors = [{ name = "Fabian Spreemann", email = "f.spreemann@fz-juelich.de" }]
 readme = "README.md"
 requires-python = ">=3.8"
-dependencies = ["numpy>=1.24", "pymatching>=2.0"]
+dependencies = ["numpy>=1.24", "pymatching>=2.0", "tqecd>=0.1.2", "cvxpy>=1.7.3"]
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -29,7 +29,7 @@ class CircuitResult:
         """Allow `result += other` regardless of other’s type."""
         if isinstance(other, CircuitResult):
             self.circuit += other.circuit
-            # No automatic merge of obs indices; caller decides how to use them
+            # No automatic merge of obs indices
         else:
             self.circuit += other
         return self
@@ -85,3 +85,5 @@ class Context:
     stab_to_data_modified: dict[Pair, str] = field(default_factory=dict)
     stab_to_data_modified2: dict[Pair, str] = field(default_factory=dict)
     stab_to_data_modified3: dict[Pair, str] = field(default_factory=dict)
+
+

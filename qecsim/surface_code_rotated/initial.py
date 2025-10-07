@@ -1,4 +1,5 @@
 import stim
+import numpy as np
 from .data_models import Config, Patch, Context, NoiseModel, CircuitResult
 
 Coord = complex
@@ -31,19 +32,6 @@ def initial(*,
     #-Retrieving Index from Stabilizers of the Lattices
     x_stab_index = patch.x_stab
     z_stab_index = patch.z_stab
-
-    #------------------------------------------------------
-    # Creating list of Logical X/Z string and their indices
-    #------------------------------------------------------
-    """
-    -> Used for swithcing of the state in a given basis
-    """
-
-    # Ancilla
-    a_log_obs_z_index : list[complex] = []
-
-    for real in range(1, (distance * 2), 2):
-        a_log_obs_z_index.append(q2i[real + 1j])
 
     ########################
     # Define Initial Circuit
@@ -92,6 +80,7 @@ def initial(*,
         _append_by_order("CX", order)
         if noise.after_c_depol_prob > 0:
             _append_by_order("DEPOLARIZE2", order, noise.after_c_depol_prob)
+
         initial_circuit.append("TICK")
 
     #-------Continue-Circuit------------

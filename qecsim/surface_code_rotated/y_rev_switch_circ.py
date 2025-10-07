@@ -21,15 +21,8 @@ def y_rev_switch_circ(*,
 
     #-Retrieving Global Infomration
     q2i = lct.q2i
-    i2q = lct.i2q
-    rounds = cfg.rounds
-    distance = cfg.distance
-    stab_to_data = lct.stab_to_data
     stab_to_data_switch = lct.stab_to_data_modified
     stab_to_data_switch_xcy = lct.stab_to_data_modified2
-
-    #-Retrieving Data Coords
-    data = patch.data
 
     # Getting infromation about the additional newly formed boundary operators:
     r_h_stabs = patch.right_h
@@ -38,8 +31,6 @@ def y_rev_switch_circ(*,
     #-Retrieving Index from Stabilizers of the Lattices
     x_stab_index = patch.x_stab
     z_stab_index = patch.z_stab
-    x_stab_index_memory = patch.x_stab_memory
-    z_stab_index_memory = patch.z_stab_memory
     switch_stab_apply_h = patch.stab_switch_apply_h
 
     # Finding Upper right qubit index -> need to look in 2-CX

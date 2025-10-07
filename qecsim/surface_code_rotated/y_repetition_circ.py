@@ -1,4 +1,5 @@
 import stim
+import numpy as np
 from .data_models import Config, Patch, Context, NoiseModel, CircuitResult
 
 Coord = complex

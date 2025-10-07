@@ -61,8 +61,6 @@ def y_switch_circ(*,
 
     #2) CX Operations
 
-    #2) CX Operations
-
     def _pairs_for(order: str) -> list[list[int]]:
         # Return the Pairs needed at the current order
         return [[q2i[cp[1]], q2i[cp[0]]] for cp, o in stab_to_data.items() if o == order]
@@ -85,7 +83,6 @@ def y_switch_circ(*,
 
     #3) Basis/ Measurement
     pre_switch_circ.append("H", x_stab_index)
-
 
     pre_switch_circ.append("TICK")
 
