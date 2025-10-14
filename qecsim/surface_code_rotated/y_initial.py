@@ -7,16 +7,14 @@ __all__ = ["y_initial"]
 
 def y_initial(*, 
               lct: Context, 
-              patches: dict[str, Patch], 
+              patch: dict[str, Patch], 
               cfg: Config,
-              noise: NoiseModel) -> CircuitResult:
+              noise: NoiseModel,
+              offset: complex = 0 + 0j) -> CircuitResult:
     
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
-
-    #-Loading in Patches
-    patch = patches["patch"]
 
     #-Retrieving Global Infomration
     q2i = lct.q2i
@@ -36,7 +34,7 @@ def y_initial(*,
     """
 
     # Finding Upper right qubit index -> need to look in 2-CX
-    y_index = q2i[1 + 1j]
+    y_index = q2i[1 + 1j + offset]
 
     ########################
     # Define Initial Circuit

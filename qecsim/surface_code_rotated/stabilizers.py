@@ -12,7 +12,8 @@ def populate_stab_to_data(patch: dict[Coord, Label],
                           y_basis: bool = False, 
                           y_switch: bool = False,
                           y_memory: bool = False, 
-                          distance: int = 0
+                          distance: int = 0,
+                          offset: complex = 0 + 0j
                           ) -> dict[tuple[Coord, Coord], str] | tuple[dict[tuple[Coord, Coord], str], dict[tuple[Coord, Coord], str]]:
     """
     Returns the CX-Schedule {(data_coord, stab_coord): order} for a given lattice
@@ -27,8 +28,19 @@ def populate_stab_to_data(patch: dict[Coord, Label],
 
     if not y_switch:
         stab_to_data: dict[tuple[Coord, Coord], Label] = {}
-        _attach_interior_cx(patch, stab_to_data, is_flipped, y_switch, y_basis, distance)
-        _attach_boundary_cx(patch, stab_to_data, is_flipped, y_switch, y_basis, y_memory, distance)
+        _attach_interior_cx(patch, 
+                            stab_to_data, 
+                            is_flipped, 
+                            y_switch, 
+                            y_basis, 
+                            distance)
+        _attach_boundary_cx(patch, 
+                            stab_to_data, 
+                            is_flipped, 
+                            y_switch, 
+                            y_basis, 
+                            y_memory, 
+                            distance)
 
         return stab_to_data
 
@@ -36,12 +48,39 @@ def populate_stab_to_data(patch: dict[Coord, Label],
         if not y_memory:
             stab_to_data: dict[tuple[Coord, Coord], Label] = {}
             stab_to_data_xcy: dict[tuple[Coord, Coord], Label] = {}
-            _attach_interior_cx(patch, stab_to_data, is_flipped, y_switch, y_basis, distance, stab_to_data_xcy)
-            _attach_boundary_cx(patch, stab_to_data, is_flipped, y_switch, y_basis, y_memory, distance)
+            _attach_interior_cx(patch, 
+                                stab_to_data, 
+                                is_flipped, 
+                                y_switch, 
+                                y_basis, 
+                                distance, 
+                                stab_to_data_xcy= stab_to_data_xcy,
+                                offset= offset)
+            _attach_boundary_cx(patch, 
+                                stab_to_data, 
+                                is_flipped, 
+                                y_switch, 
+                                y_basis, 
+                                y_memory, 
+                                distance,
+                                offset= offset)
         else:
             stab_to_data: dict[tuple[Coord, Coord], Label] = {}
-            _attach_interior_cx(patch, stab_to_data, is_flipped, y_switch, y_basis, distance)
-            _attach_boundary_cx(patch, stab_to_data, is_flipped, y_switch, y_basis, y_memory, distance)
+            _attach_interior_cx(patch, 
+                                stab_to_data, 
+                                is_flipped, 
+                                y_switch, 
+                                y_basis, 
+                                distance, 
+                                offset= offset)
+            _attach_boundary_cx(patch, 
+                                stab_to_data, 
+                                is_flipped, 
+                                y_switch, 
+                                y_basis, 
+                                y_memory, 
+                                distance,
+                                offset= offset)
 
         return stab_to_data, stab_to_data_xcy
 
@@ -82,7 +121,9 @@ def _attach_interior_cx(patch: dict[Coord, Label],
                         y_switch: bool, 
                         y_basis: bool, 
                         distance: int, 
-                        stab_to_data_xcy: dict[tuple[Coord, Coord], str] = {}):
+                        stab_to_data_xcy: dict[tuple[Coord, Coord], str] = {},
+                        offset: complex= 0 + 0j
+                        ) -> None:
     """
     Adds the 4-body CX Schedule for the *interior* stabilizers
     """
@@ -137,8 +178,8 @@ def _attach_interior_cx(patch: dict[Coord, Label],
             filtered_stabs_z : list[complex] = []
 
             for i in range(distance - 1):
-                stabs_z = 2 + (i * 2) + 2j + (i * 2) * 1j
-                stabs_x = 4 + (i * 2) + 2j + (i * 2) * 1j
+                stabs_z = (2 + i * 2 + offset.real) + (2 + i * 2 + offset.imag) * 1j
+                stabs_x = (4 + i * 2 + offset.real) + (2 + i * 2 + offset.imag) * 1j
                 filtered_stabs_z.append(stabs_z)
                 filtered_stabs_x.append(stabs_x)
 
@@ -149,7 +190,7 @@ def _attach_interior_cx(patch: dict[Coord, Label],
 
             for cords, qtype in patch.items():
                 # Diagonal Cut
-                if cords.real <= cords.imag:
+                if cords.real - offset.real <= cords.imag - offset.imag:
                     stabs_norm_dict[cords] = qtype
                 else:
                     stabs_h_dict[cords] = qtype
@@ -254,7 +295,8 @@ def _attach_boundary_cx(patch: dict[Coord, Label],
                         y_switch: bool,
                         y_basis: bool, 
                         y_memory: bool, 
-                        distance : int):
+                        distance : int,
+                        offset: complex = 0 + 0j):
     """
     Adds the 2-body CX Schedule for the *boundary* stabilizers
     """
@@ -346,7 +388,7 @@ def _attach_boundary_cx(patch: dict[Coord, Label],
 
                         # Check for lower boundary condition and exclude the cx which gets replaced by CYX
                         lower_boundary = [i for i in range(4, distance * 2, 4)][-1]
-                        lower_coord = (distance * 2) + lower_boundary * 1j
+                        lower_coord = (distance * 2 + offset.real) + (lower_boundary + offset.imag) * 1j
 
                         if coords != lower_coord:
                             stab_to_data[coords, new_cord2,] = "2TICK"
@@ -366,7 +408,7 @@ def _attach_boundary_cx(patch: dict[Coord, Label],
                         new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
                         new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
 
-                        if new_cord1 != 1 + 1j:
+                        if new_cord1 != 1 + 1j + offset:
                             stab_to_data[coords, new_cord1] = "2TICK"
 
                         stab_to_data[new_cord2, coords] = "4TICK"
@@ -418,7 +460,6 @@ def _attach_boundary_cx(patch: dict[Coord, Label],
                         stab_to_data[new_cord1, coords] = "3-CX"
                         stab_to_data[new_cord2, coords] = "4-CX"
                     
-
     else:
 
         for coords, qtype in patch.items():

@@ -7,16 +7,14 @@ __all__ = ["y_switch_circ"]
 
 def y_switch_circ(*, 
                   lct: Context, 
-                  patches: dict[str, Patch], 
+                  patch: dict[str, Patch], 
+                  offset: complex = 0 + 0j,
                   cfg: Config,
                   noise: NoiseModel) -> CircuitResult:
     
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
-
-    #-Loading in Patches
-    patch = patches["patch"]
 
     #-Retrieving Global Infomration
     q2i = lct.q2i
@@ -35,7 +33,7 @@ def y_switch_circ(*,
     switch_stab_apply_h = patch.stab_switch_apply_h
 
     # Finding Upper right qubit index -> need to look in 2-CX
-    y_coords = 1 + 1j
+    y_coords = 1 + 1j + offset
     y_index = q2i[y_coords]
 
     ###########################
@@ -131,11 +129,11 @@ def y_switch_circ(*,
         if cords != y_coords:
 
             # Diagonal Cut
-            if cords.real > cords.imag:
+            if cords.real - offset.real > cords.imag - offset.imag:
                 index_h.append(q2i[cords])
 
             # Filtering out the X_DAG -> Not on Data
-            elif cords.real == cords.imag:
+            elif cords.real - offset.real == cords.imag - offset.imag:
                 if qtype != "DATA":
                     index_x_deg.append(q2i[cords])
 
@@ -254,6 +252,7 @@ def y_switch_circ(*,
 
     switch_circ.append("TICK")
     switch_circ.append("M", x_stab_index + z_stab_index + r_h_stabs + u_h_stabs)
+    switch_circ.append("TICK")
 
     #-> Shifting Coords in Time-Dimension to have 3D timelike Detector graph (Needed for decoding)
     switch_circ.append("SHIFT_COORDS", arg = (0,0,1))

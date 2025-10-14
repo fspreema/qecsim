@@ -8,18 +8,16 @@ __all__ = ["y_repetition_circ"]
 
 def y_repetition_circ(*, 
                       lct: Context, 
-                      patches: dict[str, Patch], 
+                      patch: dict[str, Patch], 
                       cfg: Config, 
                       noise: NoiseModel,
+                      offset: complex = 0 + 0j,
                       memory_round: bool = False,
                       ft_round:bool = False) -> CircuitResult:
     
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
-
-    #-Loading in Patches
-    patch = patches["patch"]
 
     #-Retrieving Global Information
     if not memory_round:
@@ -33,7 +31,7 @@ def y_repetition_circ(*,
     state_init = cfg.state_init
 
     # Finding Upper right qubit index -> need to look in 2-CX
-    y_coords = 1 + 1j
+    y_coords = 1 + 1j + offset
     y_index = q2i[y_coords]
 
     #What half is an h applied?

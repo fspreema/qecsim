@@ -27,7 +27,9 @@ __all__ = ["rotated_surface_code"]
 # Helper Functions
 # -------------------------
 
-def _add_boundary_labels(distance: int, 
+def _add_boundary_labels(*,
+                         distance: int,
+                         offset: complex = 0+0j, 
                          qubit_coords: dict[Coord, Label], 
                          y_basis: bool = False) -> None:
     
@@ -35,55 +37,87 @@ def _add_boundary_labels(distance: int,
     Adds the neseccary Boundary and Surgery Stabilizers needed for the code
     """
 
+    if offset.real != 0 and offset.imag != 0:
+        raise ValueError("Offset needs to be either 0 or equal in real and imaginary part")
+
     max_coord = 2 * distance
 
     if not y_basis:
-        # Z-boundary stabilizers
+        # Boundary stabilizers
         for y in range(2, max_coord, 4):
             coord_ancilla = complex(0, y)
             qubit_coords[coord_ancilla] = "Z-STAB-BOUND-L"
+            coord_ancilla = complex(y, max_coord)
+            qubit_coords[coord_ancilla] = "X-STAB-BOUND-B"
 
         for y in range(4, max_coord, 4):
             coord_ancilla = complex(max_coord, y)
             qubit_coords[coord_ancilla] = "Z-STAB-BOUND-R"
-
-        # X-boundary stabilizers
-        for y in range(4, max_coord, 4):
             coord_ancilla = complex(y, 0)
             qubit_coords[coord_ancilla] = "X-STAB-BOUND-U"
 
-        for y in range(2, max_coord, 4):
-            coord_ancilla = complex(y, max_coord)
-            qubit_coords[coord_ancilla] = "X-STAB-BOUND-B"
-
     else:
         # Z-boundary stabilizers
-        for y in range(4, max_coord, 4):
-            coord_ancilla = complex(y, max_coord)
-            qubit_coords[coord_ancilla] = "X-STAB-BOUND-B"
+        if offset == 0+0j:
+            # Z-boundary stabilizers
+            for y in range(4, max_coord, 4):
+                coord_ancilla = complex(y, max_coord)
+                qubit_coords[coord_ancilla] = "X-STAB-BOUND-B"
+                coord_ancilla = complex(max_coord, y)
+                qubit_coords[coord_ancilla] = "X-STAB-BOUND-R"
+                coord_ancilla = complex(y, 0)
+                qubit_coords[coord_ancilla] = "Z-STAB-BOUND-U"
+                coord_ancilla = complex(0, y)
+                qubit_coords[coord_ancilla] = "Z-STAB-BOUND-L"
 
-        for y in range(4, max_coord, 4):
-            coord_ancilla = complex(max_coord, y)
-            qubit_coords[coord_ancilla] = "X-STAB-BOUND-R"
+            # Additional after H
+            for y in range(2, max_coord, 4):
+                coord_ancilla = complex(max_coord, y)
+                qubit_coords[coord_ancilla] = "X-STAB-BOUND-R-H"
+                coord_ancilla = complex(y, 0)
+                qubit_coords[coord_ancilla] = "Z-STAB-BOUND-U-H"
 
-        # Additional after H
-        for y in range(2, max_coord, 4):
-            coord_ancilla = complex(max_coord, y)
-            qubit_coords[coord_ancilla] = "X-STAB-BOUND-R-H"
+        # Check real offset
+        elif offset.real != 0:
 
-        # X-boundary stabilizers
-        for y in range(4, max_coord, 4):
-            coord_ancilla = complex(y, 0)
-            qubit_coords[coord_ancilla] = "Z-STAB-BOUND-U"
+            # Z-boundary stabilizers
+            for y in range(4, max_coord, 4):
+                coord_ancilla = complex(y + offset.real, max_coord)
+                qubit_coords[coord_ancilla] = "X-STAB-BOUND-B"
+                coord_ancilla = complex(max_coord + offset.real, y)
+                qubit_coords[coord_ancilla] = "X-STAB-BOUND-R"
+                coord_ancilla = complex(y + offset.real, 0)
+                qubit_coords[coord_ancilla] = "Z-STAB-BOUND-U"
+                coord_ancilla = complex(offset.real, y)
+                qubit_coords[coord_ancilla] = "Z-STAB-BOUND-L"
 
-        for y in range(4, max_coord, 4):
-            coord_ancilla = complex(0, y)
-            qubit_coords[coord_ancilla] = "Z-STAB-BOUND-L"
+            # Additional after H
+            for y in range(2, max_coord, 4):
+                coord_ancilla = complex(max_coord + offset.real, y)
+                qubit_coords[coord_ancilla] = "X-STAB-BOUND-R-H"
+                coord_ancilla = complex(y + offset.real, 0)
+                qubit_coords[coord_ancilla] = "Z-STAB-BOUND-U-H"
 
-        # Additional after H
-        for y in range(2, max_coord, 4):
-            coord_ancilla = complex(y, 0)
-            qubit_coords[coord_ancilla] = "Z-STAB-BOUND-U-H"
+        # Check imaginary offset
+        elif offset.imag != 0:
+            # Z-boundary stabilizers
+            for y in range(4, max_coord, 4):
+                coord_ancilla = complex(y, max_coord + offset.imag)
+                qubit_coords[coord_ancilla] = "X-STAB-BOUND-B"
+                coord_ancilla = complex(max_coord, y + offset.imag)
+                qubit_coords[coord_ancilla] = "X-STAB-BOUND-R"
+                coord_ancilla = complex(y, 0 + offset.imag)
+                qubit_coords[coord_ancilla] = "Z-STAB-BOUND-U"
+                coord_ancilla = complex(0, y + offset.imag)
+                qubit_coords[coord_ancilla] = "Z-STAB-BOUND-L"
+
+            # Additional after H
+            for y in range(2, max_coord, 4):
+                coord_ancilla = complex(max_coord, y + offset.imag)
+                qubit_coords[coord_ancilla] = "X-STAB-BOUND-R-H"
+                coord_ancilla = complex(y, 0 + offset.imag)
+                qubit_coords[coord_ancilla] = "Z-STAB-BOUND-U-H"
+
 
 def _needs_flip(state_init: str, 
                 log_obs: str, 
@@ -168,9 +202,13 @@ def rotated_surface_code(distance: int,
     """
     
     if is_y:
-        _add_boundary_labels(distance, qubit_coords, y_basis = True)
+        _add_boundary_labels(distance= distance,
+                             qubit_coords= qubit_coords, 
+                             y_basis = True)
     else:
-        _add_boundary_labels(distance, qubit_coords, y_basis = False)
+        _add_boundary_labels(distance= distance,
+                             qubit_coords= qubit_coords, 
+                             y_basis = False)
 
     ###############################################
     # 3. Indexing All Qubits From given Coordinates
@@ -220,7 +258,7 @@ def rotated_surface_code(distance: int,
 
     # Check whether we need Y basis initilization
     if is_y:
-        initial_circuit = y_initial(lct = lct, patches = patches, cfg = cfg, noise = noise)
+        initial_circuit = y_initial(lct = lct, patch = patches["patch"], cfg = cfg, noise = noise)
 
     else:
         initial_circuit = initial(lct = lct, patches = patches, cfg = cfg, noise = noise)
@@ -230,9 +268,9 @@ def rotated_surface_code(distance: int,
     ################################
 
     if is_y:
-        repeat_circ = y_repetition_circ(lct = lct, patches = patches, cfg = cfg, noise = noise)
+        repeat_circ = y_repetition_circ(lct = lct, patch = patches["patch"], cfg = cfg, noise = noise)
         
-        switch_circ = y_switch_circ(lct = lct, patches = patches, cfg = cfg, noise = noise)
+        switch_circ = y_switch_circ(lct = lct, patch = patches["patch"], cfg = cfg, noise = noise)
 
         initial_circuit += repeat_circ
         initial_circuit += switch_circ       
@@ -283,7 +321,7 @@ def rotated_surface_code(distance: int,
     ##################################
 
     else:
-        y_memory = y_repetition_circ(lct = lct, patches = patches, cfg = cfg, noise = noise, memory_round= True)
+        y_memory = y_repetition_circ(lct = lct, patch = patches["patch"], cfg = cfg, noise = noise, memory_round= True)
 
         state_init_circuit += initial_circuit
         state_init_circuit += y_memory
@@ -348,7 +386,7 @@ def rotated_surface_code(distance: int,
             # Y ONLY: Adding needed y_inital rounds in order top guarentee faul tolerance
             #############################################################################
 
-            final_measurement = y_repetition_circ(lct = lct, patches = patches, cfg = cfg, noise = noise, ft_round = True)
+            final_measurement = y_repetition_circ(lct = lct, patch = patches["patch"], cfg = cfg, noise = noise, ft_round = True)
             state_init_circuit += final_measurement
 
         # Calc the measurement rec pos for the X/Z Basis measruement

@@ -408,6 +408,8 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
     # Defining Logical Observables
     ##############################
 
+    #-----------------------ONLY-X-----------------------------
+
     if flow == "X -> XX":
             
         if control_state_init in {"X+", "X-"}:
@@ -426,6 +428,25 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
 
                 for rec_pos, index in enumerate(data_control + data_target):
                     if index in log_x_ct:
+                        tar_rec.append(rec_pos)
+
+                measure_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data_control + data_target) + k) for k in tar_rec], 0)
+
+    if flow == "XX -> X":
+            
+        if control_state_init in {"X+", "X-"}:
+            if target_state_init in {"X+", "X-"}:
+
+                # Control stabilized by x logical
+                log_x_c = []
+
+                for imag in range(((distance * 2) + 1), (distance * 4), 2):
+                    log_x_c.append(q2i[1 + imag*1j])
+
+                tar_rec = []
+
+                for rec_pos, index in enumerate(data_control + data_target):
+                    if index in log_x_c:
                         tar_rec.append(rec_pos)
 
                 measure_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data_control + data_target) + k) for k in tar_rec], 0)
@@ -449,6 +470,8 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
 
                 measure_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data_control + data_target) + k) for k in tar_rec], 0)
 
+    #--------------------------ONLY-Z----------------------------
+
     elif flow == "Z -> ZZ":
 
         if control_state_init in {"Z0", "Z1"}:
@@ -471,6 +494,25 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
 
                 measure_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(- len(data_control + data_target) + k) for k in tar_rec], 0)
 
+    elif flow == "ZZ -> Z":
+
+        if control_state_init in {"Z0", "Z1"}:
+            if target_state_init in {"Z0", "Z1"}:
+
+                # Control stabilized by x logical
+                log_z_t = []
+
+                for real in range(((distance * 2) + 1), (distance * 4), 2):
+                    log_z_t.append(q2i[real + 1j])
+
+                tar_rec = []
+
+                for rec_pos, index in enumerate(data_control + data_target):
+                    if index in log_z_t:
+                        tar_rec.append(rec_pos)
+
+                measure_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(- len(data_control + data_target) + k) for k in tar_rec], 0)
+
     elif flow == "Z -> Z":
 
         if control_state_init in {"Z0", "Z1"}:
@@ -486,6 +528,31 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
 
                 for rec_pos, index in enumerate(data_control + data_target):
                     if index in log_z_c:
+                        tar_rec.append(rec_pos)
+
+                measure_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(- len(data_control + data_target) + k) for k in tar_rec], 0)
+
+    #-----------------------ONLY-ZX-MIX
+
+    elif flow == "ZX -> ZX":
+
+        if control_state_init in {"Z0", "Z1"}:
+            if target_state_init in {"X+", "X-"}:
+
+                # Control stabilized by x logical
+                combined_log_xz = []
+
+                for real in range(1, (distance * 2), 2):
+                    combined_log_xz.append(q2i[real + ((distance * 2) + 1) * 1j])
+
+                # Target stabilized by x logical
+                for imag in range(1, (distance * 2), 2):
+                    combined_log_xz.append(q2i[((distance * 2) + 1) + imag*1j])
+
+                tar_rec = []
+
+                for rec_pos, index in enumerate(data_control + data_target):
+                    if index in combined_log_xz:
                         tar_rec.append(rec_pos)
 
                 measure_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(- len(data_control + data_target) + k) for k in tar_rec], 0)

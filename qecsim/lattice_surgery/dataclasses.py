@@ -11,6 +11,15 @@ Pair  = Tuple[Coord, Coord]
 #--------------------------
 
 @dataclass
+class NoiseModel:
+    """Group all noise probabilites used by sub-builders"""
+    before_round_depol: float = 0.0
+    before_m_flip_prob: float = 0.0
+    after_r_flip: float = 0.0
+    after_c_depol_prob: float = 0.0
+
+
+@dataclass
 class Config:
     """Non tunable init setting get passed as *cfg*"""
     distance : int

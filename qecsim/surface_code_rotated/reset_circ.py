@@ -10,7 +10,9 @@ def reset(*,
         lct: Context, 
         patches: dict[str, Patch], 
         cfg: Config,
-        logical_h: bool) -> CircuitResult:
+        logical_h: bool = False,
+        skip_coords: bool = False,
+        offset: complex = 0 + 0j) -> CircuitResult:
     
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -62,8 +64,9 @@ def reset(*,
     #-----BUILDING-INITILIZATION-CIRCUIT----
 
     #Appending Coords
-    for q, i in q2i.items():
-        reset_circuit.append("QUBIT_COORDS", [i], [q.real, q.imag])
+    if not skip_coords:
+        for q, i in q2i.items():
+            reset_circuit.append("QUBIT_COORDS", [i], [q.real, q.imag])
 
     #########################
     #Appending Resets for 0/1
@@ -91,21 +94,12 @@ def reset(*,
             if not logical_h:
 
                 # Getting corresponding logical string and rec
-                log_x = []
-
-                for imag in range(1, (distance * 2), 2):
-                    log_x.append(q2i[1 + imag*1j])
+                log_x = _logical_x_indices()
 
                 # XORing the observable away
                 reset_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in log_x], 0)
 
         if log_obs == "Y":
-
-            # Getting corresponding logical string and rec
-            log_z = []
-
-            for real in range(1, (distance * 2), 2):
-                log_z.append(q2i[real + 1j])
 
             # XORing the observable away
             reset_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in _logical_y_indices()[0]] + 
@@ -141,21 +135,12 @@ def reset(*,
             if not logical_h:
 
                 # Getting corresponding logical string and rec
-                log_z = []
-
-                for real in range(1, (distance * 2), 2):
-                    log_z.append(q2i[real + 1j])
+                log_z = _logical_z_indices()
 
                 # XORing the observable away
                 reset_circuit.append("OBSERVABLE_INCLUDE", [f"Z{index}" for index in log_z], 0)
 
         if log_obs == "Y":
-
-            # Getting corresponding logical string and rec
-            log_z = []
-
-            for real in range(1, (distance * 2), 2):
-                log_z.append(q2i[real + 1j])
 
             # XORing the observable away
             reset_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in _logical_y_indices()[0]] + 
@@ -182,7 +167,7 @@ def reset(*,
         # Calc threshold for diagonal cut        
         s0 = (min(xs)+max(xs))/2 + (min(ys)+max(ys))/2
 
-        skip_coord = 1 + 1j
+        skip_coord = 1 + 1j + offset
 
         for data_index in data:
             c = i2q[data_index]
@@ -190,7 +175,7 @@ def reset(*,
                 continue
             
             # Diagonal Cut
-            if (c.real + c.imag) >= s0:
+            if (c.real - offset.real + c.imag - offset.imag) >= s0:
                 data_rz.append(q2i[c])
             else:
                 data_rx.append(q2i[c])

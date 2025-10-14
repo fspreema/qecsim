@@ -1,15 +1,18 @@
 from typing import Dict, Tuple, Mapping
+from tqecd import annotate_detectors_automatically
 import stim
-from dataclasses import dataclass
-from .dataclasses import Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext
+from .cx_builder import cx_builder
+from .dataclasses import Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext, NoiseModel
 
 Coord = complex
 
 __all__ = ["initial"]
 
-def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Target, Patch_Control, Patch_Surgery], 
-            cfg : Config, before_round_depol : float, before_m_flip_prob : float, 
-            after_r_flip : float, after_c_depol_prob : float) -> stim.Circuit:
+def initial(*, 
+            lct: LatticeContext, 
+            patches: dict[str, Patch_Ancilla, Patch_Target, Patch_Control, Patch_Surgery], 
+            cfg: Config, 
+            noise: NoiseModel) -> stim.Circuit:
     
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -120,24 +123,11 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     ########################################################################
     
     init_patterns = {
-    ("Z0", "Z0"): [("RX", data_ancilla)],
-    ("Z0", "Z1"): [("RX", data_ancilla)],
-    ("Z0", "X+"): [("RX", data_ancilla)],
-    ("Z0", "X-"): [("RX", data_ancilla)],
-    ("Z1", "Z0"): [("RX", data_ancilla)],
-    ("Z1", "Z1"): [("RX", data_ancilla)],
-    ("Z1", "X+"): [("RX", data_ancilla)],
-    ("Z1", "X-"): [("RX", data_ancilla)],
-    ("X+", "Z0"): [("RX", data_ancilla)],
-    ("X+", "Z1"): [("RX", data_ancilla)],
-    ("X+", "X+"): [("RX", data_ancilla)],
-    ("X+", "X-"): [("RX", data_ancilla)],
-    ("X-", "Z0"): [("RX", data_ancilla)],
-    ("X-", "Z1"): [("RX", data_ancilla)],
-    ("X-", "X+"): [("RX", data_ancilla)],
-    ("X-", "X-"): [("RX", data_ancilla)],
+        (a, b): [("RX", data_ancilla)]
+        for a in ["Z0", "Z1", "X+", "X-", "Y+", "Y-"]
+        for b in ["Z0", "Z1", "X+", "X-", "Y+", "Y-"]
     }
-    
+
     # Apply the initialization pattern
     key = (control_state_init, target_state_init)
 
@@ -148,11 +138,19 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         initial_circuit.append(gate, qubits)
 
     #-------Adding Before Round Data Depol.------------
-    if before_round_depol > 0:
-        initial_circuit.append("DEPOLARIZE1", data_ancilla + data_control + data_target, before_round_depol)
+    if noise.before_round_depol > 0:
+        initial_circuit.append("DEPOLARIZE1", data_ancilla + data_control + data_target, noise.before_round_depol)
     #--------------------------------------------------
-    
-    initial_circuit.append("TICK")
+
+    # Adding reset for the y basis initilization
+    if control_state_init in {"Y+", "Y-"}:
+        initial_circuit.append("R", x_stab_index_control + z_stab_index_control)
+        initial_circuit.append("TICK")
+    elif target_state_init in {"Y+", "Y-"}:
+        initial_circuit.append("R", x_stab_index_target + z_stab_index_target)
+        initial_circuit.append("TICK")
+    else:
+        initial_circuit.append("TICK")
     
     #Adding h gate for X stabilizers -> Filtering out double coords
     combined_x_stab : list = []
@@ -163,8 +161,8 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     initial_circuit.append("H", combined_x_stab)
 
     #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-        initial_circuit.append("DEPOLARIZE1", combined_x_stab, after_c_depol_prob)
+    if noise.after_c_depol_prob > 0:
+        initial_circuit.append("DEPOLARIZE1", combined_x_stab, noise.after_c_depol_prob)
     #-----------------------------------------------
 
     initial_circuit.append("TICK")
@@ -173,129 +171,42 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     # CX Operations
     ####################################################
 
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "1-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            initial_circuit.append("CX", index_pairs)
-
-    #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "1-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                initial_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
-    #-----------------------------------------------
-
-    initial_circuit.append("TICK")
-            
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "2-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            initial_circuit.append("CX", index_pairs)
-
-    #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "2-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                initial_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
-    #-----------------------------------------------
-
-    initial_circuit.append("TICK")
-
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "3-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            initial_circuit.append("CX", index_pairs)
-
-    #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "3-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                initial_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
-    #-----------------------------------------------
-    
-    initial_circuit.append("TICK")
-        
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "4-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            initial_circuit.append("CX", index_pairs)
-
-    #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "4-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                initial_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
-    #-----------------------------------------------
+    cx_builder(q2i= q2i,
+               stab_to_data= stab_to_data,
+               circuit= initial_circuit,
+               noise= noise)
 
     #Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!):
     initial_circuit.append("TICK")
     initial_circuit.append("H", x_stab_index_ancilla)
 
     #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-        initial_circuit.append("DEPOLARIZE1", x_stab_index_ancilla, after_c_depol_prob)
+    if noise.after_c_depol_prob > 0:
+        initial_circuit.append("DEPOLARIZE1", x_stab_index_ancilla, noise.after_c_depol_prob)
     #-----------------------------------------------
 
     initial_circuit.append("TICK")
 
     #-------Adding Measurement Flip--------------------
-    if before_m_flip_prob > 0:
-        initial_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, before_m_flip_prob)
+    if noise.before_m_flip_prob > 0:
+        initial_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, noise.before_m_flip_prob)
     #--------------------------------------------------
 
-    initial_circuit.append("MR", x_stab_index_ancilla + z_stab_index_ancilla)
+    initial_circuit.append("M", x_stab_index_ancilla + z_stab_index_ancilla)
+    initial_circuit.append("TICK")
+    initial_circuit.append("R", x_stab_index_ancilla + z_stab_index_ancilla)
 
     #-------Adding-After-Reset-Flip-Prob.------------
-    if after_r_flip > 0:
-        initial_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, after_r_flip)
+    if noise.after_r_flip > 0:
+        initial_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, noise.after_r_flip)
     #------------------------------------------------
 
     initial_circuit.append("TICK")
     initial_circuit.append("H", x_stab_boundary_b_index_ancilla)
 
     #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-        initial_circuit.append("DEPOLARIZE1", x_stab_boundary_b_index_ancilla, after_c_depol_prob)
+    if noise.after_c_depol_prob > 0:
+        initial_circuit.append("DEPOLARIZE1", x_stab_boundary_b_index_ancilla, noise.after_c_depol_prob)
     #-----------------------------------------------
 
     initial_circuit.append("TICK")
@@ -316,58 +227,19 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
             pos_to_index_ancilla_z.append([pos, index])
 
     #Adding the needed Detectors
-    for index_pos in pos_to_index_ancilla_x:
-        current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
-        q_index = index_pos[1]
-        initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+    if control_state_init in {"Z0", "Z1", "X+", "X-"} and target_state_init in {"Z0", "Z1", "X+", "X-"}:
+        for index_pos in pos_to_index_ancilla_x:
+            current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
+            q_index = index_pos[1]
+            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
 
 
     #Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "5-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            initial_circuit.append("CX", index_pairs)
-
-    #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "5-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                initial_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
-    #-----------------------------------------------
-
-    initial_circuit.append("TICK")
-
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "6-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            initial_circuit.append("CX", index_pairs)
-
-    #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "6-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                initial_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
-    #-----------------------------------------------
+    cx_builder(q2i= q2i,
+               stab_to_data= stab_to_data,
+               circuit= initial_circuit,
+               orders= ("5-CX", "6-CX"),
+               noise= noise)
 
     #All Stabilizers from the Target and Control Lattice
     control_target_stabs = x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
@@ -378,22 +250,24 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     initial_circuit.append("SHIFT_COORDS", arg = (0,0,1))
 
     #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-        initial_circuit.append("DEPOLARIZE1", x_stab_index_control +  x_stab_index_target, after_c_depol_prob)
+    if noise.after_c_depol_prob > 0:
+        initial_circuit.append("DEPOLARIZE1", x_stab_index_control +  x_stab_index_target, noise.after_c_depol_prob)
     #-----------------------------------------------
 
     initial_circuit.append("TICK")
 
     #-------Adding Measurement Flip--------------------
-    if before_m_flip_prob > 0:
-        initial_circuit.append("X_ERROR", control_target_stabs, before_m_flip_prob)
+    if noise.before_m_flip_prob > 0:
+        initial_circuit.append("X_ERROR", control_target_stabs, noise.before_m_flip_prob)
     #--------------------------------------------------
 
-    initial_circuit.append("MR", control_target_stabs)
+    initial_circuit.append("M", control_target_stabs)
+    initial_circuit.append("TICK")
+    initial_circuit.append("R", control_target_stabs)
 
     #-------Adding-After-Reset-Flip-Prob.------------
-    if after_r_flip > 0:
-        initial_circuit.append("X_ERROR", control_target_stabs, after_r_flip)
+    if noise.after_r_flip > 0:
+        initial_circuit.append("X_ERROR", control_target_stabs, noise.after_r_flip)
     #------------------------------------------------
 
     ################################################################
@@ -417,52 +291,48 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
 
         elif index in z_stab_index_target:
             pos_to_index_target_z.append([pos, index])
+
+    if target_state_init in {"Z0", "Z1", "X+", "X-"} and control_state_init in {"Z0", "Z1", "X+", "X-"}:
     
-    ####################################
-    # Implementing Detectors for Control
-    ####################################
+        ####################################
+        # Implementing Detectors for Control
+        ####################################
 
-    #Z-Basis (0/1 - state)
-    if control_state_init in {"Z0", "Z1"}:
+        #Z-Basis (0/1 - state)
+        if control_state_init in {"Z0", "Z1"}:
 
-        for index_pos in pos_to_index_control_z:
-            current_tar = index_pos[0] - len(control_target_stabs)
-            q_index = index_pos[1]
-            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
-    
-    #X-Basis (+/- - state)
-    elif control_state_init in {"X-", "X+"}:
-
-        for index_pos in pos_to_index_control_x:
-            current_tar = index_pos[0] - len(control_target_stabs)
-            q_index = index_pos[1]
-            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+            for index_pos in pos_to_index_control_z:
+                current_tar = index_pos[0] - len(control_target_stabs)
+                q_index = index_pos[1]
+                #initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
         
-    else:
-        raise ValueError("Not a valid Basis for initlization in the Control Lattice")
+        #X-Basis (+/- - state)
+        elif control_state_init in {"X-", "X+"}:
 
-    ########################################
-    # Implementing Detectors for Target
-    ########################################
+            for index_pos in pos_to_index_control_x:
+                current_tar = index_pos[0] - len(control_target_stabs)
+                q_index = index_pos[1]
+                #initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+            
+        ########################################
+        # Implementing Detectors for Target
+        ########################################
 
-    #Z-Basis (0/1 - state)
-    if target_state_init in {"Z0", "Z1"}:
-  
-        for index_pos in pos_to_index_target_z:
-            current_tar = index_pos[0] - len(control_target_stabs)
-            q_index = index_pos[1]
-            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+        #Z-Basis (0/1 - state)
+        if target_state_init in {"Z0", "Z1"}:
     
-    #X-Basis (+/- - state)
-    elif target_state_init in {"X-", "X+"}:
-
-        for index_pos in pos_to_index_target_x:
-            current_tar = index_pos[0] - len(control_target_stabs)
-            q_index = index_pos[1]
-            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+            for index_pos in pos_to_index_target_z:
+                current_tar = index_pos[0] - len(control_target_stabs)
+                q_index = index_pos[1]
+                #initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
         
-    else:
-        raise ValueError("Not a valid Basis for initlization in the Target Lattice")
+        #X-Basis (+/- - state)
+        elif target_state_init in {"X-", "X+"}:
+
+            for index_pos in pos_to_index_target_x:
+                current_tar = index_pos[0] - len(control_target_stabs)
+                q_index = index_pos[1]
+                #initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
     
     ###########################################
     # Adding Repeat Block
@@ -475,8 +345,8 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     initial_repeat_circuit.append("H", combined_x_stab)
 
     #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-        initial_repeat_circuit.append("DEPOLARIZE1", combined_x_stab, after_c_depol_prob)
+    if noise.after_c_depol_prob > 0:
+        initial_repeat_circuit.append("DEPOLARIZE1", combined_x_stab, noise.after_c_depol_prob)
     #-----------------------------------------------
 
     initial_repeat_circuit.append("TICK")
@@ -485,129 +355,42 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     # CX Operations
     ####################################################
 
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "1-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            initial_repeat_circuit.append("CX", index_pairs)
-
-    #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "1-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                initial_repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
-    #-----------------------------------------------
-
-    initial_repeat_circuit.append("TICK")
-            
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "2-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            initial_repeat_circuit.append("CX", index_pairs)
-
-    #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "2-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                initial_repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
-    #-----------------------------------------------
-
-    initial_repeat_circuit.append("TICK")
-
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "3-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            initial_repeat_circuit.append("CX", index_pairs)
-
-    #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "3-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                initial_repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
-    #-----------------------------------------------
-    
-    initial_repeat_circuit.append("TICK")
-        
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "4-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            initial_repeat_circuit.append("CX", index_pairs)
-
-    #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "4-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                initial_repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
-    #-----------------------------------------------
+    cx_builder(q2i= q2i,
+               stab_to_data= stab_to_data,
+               circuit= initial_repeat_circuit,
+               noise= noise)
 
     #Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!):
     initial_repeat_circuit.append("TICK")
     initial_repeat_circuit.append("H", x_stab_index_ancilla)
 
     #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-        initial_repeat_circuit.append("DEPOLARIZE1", x_stab_index_ancilla, after_c_depol_prob)
+    if noise.after_c_depol_prob > 0:
+        initial_repeat_circuit.append("DEPOLARIZE1", x_stab_index_ancilla, noise.after_c_depol_prob)
     #-----------------------------------------------
 
     initial_repeat_circuit.append("TICK")
 
     #-------Adding Measurement Flip--------------------
-    if before_m_flip_prob > 0:
-        initial_repeat_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, before_m_flip_prob)
+    if noise.before_m_flip_prob > 0:
+        initial_repeat_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, noise.before_m_flip_prob)
     #--------------------------------------------------
 
-    initial_repeat_circuit.append("MR", x_stab_index_ancilla + z_stab_index_ancilla)
+    initial_repeat_circuit.append("M", x_stab_index_ancilla + z_stab_index_ancilla)
+    initial_repeat_circuit.append("TICK")
+    initial_repeat_circuit.append("R", x_stab_index_ancilla + z_stab_index_ancilla)
 
     #-------Adding-After-Reset-Flip-Prob.------------
-    if after_r_flip > 0:
-        initial_repeat_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, after_r_flip)
+    if noise.after_r_flip > 0:
+        initial_repeat_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, noise.after_r_flip)
     #------------------------------------------------
 
     initial_repeat_circuit.append("TICK")
     initial_repeat_circuit.append("H", x_stab_boundary_b_index_ancilla)
 
     #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-        initial_repeat_circuit.append("DEPOLARIZE1", x_stab_boundary_b_index_ancilla, after_c_depol_prob)
+    if noise.after_c_depol_prob > 0:
+        initial_repeat_circuit.append("DEPOLARIZE1", x_stab_boundary_b_index_ancilla, noise.after_c_depol_prob)
     #-----------------------------------------------
 
     initial_repeat_circuit.append("TICK")
@@ -632,67 +415,29 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     -> Detectors on x and z stabs uncorrelated to the inital state
     """
 
-    #Adding the needed Detectors (X-Basis)
-    for index_pos in pos_to_index_ancilla_x:
-        current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
-        previous_tar = index_pos[0] - 2 * len(x_stab_index_ancilla + z_stab_index_ancilla) - len(control_target_stabs)
-        q_index = index_pos[1]
-        initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+    if control_state_init in {"Z0", "Z1", "X+", "X-"} and target_state_init in {"Z0", "Z1", "X+", "X-"}:
 
-    #Adding the needed Detectors (Z-Basis)
-    for index_pos in pos_to_index_ancilla_z:
-        current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
-        previous_tar = index_pos[0] - 2 * len(x_stab_index_ancilla + z_stab_index_ancilla) - len(control_target_stabs)
-        q_index = index_pos[1]
-        initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+        #Adding the needed Detectors (X-Basis)
+        for index_pos in pos_to_index_ancilla_x:
+            current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
+            previous_tar = index_pos[0] - 2 * len(x_stab_index_ancilla + z_stab_index_ancilla) - len(control_target_stabs)
+            q_index = index_pos[1]
+            #initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+
+        #Adding the needed Detectors (Z-Basis)
+        for index_pos in pos_to_index_ancilla_z:
+            current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
+            previous_tar = index_pos[0] - 2 * len(x_stab_index_ancilla + z_stab_index_ancilla) - len(control_target_stabs)
+            q_index = index_pos[1]
+            #initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
 
 
     #Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "5-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            initial_repeat_circuit.append("CX", index_pairs)
-
-    #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "5-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                initial_repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
-    #-----------------------------------------------
-
-    initial_repeat_circuit.append("TICK")
-
-    for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-        if order == "6-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            initial_repeat_circuit.append("CX", index_pairs)
-
-    #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-                
-        for coord_pairs, order in stab_to_data.items():
-   
-        #Parallel Implementation of CX
-            if order == "6-CX":
-                index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                initial_repeat_circuit.append("DEPOLARIZE2", index_pairs, after_c_depol_prob)
-    #-----------------------------------------------
+    cx_builder(q2i= q2i,
+               stab_to_data= stab_to_data,
+               circuit= initial_repeat_circuit,
+               orders= ("5-CX", "6-CX"),
+               noise= noise)
 
     #All Stabilizers from the Target and Control Lattice
     control_target_stabs = x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
@@ -703,22 +448,24 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
     initial_repeat_circuit.append("SHIFT_COORDS", arg=(0,0,1))
 
     #-------Adding-After-Clifford-Depol.------------
-    if after_c_depol_prob > 0:
-        initial_repeat_circuit.append("DEPOLARIZE1", x_stab_index_control +  x_stab_index_target, after_c_depol_prob)
+    if noise.after_c_depol_prob > 0:
+        initial_repeat_circuit.append("DEPOLARIZE1", x_stab_index_control +  x_stab_index_target, noise.after_c_depol_prob)
     #-----------------------------------------------
 
     initial_repeat_circuit.append("TICK")
 
     #-------Adding Measurement Flip--------------------
-    if before_m_flip_prob > 0:
-        initial_repeat_circuit.append("X_ERROR", control_target_stabs, before_m_flip_prob)
+    if noise.before_m_flip_prob > 0:
+        initial_repeat_circuit.append("X_ERROR", control_target_stabs, noise.before_m_flip_prob)
     #--------------------------------------------------
 
-    initial_repeat_circuit.append("MR", control_target_stabs)
+    initial_repeat_circuit.append("M", control_target_stabs)
+    initial_repeat_circuit.append("TICK")
+    initial_repeat_circuit.append("R", control_target_stabs)
 
     #-------Adding-After-Reset-Flip-Prob.------------
-    if after_r_flip > 0:
-        initial_repeat_circuit.append("X_ERROR", control_target_stabs, after_r_flip)
+    if noise.after_r_flip > 0:
+        initial_repeat_circuit.append("X_ERROR", control_target_stabs, noise.after_r_flip)
     #------------------------------------------------
 
     ################################################################
@@ -743,38 +490,41 @@ def initial(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Tar
         elif index in z_stab_index_target:
             pos_to_index_target_z.append([pos, index])
     
-    ####################################
-    # Implementing Detectors for Control
-    ####################################
-
-    for index_pos in pos_to_index_control_z:
-        current_tar = index_pos[0] - len(control_target_stabs)
-        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
-        q_index = index_pos[1]
-        initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
     
+    if control_state_init in {"Z0", "Z1", "X+", "X-"} and target_state_init in {"Z0", "Z1", "X+", "X-"}:
 
-    for index_pos in pos_to_index_control_x:
-        current_tar = index_pos[0] - len(control_target_stabs)
-        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
-        q_index = index_pos[1]
-        initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+        ####################################
+        # Implementing Detectors for Control
+        ####################################
 
-    ########################################
-    # Implementing Detectors for Target
-    ########################################
+        for index_pos in pos_to_index_control_z:
+            current_tar = index_pos[0] - len(control_target_stabs)
+            previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+            q_index = index_pos[1]
+            #initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+        
 
-    for index_pos in pos_to_index_target_z:
-        current_tar = index_pos[0] - len(control_target_stabs)
-        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
-        q_index = index_pos[1]
-        initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
-    
-    for index_pos in pos_to_index_target_x:
-        current_tar = index_pos[0] - len(control_target_stabs)
-        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
-        q_index = index_pos[1]
-        initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+        for index_pos in pos_to_index_control_x:
+            current_tar = index_pos[0] - len(control_target_stabs)
+            previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+            q_index = index_pos[1]
+            #initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+
+        ########################################
+        # Implementing Detectors for Target
+        ########################################
+
+        for index_pos in pos_to_index_target_z:
+            current_tar = index_pos[0] - len(control_target_stabs)
+            previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+            q_index = index_pos[1]
+            #initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+        
+        for index_pos in pos_to_index_target_x:
+            current_tar = index_pos[0] - len(control_target_stabs)
+            previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+            q_index = index_pos[1]
+            #initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
 
     initial_circuit += initial_repeat_circuit * (distance - 1)
 
