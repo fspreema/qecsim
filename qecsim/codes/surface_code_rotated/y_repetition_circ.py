@@ -1,6 +1,7 @@
 import stim
 import numpy as np
 from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, NoiseModel, CircuitResult
+from qecsim.core.cx_builder import cx_builder
 
 Coord = complex
 
@@ -129,35 +130,18 @@ def y_repetition_circ(*,
 
     #2) CX Operations
 
-    def _pairs_for(order: str) -> list[list[int]]:
-        # Return the Pairs needed at the current order
-        return [[q2i[cp[1]], q2i[cp[0]]] for cp, o in stab_to_data.items() if o == order]
-
-    def _append_by_order(op: str, order: str, noise: float = 0.0) -> None:
-        # Getting pair info
-        for pair in _pairs_for(order):
-            if not memory_round:
-                # Checking for upper corner CX and leave it out!
-                if y_index not in pair:
-                    #Adding Pair on Operation
-                    if op == "CX":
-                        before_round_circuit.append(op, pair)
-                    elif op == "DEPOLARIZE2":
-                        before_round_circuit.append(op, pair, noise)
-            else:
-                #Adding Pair on Operation
-                if op == "CX":
-                    before_round_circuit.append(op, pair)
-                elif op == "DEPOLARIZE2":
-                    before_round_circuit.append(op, pair, noise)
-
-
-    # Adding all the CX gates
-    for order in ("1-CX", "2-CX", "3-CX", "4-CX"):
-        _append_by_order("CX", order)
-        if noise.after_c_depol_prob > 0 and memory_round:
-            _append_by_order("DEPOLARIZE2", order, noise.after_c_depol_prob)
-        before_round_circuit.append("TICK")
+    if memory_round:
+        cx_builder(q2i= q2i,
+               stab_to_data= stab_to_data,
+               circuit= before_round_circuit,
+               noise= noise)
+    else:
+        cx_builder(q2i= q2i,
+               stab_to_data= stab_to_data,
+               circuit= before_round_circuit,
+               excluded_index= y_index,
+               noise= noise,
+               noise_overwrite= True)
 
     #-------Continue-Circuit------------
 
@@ -214,35 +198,18 @@ def y_repetition_circ(*,
 
     #2) CX Operations
 
-    def _pairs_for(order: str) -> list[list[int]]:
-        # Return the Pairs needed at the current order
-        return [[q2i[cp[1]], q2i[cp[0]]] for cp, o in stab_to_data.items() if o == order]
-
-    def _append_by_order(op: str, order: str, noise: float = 0.0) -> None:
-        # Getting pair info
-        for pair in _pairs_for(order):
-            if not memory_round:
-                # Checking for upper corner CX and leave it out!
-                if y_index not in pair:
-                    #Adding Pair on Operation
-                    if op == "CX":
-                        round_circuit.append(op, pair)
-                    elif op == "DEPOLARIZE2":
-                        round_circuit.append(op, pair, noise)
-            else:
-                #Adding Pair on Operation
-                if op == "CX":
-                    round_circuit.append(op, pair)
-                elif op == "DEPOLARIZE2":
-                    round_circuit.append(op, pair, noise)
-
-
-    # Adding all the CX gates
-    for order in ("1-CX", "2-CX", "3-CX", "4-CX"):
-        _append_by_order("CX", order)
-        if noise.after_c_depol_prob > 0 and memory_round:
-            _append_by_order("DEPOLARIZE2", order, noise.after_c_depol_prob)
-        round_circuit.append("TICK")
+    if memory_round:
+        cx_builder(q2i= q2i,
+               stab_to_data= stab_to_data,
+               circuit= round_circuit,
+               noise= noise)
+    else:
+        cx_builder(q2i= q2i,
+               stab_to_data= stab_to_data,
+               circuit= round_circuit,
+               excluded_index= y_index,
+               noise= noise,
+               noise_overwrite= True)
 
     #-------Continue-Circuit------------
 

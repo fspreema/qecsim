@@ -1,5 +1,6 @@
 import stim
 from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, NoiseModel, CircuitResult
+from qecsim.core.cx_builder import cx_builder
 
 Coord = complex
 
@@ -58,24 +59,13 @@ def y_switch_circ(*,
     pre_switch_circ.append("TICK")
 
     #2) CX Operations
-
-    def _pairs_for(order: str) -> list[list[int]]:
-        # Return the Pairs needed at the current order
-        return [[q2i[cp[1]], q2i[cp[0]]] for cp, o in stab_to_data.items() if o == order]
-
-    def _append_by_order(op: str, order: str, noise: float = 0.0) -> None:
-        # Getting pair info
-        for pair in _pairs_for(order):
-            # Checking for upper corner CX and leave it out!
-            if y_index not in pair:
-                #Adding Pair on Operation
-                if op == "CX":
-                    pre_switch_circ.append(op, pair)
-
     # Adding all the CX gates
-    for order in ("1-CX", "2-CX", "3-CX", "4-CX"):
-        _append_by_order("CX", order)
-        pre_switch_circ.append("TICK")
+    cx_builder(q2i= q2i,
+               stab_to_data= stab_to_data,
+               circuit= pre_switch_circ,
+               excluded_index= y_index,
+               noise= noise,
+               noise_overwrite= True)
 
     #-------Continue-Circuit------------
 
