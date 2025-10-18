@@ -1,6 +1,6 @@
 from itertools import chain
 import stim
-from .data_models import Config, Patch, Context, NoiseModel, CircuitResult
+from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, NoiseModel, CircuitResult
 
 Coord = complex
 

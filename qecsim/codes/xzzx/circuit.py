@@ -1,8 +1,8 @@
 import stim
 import numpy as np
 from typing import Dict, Tuple
-from .geometry import build_lattice
-from .stabilizers import populate_stab_to_data
+from qecsim.core.geometry import build_lattice
+from qecsim.core.stabilizers import populate_stab_to_data
 
 Coord = complex
 Label = str
@@ -129,7 +129,9 @@ def XZZX_code(distance: int, rounds : int, *, state_init: str, before_round_depo
     ###############################################################
     # 1. Build independent square patches (using geometry function)
     ###############################################################
-    qubit_coords: Dict[Coord, Label] = build_lattice(distance, state_init = state_init)
+    # Use the canonical core geometry builder. Pass state_init positionally
+    # to match the existing xzzx API (state_init in {'Ver','Hor'}).
+    qubit_coords: Dict[Coord, Label] = build_lattice(distance, state_init)
 
     #######################################################################################
     # 2. Insert boundary & surgery labels (Only get activated in splitting/merging process)

@@ -1,6 +1,6 @@
 import stim
 from typing import Iterable
-from .dataclasses import NoiseModel
+from qecsim.core.data_models import NoiseModel
 
 __all__ = ["cx_builder"]
 

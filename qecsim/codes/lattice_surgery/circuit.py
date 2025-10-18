@@ -3,14 +3,14 @@ from typing import Dict, Tuple
 
 from tqecd import annotate_detectors_automatically
 
-from .geometry import build_lattice
-from .stabilizers import populate_stab_to_data
+from qecsim.core.geometry import build_lattice
+from qecsim.core.stabilizers import populate_stab_to_data
 from .reset_circ import reset
 from .initial import initial
 from .merging import merge
 from .splitting import split
 from.final_m_circuit import final_m
-from .dataclasses import Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext, NoiseModel
+from qecsim.core.data_models import ConfigLatticeSurgery as Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext, NoiseModel
 
 Coord = complex
 Label = str

@@ -1,6 +1,6 @@
 import stim
 import numpy as np
-from .data_models import Config, Patch, Context, CircuitResult
+from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, CircuitResult
 
 Coord = complex
 

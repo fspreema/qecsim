@@ -3,17 +3,17 @@ import stim
 
 from tqecd import annotate_detectors_automatically
 
-from .dataclasses import Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext, NoiseModel
+from qecsim.core.data_models import ConfigLatticeSurgery as Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext, NoiseModel
 
 # Import Part of Y Surface Code Init
-from qecsim.surface_code_rotated.y_initial import y_initial
-from qecsim.surface_code_rotated.y_repetition_circ import y_repetition_circ
-from qecsim.surface_code_rotated.y_switch import y_switch_circ
-from qecsim.surface_code_rotated.stabilizers import populate_stab_to_data
-from qecsim.surface_code_rotated.circuit import _add_boundary_labels
-from qecsim.surface_code_rotated.data_models import Context, Config, Patch
-from qecsim.lattice_surgery.geometry import build_lattice
-from qecsim.surface_code_rotated.reset_circ import reset as y_reset
+from qecsim.codes.surface_code_rotated.y_initial import y_initial
+from qecsim.codes.surface_code_rotated.y_repetition_circ import y_repetition_circ
+from qecsim.codes.surface_code_rotated.y_switch import y_switch_circ
+from qecsim.core.stabilizers import populate_stab_to_data
+from qecsim.codes.surface_code_rotated.circuit import _add_boundary_labels
+from qecsim.core.data_models import Context, ConfigSurface as Config, Patch
+from qecsim.core.geometry import build_lattice
+from qecsim.codes.surface_code_rotated.reset_circ import reset as y_reset
 
 Coord = complex
 Label = str

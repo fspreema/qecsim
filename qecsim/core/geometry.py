@@ -9,7 +9,7 @@ __all__ = ["build_lattice"]
 # Public Function
 # -----------------------
 
-def build_lattice(distance: int, *, offset: Coord = 0 + 0j, starting_stabilizer_x: bool = True) -> Dict[Coord, Label]:
+def build_lattice(distance: int, state_init: str | None = None, *, offset: Coord = 0 + 0j, starting_stabilizer_x: bool = True) -> Dict[Coord, Label]:
     """
     Adding the geometry of the Lattice Surgery as a helper function:
         ->Returns the {coords: label} dict used for building the qubit coords
@@ -32,6 +32,9 @@ def build_lattice(distance: int, *, offset: Coord = 0 + 0j, starting_stabilizer_
     if distance <= 2 or distance % 2 == 0:
         raise ValueError("distance must be odd and ≥3")
 
+    if state_init is not None and state_init not in {"Ver", "Hor"}:
+        raise ValueError("state_init must be either 'Ver', 'Hor', or None")
+
     ox, oy = int(offset.real), int(offset.imag)
 
     qubit_coords: Dict[Coord, Label] = {}
@@ -39,23 +42,40 @@ def build_lattice(distance: int, *, offset: Coord = 0 + 0j, starting_stabilizer_
 
     for real in range(distance * 2):
         stab_counter = 0
+        data_counter = 0
 
         for imag in range(distance * 2):
+            coord = complex(real + ox, imag + oy)
+
             # ---------------------- DATA qubits ---------------------------
             if real % 2 != 0 and imag % 2 != 0:
-                coord = complex(real + ox, imag + oy)
-                qubit_coords[coord] = "DATA"
+                if state_init is None:
+                    qubit_coords[coord] = "DATA"
+                else:
+                    if start_with_x:
+                        use_x = data_counter % 2 == 0
+                    else:
+                        use_x = data_counter % 2 == 1
+
+                    if state_init == "Ver":
+                        qubit_coords[coord] = "DATA_X" if use_x else "DATA_Z"
+                    else:  # Hor
+                        qubit_coords[coord] = "DATA_Z" if use_x else "DATA_X"
+
+                    data_counter += 1
 
             # ----------------- Interior Stabilisers ----------------------
             elif real % 2 == 0 and imag % 2 == 0 and real != 0 and imag != 0:
-                coord = complex(real + ox, imag + oy)
-
                 if start_with_x:
                     use_x = stab_counter % 2 == 0
                 else:
                     use_x = stab_counter % 2 == 1
 
-                qubit_coords[coord] = "X-STAB" if use_x else "Z-STAB"
+                if state_init is None:
+                    qubit_coords[coord] = "X-STAB" if use_x else "Z-STAB"
+                else:
+                    qubit_coords[coord] = "STAB-Ver" if use_x else "STAB-Hor"
+
                 stab_counter += 1
 
         # flip phase after each even row (except first)
@@ -63,11 +83,3 @@ def build_lattice(distance: int, *, offset: Coord = 0 + 0j, starting_stabilizer_
             start_with_x = not start_with_x
 
     return qubit_coords
-
-# Demo
-if __name__ == "__main__":
-    patch = build_lattice(3)
-    print("Coords:", len(patch))
-    # print first 5 entries to show format
-    for k, v in patch.items():
-        print(k, v)

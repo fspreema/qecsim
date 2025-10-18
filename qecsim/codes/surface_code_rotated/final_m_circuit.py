@@ -1,5 +1,5 @@
 import stim
-from .data_models import Config, Patch, Context, CircuitResult, NoiseModel
+from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, CircuitResult, NoiseModel
 
 __all__ = ["final_m"]
 

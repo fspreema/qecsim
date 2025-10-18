@@ -1,8 +1,8 @@
 from typing import Dict, Tuple, Mapping
 import stim
 from dataclasses import dataclass
-from .dataclasses import Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext
-from .stabilizers import populate_stab_to_data
+from qecsim.core.data_models import ConfigLatticeSurgery as Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext
+from qecsim.core.stabilizers import populate_stab_to_data
 
 Coord = complex
 

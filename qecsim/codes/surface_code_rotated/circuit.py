@@ -2,8 +2,8 @@ import stim
 
 from tqecd import annotate_detectors_automatically
 
-from qecsim.lattice_surgery.geometry import build_lattice
-from .stabilizers import populate_stab_to_data
+from qecsim.core.geometry import build_lattice
+from qecsim.core.stabilizers import populate_stab_to_data
 from .initial import initial
 from .repetition_circ import repetition_circ
 from .reset_circ import reset
@@ -14,7 +14,7 @@ from .y_initial import y_initial
 from .y_repetition_circ import y_repetition_circ
 from .y_switch import y_switch_circ
 from .y_rev_switch_circ import y_rev_switch_circ
-from .data_models import Config, Patch, Context, NoiseModel, CircuitResult
+from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, NoiseModel, CircuitResult
 
 Coord = complex
 Label = str
