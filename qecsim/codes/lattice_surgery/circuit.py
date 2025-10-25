@@ -182,7 +182,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
                          stab_to_data_surgery_at= stab_to_data_surgery_at,
                          surgery_coords= qubit_coords_surgery)
     
-    patches : Dict[str, Patch_Ancilla, Patch_Target, Patch_Control, Patch_Surgery] = {
+    patches: dict[str, Patch_Ancilla | Patch_Target | Patch_Control | Patch_Surgery] = {
         "ancilla": Patch_Ancilla.from_coords(qubit_coords_ancilla, q2i),
         "target": Patch_Target.from_coords(qubit_coords_target, q2i),
         "control": Patch_Control.from_coords(qubit_coords_control, q2i),
@@ -206,12 +206,12 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     if target_state_init in {"Y+", "Y-"} or control_state_init in {"Y+", "Y-"}:
 
         # Adding y basis initilization circuit before normal initilization
-        initial_circuit = stim.Circuit()
-        initial_circuit += y_circ
-        initial_circuit += initial(lct = lct, patches = patches, cfg = cfg, noise = noise)
+        flow_circuit = stim.Circuit()
+        flow_circuit += y_circ
+        flow_circuit += initial(lct = lct, patches = patches, cfg = cfg, noise = noise)
 
     else:
-        initial_circuit = initial(lct = lct, patches = patches, cfg = cfg, noise = noise)
+        flow_circuit = initial(lct = lct, patches = patches, cfg = cfg, noise = noise)
    
     #############################################
     # 6. Building Merging Ancilla Control Circuit
@@ -241,16 +241,10 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     # 8. Creating Clipped Circuit (Without State intilization and final measurement)
     ################################################################################
 
-    """
-    Still need to add the len(stabs...) in the AT merge if the circuit is runs after AC!!
-    -> Currently only constructed to look at the detectors right behind one another in the circuit!
-    -> Maybe not??
-    """
-
-    initial_circuit += merged_circuit_AC
-    initial_circuit += split_circuit_AC
-    initial_circuit += merged_circuit_AT
-    initial_circuit += split_circuit_AT
+    flow_circuit += merged_circuit_AC
+    flow_circuit += split_circuit_AC
+    flow_circuit += merged_circuit_AT
+    flow_circuit += split_circuit_AT
 
     #######################################################################
     # 9. Retrieving final Circuit with postion of parity ZZ XX Measurements
@@ -295,7 +289,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
                 right = '*'.join(f"X{i}" for i in c_log_x + t_log_x)
                 result = f"{left} -> {right}"
 
-                (included_measurements,) = initial_circuit.solve_flow_measurements([
+                (included_measurements,) = flow_circuit.solve_flow_measurements([
                 stim.Flow(result),
                 ])
 
@@ -313,7 +307,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
                 right = '*'.join(f"X{i}" for i in c_log_x)
                 result = f"{left} -> {right}"
 
-                (included_measurements,) = initial_circuit.solve_flow_measurements([
+                (included_measurements,) = flow_circuit.solve_flow_measurements([
                 stim.Flow(result),
                 ])
 
@@ -331,7 +325,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
                 right = '*'.join(f"X{i}" for i in t_log_x)
                 result = f"{left} -> {right}"
 
-                (included_measurements,) = initial_circuit.solve_flow_measurements([
+                (included_measurements,) = flow_circuit.solve_flow_measurements([
                 stim.Flow(result),
                 ])
 
@@ -351,7 +345,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
                 right = '*'.join(f"Z{i}" for i in c_log_z + t_log_z)
                 result = f"{left} -> {right}"
 
-                (included_measurements,) = initial_circuit.solve_flow_measurements([
+                (included_measurements,) = flow_circuit.solve_flow_measurements([
                 stim.Flow(result),
                 ])
 
@@ -369,7 +363,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
                 right = '*'.join(f"Z{i}" for i in t_log_z)
                 result = f"{left} -> {right}"
 
-                (included_measurements,) = initial_circuit.solve_flow_measurements([
+                (included_measurements,) = flow_circuit.solve_flow_measurements([
                 stim.Flow(result),
                 ])
 
@@ -387,7 +381,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
                 right = '*'.join(f"Z{i}" for i in c_log_z)
                 result = f"{left} -> {right}"
 
-                (included_measurements,) = initial_circuit.solve_flow_measurements([
+                (included_measurements,) = flow_circuit.solve_flow_measurements([
                 stim.Flow(result),
                 ])
 
@@ -407,7 +401,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
                 right = '*'.join([f"Z{i}" for i in c_log_z] + [f"X{i}" for i in t_log_x])
                 result = f"{left} -> {right}"
 
-                (included_measurements,) = initial_circuit.solve_flow_measurements([
+                (included_measurements,) = flow_circuit.solve_flow_measurements([
                 stim.Flow(result),
                 ])
 
@@ -423,16 +417,30 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
         if control_state_init in {"Z0", "Z1", "X+", "X-"}:
             if target_state_init in {"Y+", "Y-"}:
 
-                left = '*'.join([f"Z{i}" for i in c_log_z] + [f"X{i}" for i in t_log_x])
-                right = '*'.join([f"Z{i}" for i in c_log_z] + [f"X{i}" for i in t_log_x])
-                result = f"{left} -> {right}"
+                logical_x_string = []
+                logical_z_string = []
+                logical_y_string = distance * 4 - 1 + (distance * 2 - 1) * 1j
 
-                #(included_measurements,) = initial_circuit.solve_flow_measurements([
-                #stim.Flow(result),
-                #])
+                # Finding logical Strings for x and z
+                for imag in range(1, (distance * 2) - 1, 2):
+                    logical_x_string.append(q2i[distance * 4 - 1 + imag * 1j])
 
-                for flows in initial_circuit.flow_generators():
+                for real in range(1, (distance * 2) - 1, 2):
+                    logical_z_string.append(q2i[real + distance * 2 + (distance * 2 - 1) * 1j])
+
+                # Adding logical z string
+                right = '*'.join([f"Z{idz}" for j, idz in enumerate(logical_z_string)] + 
+                                        [f"Y{q2i[logical_y_string]}"] + 
+                                        [f"X{idx}" for j, idx in enumerate(logical_x_string)])
+                
+                result = f"{1} -> {right}"
+
+                for flows in flow_circuit.flow_generators():
                     print(flows)
+
+                (included_measurements,) = flow_circuit.solve_flow_measurements([
+                flow_circuit.flow_generators()[-8],
+                ])
 
             else:
                 return ValueError("Invalid target state")
@@ -448,12 +456,16 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
                 right = '*'.join([f"Z{i}" for i in c_log_z] + [f"X{i}" for i in t_log_x])
                 result = f"{left} -> {right}"
 
-                #(included_measurements,) = initial_circuit.solve_flow_measurements([
+                #(included_measurements,) = flow_circuit.solve_flow_measurements([
                 #stim.Flow(result),
                 #])
 
-                for flows in initial_circuit.flow_generators():
+                for flows in flow_circuit.flow_generators():
                     print(flows)
+
+                (included_measurements,) = flow_circuit.solve_flow_measurements([
+                flow_circuit.flow_generators()[-37],
+                ])
 
             else:
                 return ValueError("Invalid target state")
@@ -469,11 +481,11 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
                 right = '*'.join([f"Z{i}" for i in c_log_z] + [f"X{i}" for i in t_log_x])
                 result = f"{left} -> {right}"
 
-                #(included_measurements,) = initial_circuit.solve_flow_measurements([
+                #(included_measurements,) = flow_circuit.solve_flow_measurements([
                 #stim.Flow(result),
                 #])
 
-                for flows in initial_circuit.flow_generators():
+                for flows in flow_circuit.flow_generators():
                     print(flows)
 
             else:
@@ -490,11 +502,11 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
                 right = '*'.join([f"Z{i}" for i in c_log_z] + [f"X{i}" for i in t_log_x])
                 result = f"{left} -> {right}"
 
-                #(included_measurements,) = initial_circuit.solve_flow_measurements([
+                #(included_measurements,) = flow_circuit.solve_flow_measurements([
                 #stim.Flow(result),
                 #])
 
-                for flows in initial_circuit.flow_generators():
+                for flows in flow_circuit.flow_generators():
                     print(flows)
 
             else:
@@ -511,11 +523,11 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
                 right = '*'.join([f"Z{i}" for i in c_log_z] + [f"X{i}" for i in t_log_x])
                 result = f"{left} -> {right}"
 
-                #(included_measurements,) = initial_circuit.solve_flow_measurements([
+                #(included_measurements,) = flow_circuit.solve_flow_measurements([
                 #stim.Flow(result),
                 #])
 
-                for flows in initial_circuit.flow_generators():
+                for flows in flow_circuit.flow_generators():
                     print(flows)
 
             else:
@@ -532,11 +544,11 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
                 right = '*'.join([f"Z{i}" for i in c_log_z] + [f"X{i}" for i in t_log_x])
                 result = f"{left} -> {right}"
 
-                #(included_measurements,) = initial_circuit.solve_flow_measurements([
+                #(included_measurements,) = flow_circuit.solve_flow_measurements([
                 #stim.Flow(result),
                 #])
 
-                for flows in initial_circuit.flow_generators():
+                for flows in flow_circuit.flow_generators():
                     print(flows)
 
             else:
@@ -553,11 +565,11 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
                 right = '*'.join([f"Z{i}" for i in c_log_z] + [f"X{i}" for i in t_log_x])
                 result = f"{left} -> {right}"
 
-                #(included_measurements,) = initial_circuit.solve_flow_measurements([
+                #(included_measurements,) = flow_circuit.solve_flow_measurements([
                 #stim.Flow(result),
                 #])
 
-                for flows in initial_circuit.flow_generators():
+                for flows in flow_circuit.flow_generators():
                     print(flows)
 
             else:
@@ -574,11 +586,11 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
                 right = '*'.join([f"Z{i}" for i in c_log_z] + [f"X{i}" for i in t_log_x])
                 result = f"{left} -> {right}"
 
-                #(included_measurements,) = initial_circuit.solve_flow_measurements([
+                #(included_measurements,) = flow_circuit.solve_flow_measurements([
                 #stim.Flow(result),
                 #])
 
-                for flows in initial_circuit.flow_generators():
+                for flows in flow_circuit.flow_generators():
                     print(flows)
 
             else:
@@ -596,7 +608,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
 
     final_measurement = final_m(lct = lct, patches = patches, cfg = cfg, flow = flow_observable, before_m_flip_prob = noise_measure_flip)
 
-    reset_circ += initial_circuit
+    reset_circ += flow_circuit
 
     ##################################################
     # 12. Adding logical Observable given by stim.Flow
@@ -606,7 +618,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     rec_pos = []
 
     for index in included_measurements:
-        current_rec_tar = initial_circuit.num_measurements - index
+        current_rec_tar = flow_circuit.num_measurements - index
         rec_pos.append(- current_rec_tar)
 
     reset_circ.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
@@ -618,4 +630,3 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
     reset_circ += final_measurement
 
     return reset_circ
-
