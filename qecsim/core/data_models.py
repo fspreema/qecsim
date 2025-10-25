@@ -8,13 +8,15 @@ Label = str
 Index = int
 Pair = tuple[Coord, Coord]
 
-#--------------------------
+# --------------------------
 # Shared Helper Dataclasses
-#--------------------------
+# --------------------------
+
 
 @dataclass
 class NoiseModel:
     """Group all noise probabilites used by sub-builders"""
+
     before_round_depol: float = 0.0
     before_m_flip_prob: float = 0.0
     after_r_flip: float = 0.0
@@ -28,6 +30,7 @@ class CircuitResult:
 
     Keep this generic so circuit builders can use any circuit object
     """
+
     circuit: Any
     obs_indices: list[int] | None = None
 
@@ -48,13 +51,15 @@ class CircuitResult:
         return self
 
 
-#--------------------------
+# --------------------------
 # Configs (surface vs lattice-surgery)
-#--------------------------
+# --------------------------
+
 
 @dataclass
-class Config_Surface:
+class ConfigSurface:
     """Configuration used by surface/rotated builders"""
+
     distance: int
     state_init: str
     obs: str
@@ -62,21 +67,24 @@ class Config_Surface:
 
 
 @dataclass
-class Config_LatticeSurgery:
+class ConfigLatticeSurgery:
     """Configuration used by lattice-surgery builders"""
+
     distance: int
     target_state_init: str
     control_state_init: str
 
 
-#--------------------------
+# --------------------------
 # Internal pick-up helper
-#--------------------------
+# --------------------------
 
-def _pick_up_indices(coords: dict[Coord, Label],
-                     q2i: Mapping[Coord, Index],
-                     *labels: str,
-                     ) -> list[Index]:
+
+def _pick_up_indices(
+    coords: dict[Coord, Label],
+    q2i: Mapping[Coord, Index],
+    *labels: str,
+) -> list[Index]:
     """
     Return q2i indices matching any of the provided labels in coords.
     """
@@ -84,13 +92,15 @@ def _pick_up_indices(coords: dict[Coord, Label],
     return [q2i[q] for q, t in coords.items() if t in label_set]
 
 
-#--------------------
+# --------------------
 # Surface-style Patch
-#--------------------
+# --------------------
+
 
 @dataclass
 class Patch:
     """All geometry information is stored here i.e. data/x_stab indices"""
+
     coords: dict[Coord, Label]
     data: list[Index]
     x_stab: list[Index]
@@ -123,13 +133,15 @@ class Patch:
         )
 
 
-#--------------------------
+# --------------------------
 # Lattice-surgery-style patches
-#--------------------------
+# --------------------------
+
 
 @dataclass
-class Patch_Ancilla:
+class PatchAncilla:
     """All geometry information is stored here i.e. data x_stab indices"""
+
     coords: dict[Coord, Label]
     data: list[Index]
     x_stab: list[Index]
@@ -142,7 +154,7 @@ class Patch_Ancilla:
         cls,
         coords: dict[Coord, Label],
         q2i: Mapping[Coord, Index],
-    ) -> "Patch_Ancilla":
+    ) -> "PatchAncilla":
         def pick_up(*labels: str) -> list[Index]:
             return _pick_up_indices(coords, q2i, *labels)
 
@@ -157,7 +169,7 @@ class Patch_Ancilla:
 
 
 @dataclass
-class Patch_Control:
+class PatchControl:
     coords: dict[Coord, Label]
     data: list[Index]
     x_stab: list[Index]
@@ -168,7 +180,7 @@ class Patch_Control:
         cls,
         coords: dict[Coord, Label],
         q2i: Mapping[Coord, Index],
-    ) -> "Patch_Control":
+    ) -> "PatchControl":
         def pick_up(*labels: str) -> list[Index]:
             return _pick_up_indices(coords, q2i, *labels)
 
@@ -181,7 +193,7 @@ class Patch_Control:
 
 
 @dataclass
-class Patch_Target:
+class PatchTarget:
     coords: dict[Coord, Label]
     data: list[Index]
     x_stab: list[Index]
@@ -192,7 +204,7 @@ class Patch_Target:
         cls,
         coords: dict[Coord, Label],
         q2i: Mapping[Coord, Index],
-    ) -> "Patch_Target":
+    ) -> "PatchTarget":
         def pick_up(*labels: str) -> list[Index]:
             return _pick_up_indices(coords, q2i, *labels)
 
@@ -205,7 +217,7 @@ class Patch_Target:
 
 
 @dataclass
-class Patch_Surgery:
+class PatchSurgery:
     coords: dict[Coord, Label]
     x_stab_m: list[Index]
     z_stab_m: list[Index]
@@ -217,7 +229,7 @@ class Patch_Surgery:
         cls,
         coords: dict[Coord, Label],
         q2i: Mapping[Coord, Index],
-    ) -> "Patch_Surgery":
+    ) -> "PatchSurgery":
         def pick_up(*labels: str) -> list[Index]:
             return _pick_up_indices(coords, q2i, *labels)
 
@@ -230,18 +242,20 @@ class Patch_Surgery:
         )
 
 
-#--------------------------
+# --------------------------
 # Unified Contexts
-#--------------------------
+# --------------------------
+
 
 @dataclass
 class Context:
     """
     Shared information across surface-style lattices
-    
+
     -> Extra mappings are optional and default to empty dicts.
         This allows code to selectively use only the pieces it needs.
     """
+
     q2i: dict[Coord, Index]
     i2q: dict[Index, Coord]
     stab_to_data: dict[Pair, str]
@@ -255,6 +269,7 @@ class LatticeContext:
     """
     Shared information across lattice-surgery-style lattices
     """
+
     q2i: dict[Coord, Index]
     i2q: dict[Index, Coord]
     stab_to_data: dict[Pair, str]
@@ -266,8 +281,6 @@ class LatticeContext:
 # Backwards-compatibility helpers (thin aliases)
 # These let you import the familiar names from this core module and then
 # update the individual code modules to reference these symbols.
-ConfigSurface = Config_Surface
-ConfigLatticeSurgery = Config_LatticeSurgery
 
 __all__ = [
     "Coord",
@@ -279,10 +292,10 @@ __all__ = [
     "ConfigSurface",
     "ConfigLatticeSurgery",
     "Patch",
-    "Patch_Ancilla",
-    "Patch_Control",
-    "Patch_Target",
-    "Patch_Surgery",
+    "PatchAncilla",
+    "PatchControl",
+    "PatchTarget",
+    "PatchSurgery",
     "Context",
     "LatticeContext",
 ]

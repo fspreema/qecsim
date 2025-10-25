@@ -11,20 +11,18 @@ Coord = complex
 
 __all__ = ["y_rev_switch_circ"]
 
-def y_rev_switch_circ(*,
-                 lct: Context,
-                 patches: dict[str, Patch],
-                 offset: complex = 0+0j,
-                 noise: NoiseModel) -> CircuitResult:
 
+def y_rev_switch_circ(
+    *, lct: Context, patches: dict[str, Patch], offset: complex = 0 + 0j, noise: NoiseModel,
+) -> CircuitResult:
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
 
-    #-Loading in Patches
+    # -Loading in Patches
     patch = patches["patch"]
 
-    #-Retrieving Global Infomration
+    # -Retrieving Global Infomration
     q2i = lct.q2i
     stab_to_data_switch = lct.stab_to_data_modified
     stab_to_data_switch_xcy = lct.stab_to_data_modified2
@@ -33,7 +31,7 @@ def y_rev_switch_circ(*,
     r_h_stabs = patch.right_h
     u_h_stabs = patch.upper_h
 
-    #-Retrieving Index from Stabilizers of the Lattices
+    # -Retrieving Index from Stabilizers of the Lattices
     x_stab_index = patch.x_stab
     z_stab_index = patch.z_stab
     switch_stab_apply_h = patch.stab_switch_apply_h
@@ -75,9 +73,7 @@ def y_rev_switch_circ(*,
     index_nh = []
 
     for cords, qtype in patch.coords.items():
-
         if cords != y_coords:
-
             # Diagonal Cut
             if cords.real - offset.real > cords.imag - offset.imag:
                 index_h.append(q2i[cords])
@@ -90,7 +86,7 @@ def y_rev_switch_circ(*,
             else:
                 index_nh.append(q2i[cords])
 
-    h_gates_rep : list = []
+    h_gates_rep: list = []
 
     for qubit, q_type in patch.coords.items():
         if q_type in {"X-STAB", "X-STAB-BOUND-B"}:
@@ -117,13 +113,11 @@ def y_rev_switch_circ(*,
     # Adding the XCY gates after the H switch
     #########################################
 
-    #2) CX Operations
+    # 2) CX Operations
 
     for coord_pairs, order in stab_to_data_switch.items():
-
-        #Parallel Implementation of CX
+        # Parallel Implementation of CX
         if order == "5TICK":
-
             if len(coord_pairs) == 2:
                 index_pairs = []
                 index_pairs.append(q2i[coord_pairs[1]])
@@ -138,10 +132,8 @@ def y_rev_switch_circ(*,
     reversed_switch_circ.append("TICK")
 
     for coord_pairs, order in stab_to_data_switch.items():
-
-        #Parallel Implementation of CX
+        # Parallel Implementation of CX
         if order == "4TICK":
-
             index_pairs = []
             index_pairs.append(q2i[coord_pairs[1]])
             index_pairs.append(q2i[coord_pairs[0]])
@@ -150,10 +142,8 @@ def y_rev_switch_circ(*,
     reversed_switch_circ.append("TICK")
 
     for coord_pairs, order in stab_to_data_switch.items():
-
-        #Parallel Implementation of CX
+        # Parallel Implementation of CX
         if order == "3.5TICK":
-
             index_pairs = []
             index_pairs.append(q2i[coord_pairs[1]])
             index_pairs.append(q2i[coord_pairs[0]])
@@ -162,10 +152,8 @@ def y_rev_switch_circ(*,
     reversed_switch_circ.append("TICK")
 
     for coord_pairs, order in stab_to_data_switch.items():
-
-        #Parallel Implementation of CX
+        # Parallel Implementation of CX
         if order == "3TICK":
-
             index_pairs = []
             index_pairs.append(q2i[coord_pairs[1]])
             index_pairs.append(q2i[coord_pairs[0]])
@@ -174,10 +162,8 @@ def y_rev_switch_circ(*,
     reversed_switch_circ.append("TICK")
 
     for coord_pairs, order in stab_to_data_switch.items():
-
-        #Parallel Implementation of CX
+        # Parallel Implementation of CX
         if order == "2TICK":
-
             index_pairs = []
             index_pairs.append(q2i[coord_pairs[1]])
             index_pairs.append(q2i[coord_pairs[0]])
@@ -186,10 +172,8 @@ def y_rev_switch_circ(*,
     reversed_switch_circ.append("TICK")
 
     for coord_pairs, order in stab_to_data_switch_xcy.items():
-
-        #Parallel Implementation of CX
+        # Parallel Implementation of CX
         if order == "1TICK":
-
             index_pairs = []
             index_pairs.append(q2i[coord_pairs[1]])
             index_pairs.append(q2i[coord_pairs[0]])
@@ -197,28 +181,29 @@ def y_rev_switch_circ(*,
 
     reversed_switch_circ.append("TICK")
 
-    #-------Continue-Circuit------------
+    # -------Continue-Circuit------------
 
     # Adding stabs h
     reversed_switch_circ.append("H", index_h)
     reversed_switch_circ.append("SQRT_X_DAG", index_x_deg)
     reversed_switch_circ.append("TICK")
 
-    #Adding half diagonal H
+    # Adding half diagonal H
     reversed_switch_circ.append("H", x_stab_index + r_h_stabs)
     reversed_switch_circ.append("TICK")
 
-    #Adding locial readout error -> Y logical meassured thorugh the stabilizers
+    # Adding locial readout error -> Y logical meassured thorugh the stabilizers
 
     if noise.before_m_flip_prob > 0:
-        reversed_switch_circ.append("X_ERROR", x_stab_index + z_stab_index + r_h_stabs + u_h_stabs + [y_index],
-                                    noise.before_m_flip_prob)
+        reversed_switch_circ.append(
+            "X_ERROR", x_stab_index + z_stab_index + r_h_stabs + u_h_stabs + [y_index], noise.before_m_flip_prob,
+        )
 
-    #Adding Resets
+    # Adding Resets
     reversed_switch_circ.append("MZ", x_stab_index + z_stab_index + r_h_stabs + u_h_stabs)
     reversed_switch_circ.append("MY", y_index)
 
-    #-> Shifting Coords in Time-Dimension to have 3D timelike Detector graph (Needed for decoding)
-    reversed_switch_circ.append("SHIFT_COORDS", arg = (0,0,1))
+    # -> Shifting Coords in Time-Dimension to have 3D timelike Detector graph (Needed for decoding)
+    reversed_switch_circ.append("SHIFT_COORDS", arg=(0, 0, 1))
 
     return CircuitResult(circuit=reversed_switch_circ)

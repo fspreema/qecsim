@@ -1,4 +1,3 @@
-
 Coord = complex
 Label = str
 Pair = tuple[Coord, Coord]
@@ -71,9 +70,9 @@ def _populate_xzzx(patch: dict[Coord, Label]) -> dict[Pair, str]:
     return stab_to_data
 
 
-def _populate_lattice_surgery(patch: dict[Coord, Label], 
-                              merging: bool, 
-                              merging_type: str | None = None) -> dict[Pair, str]:
+def _populate_lattice_surgery(
+    patch: dict[Coord, Label], merging: bool, merging_type: str | None = None,
+) -> dict[Pair, str]:
     """
     Returns the CX-Schedule {(data_coord, stab_coord): order} for a given lattice
 
@@ -149,8 +148,7 @@ def _populate_lattice_surgery(patch: dict[Coord, Label],
                         stab_to_data[(coords, new_cord3)] = "3-CX"
                         stab_to_data[(coords, new_cord4)] = "4-CX"
 
-    def attach_boundary(merging: bool, 
-                        merging_type: str | None):
+    def attach_boundary(merging: bool, merging_type: str | None):
         """
         Adds the 2-body CX Schedule for the *boundary* stabilizers
         """
@@ -159,80 +157,79 @@ def _populate_lattice_surgery(patch: dict[Coord, Label],
             for coords, string in patch.items():
                 if string == "Z-STAB-BOUND-L-A":
                     new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                    new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                     stab_to_data[coords, new_cord1] = "1-CX"
                     stab_to_data[coords, new_cord2] = "2-CX"
 
                 elif string == "Z-STAB-BOUND-R-A":
                     new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
+                    new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
                     stab_to_data[coords, new_cord1] = "3-CX"
                     stab_to_data[coords, new_cord2] = "4-CX"
 
                 elif string == "X-STAB-BOUND-A-A":
                     new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                    new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                    new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                     stab_to_data[new_cord1, coords] = "4-CX"
                     stab_to_data[new_cord2, coords] = "3-CX"
 
                 elif string == "X-STAB-BOUND-B-A":
                     new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real + 1 ) + (coords.imag - 1) * 1j
+                    new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
                     stab_to_data[new_cord1, coords] = "2-CX"
                     stab_to_data[new_cord2, coords] = "1-CX"
 
                 elif string == "Z-STAB-BOUND-L-T":
                     new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                    new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                     stab_to_data[coords, new_cord1] = "5-CX"
                     stab_to_data[coords, new_cord2] = "6-CX"
 
                 elif string == "Z-STAB-BOUND-R-T":
                     new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
+                    new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
                     stab_to_data[coords, new_cord1] = "5-CX"
                     stab_to_data[coords, new_cord2] = "6-CX"
 
                 elif string == "X-STAB-BOUND-A-T":
                     new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                    new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                    new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                     stab_to_data[new_cord1, coords] = "5-CX"
                     stab_to_data[new_cord2, coords] = "6-CX"
 
                 elif string == "X-STAB-BOUND-B-T":
                     new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real + 1 ) + (coords.imag - 1) * 1j
+                    new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
                     stab_to_data[new_cord1, coords] = "5-CX"
                     stab_to_data[new_cord2, coords] = "6-CX"
 
                 elif string == "Z-STAB-BOUND-L-C":
                     new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                    new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                     stab_to_data[coords, new_cord1] = "5-CX"
                     stab_to_data[coords, new_cord2] = "6-CX"
 
                 elif string == "Z-STAB-BOUND-R-C":
                     new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
+                    new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
                     stab_to_data[coords, new_cord1] = "5-CX"
                     stab_to_data[coords, new_cord2] = "6-CX"
 
                 elif string == "X-STAB-BOUND-A-C":
                     new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                    new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                    new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                     stab_to_data[new_cord1, coords] = "5-CX"
                     stab_to_data[new_cord2, coords] = "6-CX"
 
                 elif string == "X-STAB-BOUND-B-C":
                     new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real + 1 ) + (coords.imag - 1) * 1j
+                    new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
                     stab_to_data[new_cord1, coords] = "5-CX"
                     stab_to_data[new_cord2, coords] = "6-CX"
 
         else:
             if merging_type == "AC":
                 for coords, string in patch.items():
-
                     if string in {"Z-STAB-BOUND-L-A", "Z-STAB-BOUND-L-C", "Z-STAB-SURGERY-L"}:
                         new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
@@ -259,7 +256,6 @@ def _populate_lattice_surgery(patch: dict[Coord, Label],
 
             elif merging_type == "AT":
                 for coords, string in patch.items():
-
                     if string == "Z-STAB-BOUND-L-A":
                         new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
@@ -298,8 +294,7 @@ def _populate_surface(
     y_memory: bool = False,
     distance: int = 0,
     offset: complex = 0 + 0j,
-    ):
-
+):
     """
     Returns the CX-Schedule {(data_coord, stab_coord): order} for a given lattice
 
@@ -315,7 +310,6 @@ def _populate_surface(
     stab_to_data_xcy: dict[Pair, str] = {}
 
     def attach_interior():
-
         # ------------------------------
         # Internal helper function
         # ------------------------------
@@ -361,7 +355,6 @@ def _populate_surface(
                             pairs = [(coords, q1), (coords, q2), (coords, q3), (coords, q4)]
                             _assign_orders(stab_to_data, pairs, orders_z_ybasis)
             else:
-
                 # Filtering out the stabs needed for the two XCY Gate TICKS
                 filtered_stabs_x = []
                 filtered_stabs_z = []
@@ -390,17 +383,14 @@ def _populate_surface(
                         stab_to_data_xcy[(coords, new_cord)] = "1TICK"
 
                 for coords, qtype in stabs_norm_dict.items():
-
                     # Defining Needed Neighbour Qubits
                     q1, q2, q3, q4 = _quad(coords)
 
                     if qtype == "X-STAB":
-
                         pairs = [(q1, coords), (q2, coords), (q3, coords), (q4, coords)]
                         _assign_orders(stab_to_data, pairs, ["2TICK", "3TICK", "4TICK", "5TICK"])
 
                     elif qtype == "Z-STAB":
-
                         # Checking whether normal CX or the XCY gate
                         if coords not in filtered_stabs_z:
                             pairs = [(coords, q1), (coords, q2), (coords, q3), (coords, q4)]
@@ -416,14 +406,13 @@ def _populate_surface(
 
                 # Implementing regular CX scheduele on H half -> only weight 3
                 for coords, qtype in stabs_h_dict.items():
-
-                    #Implementing orientation of CX with sub schedule of XCY Gates
+                    # Implementing orientation of CX with sub schedule of XCY Gates
                     if qtype == "X-STAB":
                         new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
                         new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
                         new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
 
-                        #Exclude the x stabs next to the diagonal:
+                        # Exclude the x stabs next to the diagonal:
                         if coords not in filtered_stabs_x:
                             stab_to_data[(coords, new_cord1)] = "2TICK"
 
@@ -441,13 +430,12 @@ def _populate_surface(
                         stab_to_data[(new_cord1, coords)] = "2TICK"
 
                         # HOTFIX: DATASET WILL OVERWRITE 2TICK if they are the same
-                        stab_to_data[coords , new_cord1, 2] = "5TICK"
+                        stab_to_data[coords, new_cord1, 2] = "5TICK"
 
         else:
             # flipped roles: swap the X/Z assignment orders
             def _assign_flipped():
                 for coords, qtype in patch.items():
-
                     # Defining Needed Neighbour Qubits
                     q1, q2, q3, q4 = _quad(coords)
 
@@ -464,74 +452,67 @@ def _populate_surface(
             _assign_flipped()
 
     def attach_boundary():
-
         """
         Adds the 2-body CX Schedule for the *boundary* stabilizers
         """
 
-    # (boundary case reference removed; inlined logic below)
+        # (boundary case reference removed; inlined logic below)
 
         if not is_flipped:
             if not y_basis:
-
                 for coords, qtype in patch.items():
-
                     if qtype == "Z-STAB-BOUND-L":
                         new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                        new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                         stab_to_data[coords, new_cord1] = "1-CX"
                         stab_to_data[coords, new_cord2] = "2-CX"
 
                     elif qtype == "Z-STAB-BOUND-R":
                         new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
+                        new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
                         stab_to_data[coords, new_cord1] = "3-CX"
                         stab_to_data[coords, new_cord2] = "4-CX"
 
                     elif qtype == "X-STAB-BOUND-U":
                         new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                        new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                        new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                         stab_to_data[new_cord1, coords] = "4-CX"
                         stab_to_data[new_cord2, coords] = "3-CX"
 
                     elif qtype == "X-STAB-BOUND-B":
                         new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real + 1 ) + (coords.imag - 1) * 1j
+                        new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
                         stab_to_data[new_cord1, coords] = "2-CX"
                         stab_to_data[new_cord2, coords] = "1-CX"
 
             elif y_basis:
-
                 if not y_switch and not y_memory:
-
                     for coords, qtype in patch.items():
-
                         if qtype == "Z-STAB-BOUND-L":
                             new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                            new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                             stab_to_data[coords, new_cord1] = "4-CX"
                             stab_to_data[coords, new_cord2] = "3-CX"
 
                         elif qtype == "X-STAB-BOUND-R":
                             new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
+                            new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
                             stab_to_data[new_cord1, coords] = "3-CX"
                             stab_to_data[new_cord2, coords] = "1-CX"
 
                         elif qtype == "Z-STAB-BOUND-U":
                             new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                            new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                            new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                             stab_to_data[coords, new_cord1] = "1-CX"
                             stab_to_data[coords, new_cord2] = "3-CX"
 
                         elif qtype == "X-STAB-BOUND-B":
                             new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real + 1 ) + (coords.imag - 1) * 1j
+                            new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
                             stab_to_data[new_cord1, coords] = "3-CX"
                             stab_to_data[new_cord2, coords] = "4-CX"
 
                 elif y_switch and not y_memory:
-
                     for coords, qtype in patch.items():
                         """
                         As the H gates was applied we need to flip the corressponding stabilizer schedule
@@ -541,13 +522,13 @@ def _populate_surface(
                         """
                         if qtype == "Z-STAB-BOUND-L":
                             new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                            new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                             stab_to_data[coords, new_cord1] = "2TICK"
                             stab_to_data[coords, new_cord2] = "3TICK"
 
                         elif qtype == "X-STAB-BOUND-R":
                             new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
+                            new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
 
                             # Check for lower boundary condition and exclude the cx which gets replaced by CYX
                             lower_boundary = [i for i in range(4, distance * 2, 4)][-1]
@@ -561,7 +542,7 @@ def _populate_surface(
                         elif qtype == "X-STAB-BOUND-R-H":
                             # H Boundary has mixed cx direction
                             new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
+                            new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
                             stab_to_data[coords, new_cord1] = "4TICK"
                             stab_to_data[new_cord2, coords] = "2TICK"
                             stab_to_data[coords, new_cord2] = "5TICK"
@@ -569,7 +550,7 @@ def _populate_surface(
                         elif qtype == "Z-STAB-BOUND-U-H":
                             # H Boundary has mixed direction
                             new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                            new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                            new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
 
                             if new_cord1 != 1 + 1j + offset:
                                 stab_to_data[coords, new_cord1] = "2TICK"
@@ -577,21 +558,19 @@ def _populate_surface(
                             stab_to_data[new_cord2, coords] = "4TICK"
                             stab_to_data[new_cord1, coords] = "5TICK"
 
-
                         elif qtype == "Z-STAB-BOUND-U":
                             new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                            new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                            new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                             stab_to_data[new_cord1, coords] = "2TICK"
                             stab_to_data[new_cord2, coords] = "3TICK"
 
                         elif qtype == "X-STAB-BOUND-B":
                             new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real + 1 ) + (coords.imag - 1) * 1j
+                            new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
                             stab_to_data[new_cord1, coords] = "3TICK"
                             stab_to_data[new_cord2, coords] = "2TICK"
 
                 elif y_memory:
-
                     for coords, qtype in patch.items():
                         """
                         In the memory Round we switch to the newly introduced 
@@ -600,58 +579,54 @@ def _populate_surface(
 
                         if qtype == "Z-STAB-BOUND-L":
                             new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                            new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                             stab_to_data[coords, new_cord1] = "4-CX"
                             stab_to_data[coords, new_cord2] = "3-CX"
 
-
                         elif qtype == "X-STAB-BOUND-R-H":
                             new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
+                            new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
                             stab_to_data[coords, new_cord1] = "2-CX"
                             stab_to_data[coords, new_cord2] = "1-CX"
 
                         elif qtype == "Z-STAB-BOUND-U-H":
                             new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                            new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                            new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                             stab_to_data[new_cord1, coords] = "1-CX"
                             stab_to_data[new_cord2, coords] = "2-CX"
 
-
                         elif qtype == "X-STAB-BOUND-B":
                             new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real + 1 ) + (coords.imag - 1) * 1j
+                            new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
                             stab_to_data[new_cord1, coords] = "3-CX"
                             stab_to_data[new_cord2, coords] = "4-CX"
 
         else:
-
             for coords, qtype in patch.items():
-
-                # Switching the stabilizers so the Z-Stab have switched 
+                # Switching the stabilizers so the Z-Stab have switched
                 # CX and therefore act like a X-Stab and vice versa
 
                 if qtype == "Z-STAB-BOUND-L":
                     new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                    new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                     stab_to_data[new_cord1, coords] = "2-CX"
                     stab_to_data[new_cord2, coords] = "1-CX"
 
                 elif qtype == "Z-STAB-BOUND-R":
                     new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
+                    new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
                     stab_to_data[new_cord1, coords] = "4-CX"
                     stab_to_data[new_cord2, coords] = "3-CX"
 
                 elif qtype == "X-STAB-BOUND-U":
                     new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                    new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
+                    new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                     stab_to_data[coords, new_cord1] = "3-CX"
                     stab_to_data[coords, new_cord2] = "4-CX"
 
                 elif qtype == "X-STAB-BOUND-B":
                     new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real + 1 ) + (coords.imag - 1) * 1j
+                    new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
                     stab_to_data[coords, new_cord1] = "1-CX"
                     stab_to_data[coords, new_cord2] = "2-CX"
 
@@ -665,7 +640,6 @@ def _populate_surface(
 
 
 def populate_stab_to_data(patch: dict[Coord, Label], *args, **kwargs):
-    
     """
     Unified entry point
     -> Detects which style to run and forwards args.
@@ -678,20 +652,19 @@ def populate_stab_to_data(patch: dict[Coord, Label], *args, **kwargs):
 
     # If explicit merging argument present, treat as lattice_surgery
     if len(args) >= 1 or "merging" in kwargs or "merging_type" in kwargs:
-        
         # Accept either positional (merging, merging_type) or keyword args
         merging = False
         merging_type = None
-        
+
         if len(args) >= 1:
             merging = args[0]
-        
+
         if len(args) >= 2:
             merging_type = args[1]
-        
+
         merging = kwargs.get("merging", merging)
         merging_type = kwargs.get("merging_type", kwargs.get("merging_type", merging_type))
-        
+
         return _populate_lattice_surgery(patch, merging=bool(merging), merging_type=merging_type)
 
     # Otherwise treat as surface/rotated code
@@ -702,11 +675,13 @@ def populate_stab_to_data(patch: dict[Coord, Label], *args, **kwargs):
     y_memory = kwargs.get("y_memory", False)
     distance = kwargs.get("distance", 0)
     offset = kwargs.get("offset", 0 + 0j)
-    
-    return _populate_surface(patch, 
-                             is_flipped=is_flipped, 
-                             y_basis=y_basis, 
-                             y_switch=y_switch, 
-                             y_memory=y_memory, 
-                             distance=distance, 
-                             offset=offset)
+
+    return _populate_surface(
+        patch,
+        is_flipped=is_flipped,
+        y_basis=y_basis,
+        y_switch=y_switch,
+        y_memory=y_memory,
+        distance=distance,
+        offset=offset,
+    )

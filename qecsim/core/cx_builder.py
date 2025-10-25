@@ -6,32 +6,31 @@ from qecsim.core.data_models import NoiseModel
 
 __all__ = ["cx_builder"]
 
-def cx_builder(*,
-               q2i: dict,
-               stab_to_data: dict,
-               circuit: stim.Circuit,
-               orders: Iterable[str] = ("1-CX", "2-CX", "3-CX", "4-CX"),
-               excluded_index: int | None = None,
-               noise_overwrite: bool = False,
-               noise: NoiseModel) -> None:
 
+def cx_builder(
+    *,
+    q2i: dict,
+    stab_to_data: dict,
+    circuit: stim.Circuit,
+    orders: Iterable[str] = ("1-CX", "2-CX", "3-CX", "4-CX"),
+    excluded_index: int | None = None,
+    noise_overwrite: bool = False,
+    noise: NoiseModel,
+) -> None:
     """
     Used to build the CX Gates into the Circuit
     """
 
     def _pairs_for(order: str) -> list[list[int]]:
-            # Return the Pairs needed at the current order
-            return [[q2i[cp[1]], q2i[cp[0]]] for cp, o in stab_to_data.items() if o == order]
+        # Return the Pairs needed at the current order
+        return [[q2i[cp[1]], q2i[cp[0]]] for cp, o in stab_to_data.items() if o == order]
 
     def _append_by_order(op: str, order: str, noise: float = 0.0) -> None:
-
         # Getting pair info
         for pair in _pairs_for(order):
-
             # Check for excluded index
             if excluded_index not in pair:
-
-                #Adding Pair on Operation
+                # Adding Pair on Operation
                 if op == "CX":
                     circuit.append(op, pair)
                 elif op == "DEPOLARIZE2":
@@ -45,4 +44,3 @@ def cx_builder(*,
         if noise.after_c_depol_prob > 0 and noise_overwrite:
             _append_by_order("DEPOLARIZE2", order, noise.after_c_depol_prob)
         circuit.append("TICK")
-

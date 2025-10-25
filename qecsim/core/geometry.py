@@ -1,4 +1,3 @@
-
 Label = str
 Coord = complex
 
@@ -7,6 +6,7 @@ __all__ = ["build_lattice"]
 # -----------------------
 # Public Function
 # -----------------------
+
 
 def build_lattice(
     distance: int,

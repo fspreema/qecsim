@@ -7,9 +7,9 @@ import stim
 
 __all__ = ["logical_estimator"]
 
+
 class CircuitAssets:
     def __init__(self, circuit, shots):
-
         # Build DEM and Matcher
         dem = circuit.detector_error_model(decompose_errors=True)
         self.matcher = pymatching.Matching.from_detector_error_model(dem)
@@ -19,14 +19,14 @@ class CircuitAssets:
         dets, obs = self.sampler.sample(shots, separate_observables=True)
 
         # Match and get prediction flip on observable
-        self.pred  = self.matcher.decode_batch(dets)
-        self.obs   = obs
+        self.pred = self.matcher.decode_batch(dets)
+        self.obs = obs
+
 
 def _only_diag(ptm: np.ndarray) -> tuple[float, dict, dict]:
-
     """
     Builds the pauli basis (I,X,Y,Z), solves equation (By hand implemented) to get eta
-    
+
     Returns:
         * Gamma: Overhead required
         * Probs: Probabilities of each Clifford Basis
@@ -34,25 +34,26 @@ def _only_diag(ptm: np.ndarray) -> tuple[float, dict, dict]:
     """
 
     # Create Inverse of Diagonal ptm Matrix
-    inv_x = 1/ptm[0,0]
-    inv_y = 1/ptm[1,1]
-    inv_z = 1/ptm[2,2]
+    inv_x = 1 / ptm[0, 0]
+    inv_y = 1 / ptm[1, 1]
+    inv_z = 1 / ptm[2, 2]
 
     # Calc linear combination of elementary matricees X Y Z I are needed to build ptm
     # -> Quasi Probabilities
-    eta_i = 1/2 * (inv_x + inv_y)
-    eta_x = 1/2 * (inv_x - inv_z)
-    eta_y = 1/2 * (inv_y - inv_z)
+    eta_i = 1 / 2 * (inv_x + inv_y)
+    eta_x = 1 / 2 * (inv_x - inv_z)
+    eta_y = 1 / 2 * (inv_y - inv_z)
     eta_z = 0
 
     eta_dict = {"I": eta_i, "X": eta_x, "Y": eta_y, "Z": eta_z}
 
     # Compute overhead and probs for sampling
     gamma = np.sum(abs(v) for v in eta_dict.values())
-    probs = {k: abs(v)/gamma for k,v in eta_dict.items()}
-    signs = {k: 1 if v == 0 else np.sign(v) for k,v in eta_dict.items()}
+    probs = {k: abs(v) / gamma for k, v in eta_dict.items()}
+    signs = {k: 1 if v == 0 else np.sign(v) for k, v in eta_dict.items()}
 
     return gamma, probs, signs
+
 
 # Sample Pauli
 def _sample_pauli_or_cliff(probs: dict) -> str:
@@ -64,11 +65,12 @@ def _sample_pauli_or_cliff(probs: dict) -> str:
     """
 
     possible_gates = list(probs.keys())
-    pvec  = np.array([probs[k] for k in possible_gates])
+    pvec = np.array([probs[k] for k in possible_gates])
 
     rng = np.random.default_rng()
 
     return rng.choice(possible_gates, p=pvec)
+
 
 def _even_permutation_check(sigma: tuple[int, int, int]) -> int:
     """
@@ -77,18 +79,17 @@ def _even_permutation_check(sigma: tuple[int, int, int]) -> int:
 
     inversions = 0
     for i in range(3):
-        for j in range(i+1, 3):
+        for j in range(i + 1, 3):
             if sigma[i] > sigma[j]:
-                inversions +=1
+                inversions += 1
 
     if inversions % 2 == 0:
         return +1
     else:
         return -1
 
-def _create_matrix(sigma: tuple[int, int, int],
-                  signs: tuple[int, int, int]) -> np.ndarray:
 
+def _create_matrix(sigma: tuple[int, int, int], signs: tuple[int, int, int]) -> np.ndarray:
     """
     Returns the 3x3 Matrix used for the solver
     -> Describes how the Operator acts on the Paulis i.e. how do each pauli get transformed?
@@ -102,17 +103,16 @@ def _create_matrix(sigma: tuple[int, int, int],
                               [-1,0,0])
     """
 
-    mat = np.zeros((3,3), dtype= int)
+    mat = np.zeros((3, 3), dtype=int)
     for j in range(3):
         i = sigma[j]
         curr_sign = signs[j]
-        mat[i,j] = curr_sign
+        mat[i, j] = curr_sign
 
     return mat
 
-def _perm_sign_dict_conv(sigma: tuple[int, int, int],
-                        signs: tuple[int, int, int]) -> tuple[dict, dict]:
 
+def _perm_sign_dict_conv(sigma: tuple[int, int, int], signs: tuple[int, int, int]) -> tuple[dict, dict]:
     """
     Converts the sigma and sign convention into proper dictionaries
 
@@ -139,14 +139,14 @@ def _perm_sign_dict_conv(sigma: tuple[int, int, int],
 
     return perm_dict, sgn_dict
 
-def _create_clifford_basis() -> list[dict]:
 
+def _create_clifford_basis() -> list[dict]:
     """
     Creates the 24 needed Cliffords inside a dictionary with all permutations included
     """
 
     # Initilize Basis and current Cliff transf
-    basis: list[dict]= []
+    basis: list[dict] = []
     curr_idx = 0
 
     # Create all possible permutations
@@ -157,41 +157,42 @@ def _create_clifford_basis() -> list[dict]:
         par = _even_permutation_check(curr_sigma)
 
         # Try every possible sign combination
-        for curr_sgns in itertools.product([-1, 1], repeat= 3):
-
-            #Check validitiy of Transform (Only keep det = +1 -> Unitary Operations)
+        for curr_sgns in itertools.product([-1, 1], repeat=3):
+            # Check validitiy of Transform (Only keep det = +1 -> Unitary Operations)
             sgn_x, sgn_y, sgn_z = curr_sgns
 
             if par * sgn_x * sgn_y * sgn_z == 1:
-
                 # Calc perm and sgn dict:
                 perm_dict, sgn_dict = _perm_sign_dict_conv(curr_sigma, curr_sgns)
 
                 # Build tranf Matrix
                 mat = _create_matrix(curr_sigma, curr_sgns)
 
-                basis.append({
-                    "name": f"C{curr_idx}",
-                    "mat": mat,
-                    "perm": perm_dict,
-                    "sgn": sgn_dict,
-                })
+                basis.append(
+                    {
+                        "name": f"C{curr_idx}",
+                        "mat": mat,
+                        "perm": perm_dict,
+                        "sgn": sgn_dict,
+                    },
+                )
 
                 curr_idx += 1
 
     return basis
 
-def _has_off_diagonals(ptm : np.ndarray) -> bool:
 
+def _has_off_diagonals(ptm: np.ndarray) -> bool:
     off_diags = False
     eps = 1e-10
 
     for i in range(len(ptm)):
         for j in range(len(ptm)):
-            if abs(ptm[i,j]) >= eps and i != j:
+            if abs(ptm[i, j]) >= eps and i != j:
                 off_diags = True
 
     return off_diags
+
 
 def _stack_vectors_of_mtrx(mtx: np.ndarray) -> np.ndarray:
     """
@@ -202,8 +203,8 @@ def _stack_vectors_of_mtrx(mtx: np.ndarray) -> np.ndarray:
 
     return reshaped_mtx
 
-def _full_mtrx_slv(ptm: np.ndarray) -> tuple[float, dict, dict, list]:
 
+def _full_mtrx_slv(ptm: np.ndarray) -> tuple[float, dict, dict, list]:
     """
     Builds the 24 needed Cliffords Basis, solves equation with minimal overhead required(L1)
 
@@ -249,22 +250,24 @@ def _full_mtrx_slv(ptm: np.ndarray) -> tuple[float, dict, dict, list]:
 
     return gamma, probs, signs, basis
 
-def logical_estimator(*,
-                      ptm: np.ndarray,
-                      ptm_circuit_x: stim.Circuit,
-                      ptm_circuit_y: stim.Circuit,
-                      ptm_circuit_z: stim.Circuit,
-                      logical_obs: str,
-                      frame_flip: bool,
-                      shots: int) -> tuple:
 
+def logical_estimator(
+    *,
+    ptm: np.ndarray,
+    ptm_circuit_x: stim.Circuit,
+    ptm_circuit_y: stim.Circuit,
+    ptm_circuit_z: stim.Circuit,
+    logical_obs: str,
+    frame_flip: bool,
+    shots: int,
+) -> tuple:
     """
     Estimates the choosen logical observable on the given circuit
 
     Arguemnts:
         * ptm: Pauli Transfer Matrix which got build by smapling the circuit ptm_circuit
         * ptm_circuit: Circuit which gets sampled -> F.ex memory in x/z/y basis
-        * logical_obs: Logical Observable which is measured at the end 
+        * logical_obs: Logical Observable which is measured at the end
         and which expectation value is returned at the end
         * logical_frame: What logical value does the state have i.e. logical gate applied or not?
         * shots: Number of shots this is repeated in order to ahve a big sampling pool
@@ -280,13 +283,12 @@ def logical_estimator(*,
 
     use_cliffords = _has_off_diagonals(ptm)
 
-    #----------------------------------------------------
+    # ----------------------------------------------------
     # Do only Diagonals (quasi probs eta only of I,X,Y,Z)
-    #----------------------------------------------------
+    # ----------------------------------------------------
 
     if not use_cliffords:
-
-        gamma, probs, signs = _only_diag(ptm= ptm)
+        gamma, probs, signs = _only_diag(ptm=ptm)
 
         ##########################
         # Precompute Frame updater
@@ -298,29 +300,36 @@ def logical_estimator(*,
         """
 
         conj_sign = {
-            ("I","X"): +1, ("I","Y"): +1, ("I","Z"): +1,
-            ("X","X"): +1, ("X","Y"): -1, ("X","Z"): -1,
-            ("Y","X"): -1, ("Y","Y"): +1, ("Y","Z"): -1,
-            ("Z","X"): -1, ("Z","Y"): -1, ("Z","Z"): +1,
+            ("I", "X"): +1,
+            ("I", "Y"): +1,
+            ("I", "Z"): +1,
+            ("X", "X"): +1,
+            ("X", "Y"): -1,
+            ("X", "Z"): -1,
+            ("Y", "X"): -1,
+            ("Y", "Y"): +1,
+            ("Y", "Z"): -1,
+            ("Z", "X"): -1,
+            ("Z", "Y"): -1,
+            ("Z", "Z"): +1,
         }
 
-    #-----------------------
+    # -----------------------
     # Full 24 Clifford Basis
-    #-----------------------
+    # -----------------------
 
     else:
-
-        gamma, probs, signs, basis = _full_mtrx_slv(ptm = ptm)
+        gamma, probs, signs, basis = _full_mtrx_slv(ptm=ptm)
 
     #####################################################
     # Adding Dictionary with all Circuits and needed info
     #####################################################
 
     circuit_basis = {
-            "X": CircuitAssets(ptm_circuit_x, shots),
-            "Y": CircuitAssets(ptm_circuit_y, shots),
-            "Z": CircuitAssets(ptm_circuit_z, shots),
-        }
+        "X": CircuitAssets(ptm_circuit_x, shots),
+        "Y": CircuitAssets(ptm_circuit_y, shots),
+        "Z": CircuitAssets(ptm_circuit_z, shots),
+    }
 
     ###########################
     # Sample shots from circuit
@@ -328,46 +337,42 @@ def logical_estimator(*,
 
     # In what state was it initilized?
     clean_meas = frame_flip
-    all_contributions : list = []
+    all_contributions: list = []
 
-    #--------------------------------------------
+    # --------------------------------------------
     # Sample from the same circuit as obs measured
-    #--------------------------------------------
+    # --------------------------------------------
 
     if not use_cliffords:
-
         # Current measurement circuit stays the same
         current_circuit = circuit_basis[logical_obs]
 
         for curr_shot in range(shots):
-
             # Choose what logical frame update given by upper probs
-            curr_pauli = _sample_pauli_or_cliff(probs= probs)
+            curr_pauli = _sample_pauli_or_cliff(probs=probs)
 
             # Determine current noisy Operator states (i.e. xor obs from det sample with noiseless Measurement outcome)
-            noisy_meas = current_circuit.obs[curr_shot,0] ^ clean_meas
+            noisy_meas = current_circuit.obs[curr_shot, 0] ^ clean_meas
 
             # XOR flip with noiseless Measurement
             # -> Taking first entry for first logical observable
-            final_meas = 1 - 2 * (current_circuit.pred[curr_shot,0].astype(np.int8) ^ np.int8(noisy_meas))
+            final_meas = 1 - 2 * (current_circuit.pred[curr_shot, 0].astype(np.int8) ^ np.int8(noisy_meas))
 
             # Calculate Current Weight and with that shot based result
             weight = signs[curr_pauli] * gamma * conj_sign[curr_pauli, logical_obs]
 
             all_contributions.append(weight * final_meas)
 
-    #-----------------------------------------------
+    # -----------------------------------------------
     # Sample from different Circuits (Non Diagonals)
-    #-----------------------------------------------
+    # -----------------------------------------------
 
     else:
-
         name_to_elem = {c["name"]: c for c in basis}
 
         for curr_shot in range(shots):
-
             # Choose what logical frame update given by upper probs
-            curr_cliff = _sample_pauli_or_cliff(probs= probs)
+            curr_cliff = _sample_pauli_or_cliff(probs=probs)
             curr_cliff_dict = name_to_elem[curr_cliff]
 
             # Get infromation what circuit needs to be measured and what sign flip we have
@@ -378,11 +383,11 @@ def logical_estimator(*,
             current_circuit = circuit_basis[which_meas_basis]
 
             # Determine current noisy Operator states (i.e. xor obs from det sample with noiseless Measurement outcome)
-            noisy_meas = current_circuit.obs[curr_shot,0] ^ clean_meas
+            noisy_meas = current_circuit.obs[curr_shot, 0] ^ clean_meas
 
             # XOR flip with noiseless Measurement
             # -> Taking first entry for first logical observable
-            final_meas = 1 - 2 * (current_circuit.pred[curr_shot,0].astype(np.int8) ^ np.int8(noisy_meas))
+            final_meas = 1 - 2 * (current_circuit.pred[curr_shot, 0].astype(np.int8) ^ np.int8(noisy_meas))
 
             # Calculate Current Weight and with that shot based result
             weight = signs[curr_cliff] * gamma * curr_sign
@@ -396,15 +401,13 @@ def logical_estimator(*,
     logical_estimate = np.sum(all_contributions) / shots
 
     if shots > 1:
-
         inner_term = 0
         for curr_shot in range(shots):
             inner_term += (all_contributions[curr_shot] - logical_estimate) ** 2
 
-        sampling_err = np.sqrt(1/(shots * (shots - 1)) * inner_term)
+        sampling_err = np.sqrt(1 / (shots * (shots - 1)) * inner_term)
 
         return logical_estimate, sampling_err
 
     else:
         return logical_estimate
-

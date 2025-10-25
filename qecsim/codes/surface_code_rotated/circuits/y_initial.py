@@ -12,21 +12,17 @@ Coord = complex
 
 __all__ = ["y_initial"]
 
-def y_initial(*,
-              lct: Context,
-              patch: dict[str, Patch],
-              noise: NoiseModel,
-              offset: complex = 0 + 0j) -> CircuitResult:
 
+def y_initial(*, lct: Context, patch: dict[str, Patch], noise: NoiseModel, offset: complex = 0 + 0j) -> CircuitResult:
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
 
-    #-Retrieving Global Infomration
+    # -Retrieving Global Infomration
     q2i = lct.q2i
     stab_to_data = lct.stab_to_data
 
-    #-Retrieving Index from Stabilizers of the Lattices
+    # -Retrieving Index from Stabilizers of the Lattices
     x_stab_index = patch.x_stab
     z_stab_index = patch.z_stab
 
@@ -46,29 +42,31 @@ def y_initial(*,
 
     initial_circuit.append("TICK")
 
-    #1) Reset/ Basis
+    # 1) Reset/ Basis
     initial_circuit.append("H", x_stab_index)
     initial_circuit.append("TICK")
 
-    #2) CX Operations
+    # 2) CX Operations
 
-    cx_builder(q2i= q2i,
-               stab_to_data= stab_to_data,
-               circuit= initial_circuit,
-               excluded_index= y_index,
-               noise= noise,
-               noise_overwrite= True)
+    cx_builder(
+        q2i=q2i,
+        stab_to_data=stab_to_data,
+        circuit=initial_circuit,
+        excluded_index=y_index,
+        noise=noise,
+        noise_overwrite=True,
+    )
 
-    #-------Continue-Circuit------------
+    # -------Continue-Circuit------------
 
-    #3) Basis/ Measurement
+    # 3) Basis/ Measurement
     initial_circuit.append("H", x_stab_index)
 
-    #-------Continue-Circuit------------
+    # -------Continue-Circuit------------
 
     initial_circuit.append("TICK")
 
-    #-------Continue-Circuit------------
+    # -------Continue-Circuit------------
 
     initial_circuit.append("M", x_stab_index + z_stab_index)
 

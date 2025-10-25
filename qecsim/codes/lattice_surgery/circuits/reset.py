@@ -6,10 +6,10 @@ from qecsim.core.data_models import (
     ConfigLatticeSurgery as Config,
     LatticeContext,
     NoiseModel,
-    Patch_Ancilla,
-    Patch_Control,
-    Patch_Surgery,
-    Patch_Target,
+    PatchAncilla,
+    PatchControl,
+    PatchSurgery,
+    PatchTarget,
 )
 
 Coord = complex
@@ -19,32 +19,34 @@ Pair = tuple[Coord, Coord]
 
 __all__ = ["reset"]
 
-def reset(*,
-          lct: LatticeContext,
-          patches: Mapping[str, Patch_Ancilla | Patch_Target | Patch_Control | Patch_Surgery],
-          cfg: Config,
-          noise: NoiseModel) -> stim.Circuit:
 
+def reset(
+    *,
+    lct: LatticeContext,
+    patches: Mapping[str, PatchAncilla | PatchTarget | PatchControl | PatchSurgery],
+    cfg: Config,
+    _noise: NoiseModel,
+) -> stim.Circuit:
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
 
-    #-Loading in Patches
+    # -Loading in Patches
     ancilla_patch = patches["ancilla"]
     target_patch = patches["target"]
     control_patch = patches["control"]
 
-    #-Retrieving Global Infomration
+    # -Retrieving Global Infomration
     q2i = lct.q2i
     distance = cfg.distance
     control_state_init = cfg.control_state_init
     target_state_init = cfg.target_state_init
 
-    #-Retrieving Data Coords
+    # -Retrieving Data Coords
     data_control = control_patch.data
     data_target = target_patch.data
 
-    #-Retrieving Index from Stabilizers of the Lattices
+    # -Retrieving Index from Stabilizers of the Lattices
     x_stab_index_ancilla = ancilla_patch.x_stab
     z_stab_index_ancilla = ancilla_patch.z_stab
     x_stab_boundary_b_index_ancilla = ancilla_patch.x_bdy_b
@@ -54,29 +56,33 @@ def reset(*,
     x_stab_index_target = target_patch.x_stab
     z_stab_index_target = target_patch.z_stab
 
-    #----------------------------------------------
+    # ----------------------------------------------
     # Creating List of all Stabilizers (No Double!)
-    #----------------------------------------------
+    # ----------------------------------------------
 
     all_stabs_not_double = []
 
-    #Setting double counter
+    # Setting double counter
     counter_x = 0
     counter_z = 0
 
-    for index in (x_stab_index_ancilla + z_stab_index_ancilla + x_stab_index_control + z_stab_index_control + x_stab_index_target + z_stab_index_target):
-
-        #Double Values possible
+    for index in (
+        x_stab_index_ancilla
+        + z_stab_index_ancilla
+        + x_stab_index_control
+        + z_stab_index_control
+        + x_stab_index_target
+        + z_stab_index_target
+    ):
+        # Double Values possible
         if index in x_stab_boundary_b_index_ancilla:
-
-            #Value already appended?
+            # Value already appended?
             if counter_x == 0:
                 all_stabs_not_double.append(index)
                 counter_x += 1
 
         elif index in z_stab_boundary_r_index_ancilla:
-
-            #Value already appended?
+            # Value already appended?
             if counter_z == 0:
                 all_stabs_not_double.append(index)
                 counter_z += 1
@@ -84,28 +90,28 @@ def reset(*,
         else:
             all_stabs_not_double.append(index)
 
-    #------------------------------------------------------
+    # ------------------------------------------------------
     # Creating list of Logical X/Z string and their indices
-    #------------------------------------------------------
+    # ------------------------------------------------------
     """
     -> Used for swithcing of the state in a given basis
     """
 
     # Target
-    t_log_obs_z_index : list[complex] = []
+    t_log_obs_z_index: list[complex] = []
     for real in range((distance * 2) + 1, (distance * 4), 2):
         t_log_obs_z_index.append(q2i[real + 1j])
 
-    t_log_obs_x_index : list[complex] = []
+    t_log_obs_x_index: list[complex] = []
     for imag in range(1, (distance * 2), 2):
         t_log_obs_x_index.append(q2i[((distance * 2) + 1) + imag * 1j])
 
     # Control
-    c_log_obs_z_index : list[complex] = []
+    c_log_obs_z_index: list[complex] = []
     for real in range(1, (distance * 2), 2):
         c_log_obs_z_index.append(q2i[(real + ((distance * 2) + 1) * 1j)])
 
-    c_log_obs_x_index : list[complex] = []
+    c_log_obs_x_index: list[complex] = []
     for imag in range((distance * 2) + 1, (distance * 4), 2):
         c_log_obs_x_index.append(q2i[(1 + imag * 1j)])
 
@@ -115,7 +121,7 @@ def reset(*,
 
     reset_circuit = stim.Circuit()
 
-    #Appending Coords
+    # Appending Coords
     for q, i in q2i.items():
         reset_circuit.append("QUBIT_COORDS", [i], [q.real, q.imag])
 
@@ -129,22 +135,44 @@ def reset(*,
     ########################################################################
 
     init_patterns = {
-    ("Z0", "Z0"): [("R", data_control + data_target + all_stabs_not_double)],
-    ("Z0", "Z1"): [("R", data_control + data_target + all_stabs_not_double), ("X", t_log_obs_x_index)],
-    ("Z0", "X+"): [("RX", data_target), ("R", data_control + all_stabs_not_double)],
-    ("Z0", "X-"): [("RX", data_target), ("R", data_control + all_stabs_not_double), ("Z", t_log_obs_z_index)],
-    ("Z1", "Z0"): [("R", data_control + data_target + all_stabs_not_double), ("X", c_log_obs_x_index)],
-    ("Z1", "Z1"): [("R", data_control + data_target + all_stabs_not_double), ("X", c_log_obs_x_index + t_log_obs_x_index)],
-    ("Z1", "X+"): [("RX", data_target), ("R", data_control + all_stabs_not_double), ("X", c_log_obs_x_index)],
-    ("Z1", "X-"): [("RX", data_target), ("R", data_control + all_stabs_not_double), ("X", c_log_obs_x_index), ("Z", t_log_obs_z_index)],
-    ("X+", "Z0"): [("RX", data_control), ("R", data_target + all_stabs_not_double)],
-    ("X+", "Z1"): [("RX", data_control), ("R", data_target + all_stabs_not_double), ("X", t_log_obs_x_index), ("Z", c_log_obs_z_index)],
-    ("X+", "X+"): [("RX", data_control + data_target), ("R", all_stabs_not_double)],
-    ("X+", "X-"): [("RX", data_control + data_target), ("R", all_stabs_not_double), ("Z", t_log_obs_z_index)],
-    ("X-", "Z0"): [("RX", data_control), ("R", data_target + all_stabs_not_double), ("Z", c_log_obs_z_index)],
-    ("X-", "Z1"): [("RX", data_control), ("R", data_target + all_stabs_not_double), ("X", t_log_obs_x_index), ("Z", c_log_obs_z_index)],
-    ("X-", "X+"): [("RX", data_control + data_target), ("R", all_stabs_not_double), ("Z", c_log_obs_z_index)],
-    ("X-", "X-"): [("RX", data_control + data_target), ("R", all_stabs_not_double), ("Z", c_log_obs_z_index + t_log_obs_z_index)],
+        ("Z0", "Z0"): [("R", data_control + data_target + all_stabs_not_double)],
+        ("Z0", "Z1"): [("R", data_control + data_target + all_stabs_not_double), ("X", t_log_obs_x_index)],
+        ("Z0", "X+"): [("RX", data_target), ("R", data_control + all_stabs_not_double)],
+        ("Z0", "X-"): [("RX", data_target), ("R", data_control + all_stabs_not_double), ("Z", t_log_obs_z_index)],
+        ("Z1", "Z0"): [("R", data_control + data_target + all_stabs_not_double), ("X", c_log_obs_x_index)],
+        ("Z1", "Z1"): [
+            ("R", data_control + data_target + all_stabs_not_double),
+            ("X", c_log_obs_x_index + t_log_obs_x_index),
+        ],
+        ("Z1", "X+"): [("RX", data_target), ("R", data_control + all_stabs_not_double), ("X", c_log_obs_x_index)],
+        ("Z1", "X-"): [
+            ("RX", data_target),
+            ("R", data_control + all_stabs_not_double),
+            ("X", c_log_obs_x_index),
+            ("Z", t_log_obs_z_index),
+        ],
+        ("X+", "Z0"): [("RX", data_control), ("R", data_target + all_stabs_not_double)],
+        ("X+", "Z1"): [
+            ("RX", data_control),
+            ("R", data_target + all_stabs_not_double),
+            ("X", t_log_obs_x_index),
+            ("Z", c_log_obs_z_index),
+        ],
+        ("X+", "X+"): [("RX", data_control + data_target), ("R", all_stabs_not_double)],
+        ("X+", "X-"): [("RX", data_control + data_target), ("R", all_stabs_not_double), ("Z", t_log_obs_z_index)],
+        ("X-", "Z0"): [("RX", data_control), ("R", data_target + all_stabs_not_double), ("Z", c_log_obs_z_index)],
+        ("X-", "Z1"): [
+            ("RX", data_control),
+            ("R", data_target + all_stabs_not_double),
+            ("X", t_log_obs_x_index),
+            ("Z", c_log_obs_z_index),
+        ],
+        ("X-", "X+"): [("RX", data_control + data_target), ("R", all_stabs_not_double), ("Z", c_log_obs_z_index)],
+        ("X-", "X-"): [
+            ("RX", data_control + data_target),
+            ("R", all_stabs_not_double),
+            ("Z", c_log_obs_z_index + t_log_obs_z_index),
+        ],
     }
 
     # Apply the initialization pattern
@@ -159,6 +187,3 @@ def reset(*,
 
     else:
         raise ValueError(f"Invalid control/target state initialization: {control_state_init}, {target_state_init}")
-
-
-

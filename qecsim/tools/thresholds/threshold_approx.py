@@ -5,16 +5,16 @@ from scipy.optimize import minimize_scalar
 
 __all__ = ["threshold_approx"]
 
-#-----------------
+# -----------------
 # Global Function:
-#-----------------
+# -----------------
+
 
 def threshold_approx(
     data_stats: list[sinter.TaskStats],
     p_min: float = 1e-6,
     p_max: float = 0.5,
 ) -> float:
-
     """
     Returns: float
     -> Calculated threshold
@@ -32,18 +32,19 @@ def threshold_approx(
 
     d1 = distances[-1]
     d2 = distances[-2]
-    x_dots : dict = {}
-    y_dots : dict = {}
+    x_dots: dict = {}
+    y_dots: dict = {}
 
     ###########################################
     # Filter out Datasets to d1 and d2 distance
     ###########################################
 
     for dist in [d1, d2]:
-        filtered_stats = [stat for stat in data_stats
-                        if stat.json_metadata["distance"] == dist
-                        and p_min < stat.json_metadata["p"] < p_max
-]
+        filtered_stats = [
+            stat
+            for stat in data_stats
+            if stat.json_metadata["distance"] == dist and p_min < stat.json_metadata["p"] < p_max
+        ]
         physical_p = [stat.json_metadata["p"] for stat in filtered_stats]
         logical_p = [stat.errors / stat.shots for stat in filtered_stats]
 
@@ -57,11 +58,7 @@ def threshold_approx(
         # Sort and convert and convert to log log for linear fit
         ########################################################
 
-        filtered = [
-            (p, lp)
-            for p, lp in zip(physical_p, logical_p, strict=True)
-            if lp > 0 and p > 0
-        ]
+        filtered = [(p, lp) for p, lp in zip(physical_p, logical_p, strict=True) if lp > 0 and p > 0]
         if len(filtered) < 2:
             raise ValueError("Not enough valid points (logical_p > 0) for interpolation")
 
@@ -74,15 +71,15 @@ def threshold_approx(
     # Intepolate Data for root_scalar function
     ##########################################
 
-    f1_interp = UnivariateSpline(x_dots[d1], y_dots[d1], k = 3)
-    f2_interp = UnivariateSpline(x_dots[d2], y_dots[d2], k = 3)
+    f1_interp = UnivariateSpline(x_dots[d1], y_dots[d1], k=3)
+    f2_interp = UnivariateSpline(x_dots[d2], y_dots[d2], k=3)
 
     ##################################################################
     # Define function for root_scalar and boundaries for search region
     ##################################################################
 
     def diff(x):
-        return (f1_interp(x) - f2_interp(x))**2
+        return (f1_interp(x) - f2_interp(x)) ** 2
 
     x_min = max(min(x_dots[d1]), min(x_dots[d2]))
     x_max = min(max(x_dots[d1]), max(x_dots[d2]))
@@ -100,7 +97,7 @@ def threshold_approx(
     # Filter out datapoint next to pot. sol
     #######################################
 
-    next_lower_p = - np.inf
+    next_lower_p = -np.inf
     next_higher_p = 0
     current_pos = 0
 
@@ -134,6 +131,6 @@ def threshold_approx(
     # Convert back from log10(x) to x
     #################################
 
-    threshold = 10 ** sol_crossing
+    threshold = 10**sol_crossing
 
     return threshold

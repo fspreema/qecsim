@@ -22,46 +22,44 @@ TODO:
 """
 
 if __name__ == "__main__":
-
     d_max = 15
 
-    for d in [i for i in range(3,d_max,2)]:
-
-        for r in [i for i in range(2,d,2)]:
-
+    for d in [i for i in range(3, d_max, 2)]:
+        for r in [i for i in range(2, d, 2)]:
             ###################
             # Calc d thresholds
             ###################
 
-            task_noisy_xx = [sinter.Task(
-                circuit = surgery_circuit(
-                    distance = d,
-                    round_num = r,
-                    round_split = r,
-                    round_merge = r,
-                    target_state_init ="X+",
-                    control_state_init ="X+",
-                    flow_observable = "X -> XX",
-                    noise_after_clifford_depol = noise,
-                    noise_measure_flip = noise,
-                    noise_after_reset = noise,
-                    noise_depol_data_init = noise,
+            task_noisy_xx = [
+                sinter.Task(
+                    circuit=surgery_circuit(
+                        distance=d,
+                        round_num=r,
+                        round_split=r,
+                        round_merge=r,
+                        target_state_init="X+",
+                        control_state_init="X+",
+                        flow_observable="X -> XX",
+                        noise_after_clifford_depol=noise,
+                        noise_measure_flip=noise,
+                        noise_after_reset=noise,
+                        noise_depol_data_init=noise,
                     ),
-                json_metadata={"p": noise, "distance" : d, "rounds" : r},
+                    json_metadata={"p": noise, "distance": d, "rounds": r},
                 )
                 for noise in [i for i in np.arange(1e-5, 0.013, 5e-5)]
             ]
 
-            stats_noisy_xx : list[sinter.TaskStats] = sinter.collect(
-                num_workers = os.cpu_count(),
-                tasks = task_noisy_xx,
-                decoders = ["pymatching"],
-                max_shots = 1_000_000,
-                max_errors = 10_000,
-                print_progress = True,
+            stats_noisy_xx: list[sinter.TaskStats] = sinter.collect(
+                num_workers=os.cpu_count(),
+                tasks=task_noisy_xx,
+                decoders=["pymatching"],
+                max_shots=1_000_000,
+                max_errors=10_000,
+                print_progress=True,
             )
 
-            #Saving Stats
+            # Saving Stats
             fname = f"lscx_singlerounds_d{d}_r{r}.pkl"
             try:
                 joblib.dump(stats_noisy_xx, fname, compress=3)
@@ -79,7 +77,6 @@ if __name__ == "__main__":
     ###########################
 
     def combine_files(round_num):
-
         pattern = f"lscx_singlerounds_d*_r{round_num}.pkl"
         files = sorted(glob.glob(pattern))
         combined_stats = []
@@ -90,7 +87,7 @@ if __name__ == "__main__":
         joblib.dump(combined_stats, out_name, compress=3)
         print(f"Combined and saved as {out_name}")
 
-    for r in [i for i in range(2,d_max,2)]:
+    for r in [i for i in range(2, d_max, 2)]:
         combine_files(r)
 
     ######################################

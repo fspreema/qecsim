@@ -17,7 +17,8 @@ dependencies = [
 	"tqecd>=0.1.2",
 	"cvxpy>=1.7.3",
 	"ecos>=2.0",
-	"stim>=1.12"
+	"stim>=1.12",
+	"sinter>=1.15.0"
 ]
 
 [tool.setuptools.packages.find]
@@ -27,8 +28,6 @@ include = ["qecsim*"]
 [tool.ruff]
 line-length = 120
 target-version = "py310"
-select = ["E","F","W","I","B","UP","N","ARG","COM","ISC","Q"]
-ignore = ["W291", "W293"]
 exclude = [
 ".venv",
 ".ruff_cache",
@@ -36,6 +35,10 @@ exclude = [
 "playground",
 "qecsim.egg-info",
 ]
+
+[tool.ruff.lint]
+select = ["E","F","W","I","B","UP","N","ARG","COM","ISC","Q"]
+ignore = ["W291", "W293"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["qecsim"]
