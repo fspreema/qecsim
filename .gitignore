@@ -30,3 +30,6 @@ dist/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Code File
+playground/code (1)

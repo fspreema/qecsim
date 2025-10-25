@@ -1,0 +1,131 @@
+from scipy.optimize import minimize_scalar, brentq
+from scipy.interpolate import UnivariateSpline
+import numpy as np
+import sinter
+
+__all__ = ["threshold_approx"]
+
+#-----------------
+# Global Function:
+#-----------------
+
+def threshold_approx(data_stats: list[sinter.TaskStats], p_min : float = 1e-6, p_max : float = 0.5) -> float:
+
+    """
+    Returns: float
+    -> Calculated threshold
+
+    Function selects stats with highest distance and calculates corssing point by interpolation
+    -> Threshold is defined as the limit of corssings between d & d+2 distances
+    -> Implementation by finding minimum of the difference of the functions
+    """
+
+    distances = sorted(set(stat.json_metadata["distance"] for stat in data_stats))
+
+    ################################################
+    # Settings up Dict and choosing highest distance
+    ################################################
+
+    d1 = distances[-1]
+    d2 = distances[-2]
+    x_dots : dict = {}
+    y_dots : dict = {}
+
+    ###########################################
+    # Filter out Datasets to d1 and d2 distance
+    ###########################################
+
+    for dist in [d1, d2]:
+        filtered_stats = [stat for stat in data_stats
+                        if stat.json_metadata["distance"] == dist
+                        and p_min < stat.json_metadata["p"] < p_max
+]
+        physical_p = [stat.json_metadata["p"] for stat in filtered_stats]
+        logical_p = [stat.errors / stat.shots for stat in filtered_stats]
+
+        """
+        It is enough to check one Dataset for minim distance
+        """
+        if len(physical_p) < 2:
+            raise ValueError("Dataset too small")
+
+        ########################################################
+        # Sort and convert and convert to log log for linear fit
+        ########################################################
+
+        filtered = [(p, lp) for p, lp in zip(physical_p, logical_p) if lp > 0 and p > 0]
+        if len(filtered) < 2:
+            raise ValueError("Not enough valid points (logical_p > 0) for interpolation")
+
+        physical_p, logical_p = zip(*sorted(filtered))
+
+        x_dots[dist] = np.log10(physical_p)
+        y_dots[dist] = np.log10(logical_p)
+
+    ##########################################
+    # Intepolate Data for root_scalar function
+    ##########################################
+
+    f1_interp = UnivariateSpline(x_dots[d1], y_dots[d1], k = 3)
+    f2_interp = UnivariateSpline(x_dots[d2], y_dots[d2], k = 3)
+
+    ##################################################################
+    # Define function for root_scalar and boundaries for search region
+    ##################################################################
+
+    def diff(x):
+        return (f1_interp(x) - f2_interp(x))**2
+
+    x_min = max(min(x_dots[d1]), min(x_dots[d2]))
+    x_max = min(max(x_dots[d1]), max(x_dots[d2]))
+
+    #######################################
+    # Run root scalar and check convergence
+    #######################################
+
+    sol = minimize_scalar(diff, bounds=(x_min, x_max), method='bounded')
+
+    if not sol.success:
+        raise RuntimeError("Minimization did not converge")
+    
+    #######################################
+    # Filter out datapoint next to pot. sol
+    #######################################
+    
+    next_lower_p = - np.inf
+    next_higher_p = 0
+    current_pos = 0
+
+    for pos, p_ph in enumerate(x_dots[d1]):
+        if p_ph < sol.x:
+            next_lower_p = p_ph
+            next_higher_p = x_dots[d1][pos + 1]
+            current_pos = pos
+
+    ############################
+    # Build linear Approximation
+    ############################
+
+    x = [next_lower_p, next_higher_p]
+    y_1 = [y_dots[d1][current_pos], y_dots[d1][current_pos + 1]]
+    y_2 = [y_dots[d2][current_pos], y_dots[d2][current_pos + 1]]
+
+    fit_1 = np.polyfit(x, y_1, 1)
+    fit_2 = np.polyfit(x, y_2, 1)
+
+    #########################
+    # Search for intersection
+    #########################
+
+    if np.isclose(fit_1[0], fit_2[0], atol=1e-3):
+        raise RuntimeError("Local segments are parallel: no intersection!")
+
+    sol_crossing = (fit_2[1] - fit_1[1]) / (fit_1[0] - fit_2[0])
+
+    #################################
+    # Convert back from log10(x) to x
+    #################################
+
+    threshold = 10 ** sol_crossing
+
+    return threshold
