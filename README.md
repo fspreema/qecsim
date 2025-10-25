@@ -7,4 +7,14 @@
   - Repetition code
   - (Rotated) Surface code
   - XZZX code
+
 - Implements CX gate via lattice surgery on the rotated surface code
+  - Following Flows are currently Supported:
+    - ...
+
+- Numerical Threshold Approximation
+  - Implements numerical threhsold approximations for any given Sinter.TaskStats File
+
+### Usage
+- To create a given circuit...
+
