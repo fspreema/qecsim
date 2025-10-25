@@ -1,11 +1,11 @@
-import stim
-import pymatching
 import numpy as np
+import pymatching
+import stim
 
 __all__ = ["calc_ptm"]
 
-def _define_off_diag_log_rec(samples_from_sampler: np.ndarray, 
-                             curr_shot: int, 
+def _define_off_diag_log_rec(samples_from_sampler: np.ndarray,
+                             curr_shot: int,
                              rec_pos: list[int]) -> np.ndarray:
     """
     Returns per shot full logical measurement by xoring the needed measurements
@@ -26,7 +26,7 @@ def _define_off_diag_log_rec(samples_from_sampler: np.ndarray,
 
     return final_meas
 
-def _xor_meas_and_decoder(decoder_prediction: np.ndarray, 
+def _xor_meas_and_decoder(decoder_prediction: np.ndarray,
                           logical_state_meas: list,
                           curr_shot: int) -> int:
     """
@@ -42,7 +42,7 @@ def _build_dem(circuit: stim.Circuit, dem_needed: bool = False):
     """
     Creates for a given stim Circuit the detector error model as well as the pymachting matcher
     """
-    
+
     dem = circuit.detector_error_model(decompose_errors=True)
     matcher = pymatching.Matching.from_detector_error_model(dem)
 
@@ -57,18 +57,18 @@ def calc_ptm(*,
                  circuit_p_z: stim.Circuit,
                  circuit_m_z: stim.Circuit,
                  circuit_pi_z: stim.Circuit,
-                 circuit_mi_z: stim.Circuit, 
+                 circuit_mi_z: stim.Circuit,
                  circuit_0_x: stim.Circuit,
                  circuit_1_x: stim.Circuit,
                  circuit_p_x: stim.Circuit,
                  circuit_pi_x: stim.Circuit,
-                 circuit_mi_x: stim.Circuit, 
+                 circuit_mi_x: stim.Circuit,
                  circuit_pi_y: stim.Circuit,
                  circuit_0_y: stim.Circuit,
                  circuit_1_y: stim.Circuit,
                  circuit_p_y: stim.Circuit,
                  circuit_m_y: stim.Circuit,
-                 rec_pos_log_x: list[int], rec_pos_log_z: list[int], 
+                 rec_pos_log_x: list[int], rec_pos_log_z: list[int],
                  rec_pos_log_y01: list[int], rec_pos_log_ypm: list[int],
                  rec_pos_log_z_pmi: list[int], rec_pos_log_x_pmi: list[int],
                  samples: int = 1_000) -> np.ndarray:
@@ -197,7 +197,8 @@ def calc_ptm(*,
     ######################################
 
     """
-    For the Off-Diagonals we can't directly use the DEM as we need the raw measurements to infer what logical state we have
+    For the Off-Diagonals we can't directly use the DEM as we need the 
+    raw measurements to infer what logical state we have
 
     -> We use compile sampler to infer the logical state
     -> Convert into a dem to run the matching
@@ -285,7 +286,7 @@ def calc_ptm(*,
     m_pi_x, dem_pi_x = _build_dem(circuit_pi_x, dem_needed= True)
     m_mi_x, dem_mi_x = _build_dem(circuit_mi_x, dem_needed= True)
     m_pi_z, dem_pi_z = _build_dem(circuit_pi_z, dem_needed= True)
-    m_mi_z, dem_mi_z = _build_dem(circuit_mi_z, dem_needed= True)    
+    m_mi_z, dem_mi_z = _build_dem(circuit_mi_z, dem_needed= True)
 
 
     # Converting the measurement sample into DEM sample and continue as usual with decoding
@@ -387,7 +388,8 @@ def calc_ptm(*,
     final_meas_pi_z: list = []
     final_meas_mi_z: list = []
 
-    # XOR flip with noiseless Measurement (looping over all samples and compoaring to the current logical outcome in the list)
+    # XOR flip with noiseless Measurement 
+    #(looping over all samples and compoaring to the current logical outcome in the list)
     # -> Taking first entry for first logical observable
     for curr_shot in range(samples):
 
@@ -430,12 +432,12 @@ def calc_ptm(*,
     r_xy = 1/2 * (mu_y_px - mu_y_mx)
     r_zy = 1/2 * (mu_y_pz - mu_y_mz)
     r_yx = 1/2 * (mu_x_py - mu_x_my)
-    r_yz = 1/2 * (mu_z_py - mu_z_my) 
+    r_yz = 1/2 * (mu_z_py - mu_z_my)
 
     # Create PTM Matrix
     ptm = [
-        [r_xx, r_xy, r_xz], 
-        [r_yx, r_yy , r_yz], 
+        [r_xx, r_xy, r_xz],
+        [r_yx, r_yy , r_yz],
         [r_zx, r_zy , r_zz]]
 
     return(np.array(ptm))

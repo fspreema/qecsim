@@ -1,8 +1,9 @@
-import sinter
-import os
 import itertools
+import os
 import pickle
+
 import numpy as np
+import sinter
 
 from qecsim.codes.xzzx.circuit import XZZX_code
 from qecsim.tools.thresholds.threshold_approx import threshold_approx
@@ -16,7 +17,7 @@ if __name__ == "__main__":
     step = 0.0125
     bias_steps = np.arange(0.0, 1 + (step/2), step)
     all_bias_triplets = [[bx, by, 1 - bx - by]
-                        for bx, by in itertools.product(bias_steps, repeat = 2) 
+                        for bx, by in itertools.product(bias_steps, repeat = 2)
                         if 0 <= 1 - bx - by <= 1]
 
     # Changing Bias setting
@@ -29,24 +30,24 @@ if __name__ == "__main__":
         task_noisy_v = [sinter.Task(
             circuit = XZZX_code(
                 distance = d,
-                rounds = d, 
+                rounds = d,
                 state_init ="Ver",
                 noise_bias = current_bias,
-                after_c_pauli_channel_prob = noise
+                after_c_pauli_channel_prob = noise,
                 ),
-            json_metadata={'p': noise, 'distance' : d, 'bias' : current_bias}
-            ) 
+            json_metadata={"p": noise, "distance" : d, "bias" : current_bias},
+            )
             for noise in [i for i in np.arange(0.005, 0.1, 0.005)]
             for d in [5, 7]
         ]
-        
+
         stats_noisy_v : list[sinter.TaskStats] = sinter.collect(
             num_workers = os.cpu_count(),
             tasks=task_noisy_v,
-            decoders=['pymatching'],
+            decoders=["pymatching"],
             max_shots=500_000,
             max_errors=10_000,
-            print_progress=True
+            print_progress=True,
         )
 
         """
@@ -65,7 +66,7 @@ if __name__ == "__main__":
             print_progress=True
         )"""
 
-        # calculate threshold and save -> If Error skip and set 0 
+        # calculate threshold and save -> If Error skip and set 0
         try:
             calc_th = threshold_approx(stats_noisy_v)
             num_value.append([current_bias,calc_th])

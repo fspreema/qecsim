@@ -1,4 +1,3 @@
-from typing import Dict
 
 Label = str
 Coord = complex
@@ -9,7 +8,13 @@ __all__ = ["build_lattice"]
 # Public Function
 # -----------------------
 
-def build_lattice(distance: int, state_init: str | None = None, *, offset: Coord = 0 + 0j, starting_stabilizer_x: bool = True) -> Dict[Coord, Label]:
+def build_lattice(
+    distance: int,
+    state_init: str | None = None,
+    *,
+    offset: Coord = 0 + 0j,
+    starting_stabilizer_x: bool = True,
+) -> dict[Coord, Label]:
     """
     Adding the geometry of the Lattice Surgery as a helper function:
         ->Returns the {coords: label} dict used for building the qubit coords
@@ -23,9 +28,9 @@ def build_lattice(distance: int, state_init: str | None = None, *, offset: Coord
     """
 
     """
-    In theroy one needs to change the application of the boundary stab. 
-    for even and odd distances but odd distances are the only practical code 
-    length so we check for odd distance right at the beginning(makes no sene to 
+    In theroy one needs to change the application of the boundary stab.
+    for even and odd distances but odd distances are the only practical code
+    length so we check for odd distance right at the beginning (makes no sense to
     include them here for the boundary stab)
     """
 
@@ -37,7 +42,7 @@ def build_lattice(distance: int, state_init: str | None = None, *, offset: Coord
 
     ox, oy = int(offset.real), int(offset.imag)
 
-    qubit_coords: Dict[Coord, Label] = {}
+    qubit_coords: dict[Coord, Label] = {}
     start_with_x = starting_stabilizer_x
 
     for real in range(distance * 2):

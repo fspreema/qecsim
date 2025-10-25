@@ -1,18 +1,28 @@
-from typing import Mapping, Union
+from collections.abc import Mapping
+
 import stim
+
 from qecsim.core.cx_builder import cx_builder
-from qecsim.core.data_models import ConfigLatticeSurgery as Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext, NoiseModel
+from qecsim.core.data_models import (
+    ConfigLatticeSurgery as Config,
+    LatticeContext,
+    NoiseModel,
+    Patch_Ancilla,
+    Patch_Control,
+    Patch_Surgery,
+    Patch_Target,
+)
 
 Coord = complex
 
 __all__ = ["initial"]
 
-def initial(*, 
-            lct: LatticeContext, 
-            patches: Mapping[str, Union[Patch_Ancilla, Patch_Target, Patch_Control, Patch_Surgery]], 
-            cfg: Config, 
+def initial(*,
+            lct: LatticeContext,
+            patches: Mapping[str, Patch_Ancilla | Patch_Target | Patch_Control | Patch_Surgery],
+            cfg: Config,
             noise: NoiseModel) -> stim.Circuit:
-    
+
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
@@ -40,7 +50,7 @@ def initial(*,
     #-Retrieving Index from Stabilizers of the Lattices
     x_stab_index_ancilla = ancilla_patch.x_stab
     z_stab_index_ancilla = ancilla_patch.z_stab
-    x_stab_boundary_b_index_ancilla = ancilla_patch.x_bdyB
+    x_stab_boundary_b_index_ancilla = ancilla_patch.x_bdy_b
     x_stab_index_control = control_patch.x_stab
     z_stab_index_control = control_patch.z_stab
     x_stab_index_target = target_patch.x_stab
@@ -60,7 +70,7 @@ def initial(*,
     ########################################################################
     # Inilizing Ancilla in Plus (Reset) and Control/ Target in desired State
     ########################################################################
-    
+
     init_patterns = {
         (a, b): [("RX", data_ancilla)]
         for a in ["Z0", "Z1", "X+", "X-", "Y+", "Y-"]
@@ -82,7 +92,7 @@ def initial(*,
     #--------------------------------------------------
 
     initial_circuit.append("TICK")
-    
+
     #Adding h gate for X stabilizers -> Filtering out double coords
     combined_x_stab : list = []
     for coords in (x_stab_index_ancilla + x_stab_index_control + x_stab_index_target):
@@ -221,7 +231,7 @@ def initial(*,
 
         elif index in z_stab_index_target:
             pos_to_index_target_z.append([pos, index])
-    
+
     ####################################
     # Implementing Detectors for Control
     ####################################
@@ -233,7 +243,7 @@ def initial(*,
             current_tar = index_pos[0] - len(control_target_stabs)
             q_index = index_pos[1]
             initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
-    
+
     #X-Basis (+/- - state)
     elif control_state_init in {"X-", "X+"}:
 
@@ -241,7 +251,7 @@ def initial(*,
             current_tar = index_pos[0] - len(control_target_stabs)
             q_index = index_pos[1]
             initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
-        
+
     ########################################
     # Implementing Detectors for Target
     ########################################
@@ -253,7 +263,7 @@ def initial(*,
             current_tar = index_pos[0] - len(control_target_stabs)
             q_index = index_pos[1]
             initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
-    
+
     #X-Basis (+/- - state)
     elif target_state_init in {"X-", "X+"}:
 
@@ -424,7 +434,7 @@ def initial(*,
         previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
         q_index = index_pos[1]
         initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
-    
+
 
     for index_pos in pos_to_index_control_x:
         current_tar = index_pos[0] - len(control_target_stabs)
@@ -441,7 +451,7 @@ def initial(*,
         previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
         q_index = index_pos[1]
         initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
-    
+
     for index_pos in pos_to_index_target_x:
         current_tar = index_pos[0] - len(control_target_stabs)
         previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)

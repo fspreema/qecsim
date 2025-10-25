@@ -1,7 +1,7 @@
-from scipy.optimize import minimize_scalar, brentq
-from scipy.interpolate import UnivariateSpline
 import numpy as np
 import sinter
+from scipy.interpolate import UnivariateSpline
+from scipy.optimize import minimize_scalar
 
 __all__ = ["threshold_approx"]
 
@@ -9,7 +9,11 @@ __all__ = ["threshold_approx"]
 # Global Function:
 #-----------------
 
-def threshold_approx(data_stats: list[sinter.TaskStats], p_min : float = 1e-6, p_max : float = 0.5) -> float:
+def threshold_approx(
+    data_stats: list[sinter.TaskStats],
+    p_min: float = 1e-6,
+    p_max: float = 0.5,
+) -> float:
 
     """
     Returns: float
@@ -53,11 +57,15 @@ def threshold_approx(data_stats: list[sinter.TaskStats], p_min : float = 1e-6, p
         # Sort and convert and convert to log log for linear fit
         ########################################################
 
-        filtered = [(p, lp) for p, lp in zip(physical_p, logical_p) if lp > 0 and p > 0]
+        filtered = [
+            (p, lp)
+            for p, lp in zip(physical_p, logical_p, strict=True)
+            if lp > 0 and p > 0
+        ]
         if len(filtered) < 2:
             raise ValueError("Not enough valid points (logical_p > 0) for interpolation")
 
-        physical_p, logical_p = zip(*sorted(filtered))
+        physical_p, logical_p = zip(*sorted(filtered), strict=True)
 
         x_dots[dist] = np.log10(physical_p)
         y_dots[dist] = np.log10(logical_p)
@@ -83,15 +91,15 @@ def threshold_approx(data_stats: list[sinter.TaskStats], p_min : float = 1e-6, p
     # Run root scalar and check convergence
     #######################################
 
-    sol = minimize_scalar(diff, bounds=(x_min, x_max), method='bounded')
+    sol = minimize_scalar(diff, bounds=(x_min, x_max), method="bounded")
 
     if not sol.success:
         raise RuntimeError("Minimization did not converge")
-    
+
     #######################################
     # Filter out datapoint next to pot. sol
     #######################################
-    
+
     next_lower_p = - np.inf
     next_higher_p = 0
     current_pos = 0

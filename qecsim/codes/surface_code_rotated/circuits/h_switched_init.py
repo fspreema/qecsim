@@ -1,17 +1,22 @@
 import stim
-from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, NoiseModel, CircuitResult
+
 from qecsim.core.cx_builder import cx_builder
+from qecsim.core.data_models import (
+    CircuitResult,
+    Context,
+    NoiseModel,
+    Patch,
+)
 
 Coord = complex
 
 __all__ = ["h_switched_circ_init"]
 
-def h_switched_circ_init(*, 
-                        lct: Context, 
-                        patches: dict[str, Patch], 
-                        cfg: Config, 
+def h_switched_circ_init(*,
+                        lct: Context,
+                        patches: dict[str, Patch],
                         noise: NoiseModel) -> CircuitResult:
-    
+
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
@@ -92,7 +97,7 @@ def h_switched_circ_init(*,
     """
     Due to the fact that x and z indicies are flipped, measurement order is changed!
     """
-    
+
     switched_init_circ.append("MR", x_stab_index + z_stab_index)
 
     #-------Adding-After-Reset-Flip-Prob.------------
@@ -122,14 +127,14 @@ def h_switched_circ_init(*,
         if q_index in z_stab_index:
             prev_tar = int(-2.5 * num_measurements_repeat + index)
             current_tar = -1 * num_measurements_repeat + index
-            switched_init_circ.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)], 
+            switched_init_circ.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)],
                                 (i2q[q_index].real, i2q[q_index].imag, 0))
-            
+
         # Currently Z Stab
         if q_index in x_stab_index:
             prev_tar = int(-1.5 * num_measurements_repeat + index)
             current_tar = -1 * num_measurements_repeat + index
-            switched_init_circ.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)], 
+            switched_init_circ.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)],
                                 (i2q[q_index].real, i2q[q_index].imag, 0))
 
     switched_init_circ.append("TICK")

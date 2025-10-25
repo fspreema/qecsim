@@ -1,13 +1,17 @@
-import stim
 import numpy as np
+import stim
 
 from .circuit_pauli_injector import pauli_injector
 from .noise_array import return_noise_pos
 
 __all__ = ["mc_estimator"]
 
-def mc_estimator(*, circuit : stim.Circuit, circuit_noiseless : stim.Circuit, real_measurement : bool = False ,number_samples : int = 50, 
-                  number_batches : int = 1 ) -> np.array:
+def mc_estimator(*, 
+                 circuit: stim.Circuit, 
+                 circuit_noiseless: stim.Circuit, 
+                 real_measurement: bool = False,
+                 number_samples: int = 50,
+                 number_batches: int = 1) -> np.array:
 
     #############################################################
     # Init measurement result vec and sampler of original Circuit
@@ -15,9 +19,9 @@ def mc_estimator(*, circuit : stim.Circuit, circuit_noiseless : stim.Circuit, re
 
     # Build the sampler which is needed (i.e. real measurement or measurements flipped?)
     if real_measurement is False:
-        sampler_I = circuit.compile_detector_sampler()
+        sampler_i = circuit.compile_detector_sampler()
     else:
-        sampler_I = circuit.compile_sampler()
+        sampler_i = circuit.compile_sampler()
 
     #############################################
     # Determine qubit indexes of logical operator
@@ -27,7 +31,7 @@ def mc_estimator(*, circuit : stim.Circuit, circuit_noiseless : stim.Circuit, re
     ms_idx : list[list] = []
 
     # Determine all emasurement refrences
-    for tick, inst in enumerate(circuit.flattened()):
+    for _tick, inst in enumerate(circuit.flattened()):
 
         if inst.name in {"OBSERVABLE_INCLUDE"}:
             ms_idx.append([i.value for i in inst.targets_copy()])
@@ -36,7 +40,7 @@ def mc_estimator(*, circuit : stim.Circuit, circuit_noiseless : stim.Circuit, re
     _qbt_index: list = []
 
     # going through the circuit until one has gotten to the i-th measurement
-    for tick, inst in enumerate(reversed(circuit.flattened())):
+    for _tick, inst in enumerate(reversed(circuit.flattened())):
 
         if inst.name in {"M", "MR", "MX", "MZ"}:
 
@@ -48,7 +52,8 @@ def mc_estimator(*, circuit : stim.Circuit, circuit_noiseless : stim.Circuit, re
             """
 
         """
-        Else shorten qubit index with -current + len(curr_qubit_meas) and then continue looking in the next mesurment operator
+        Else shorten qubit index with -current + len(curr_qubit_meas) and then continue looking in the next 
+        measurement operator
         """
 
 
@@ -73,7 +78,8 @@ def mc_estimator(*, circuit : stim.Circuit, circuit_noiseless : stim.Circuit, re
     """
     -> What we should do here ist the following
         1. Run n shots
-        2. In each shot go to each postion where there is the noisy gate and apply the inverse channel with the given weight of the postion (Or rather of this channel)
+        2. In each shot go to each postion where there is the noisy gate and apply the inverse channel 
+        with the given weight of the postion (Or rather of this channel)
         3. After full implementing the Flip Simulator check what operators have flipped
         4. XOR these Operations onto the noisy run of the normal noisy sample
     """
@@ -89,13 +95,16 @@ def mc_estimator(*, circuit : stim.Circuit, circuit_noiseless : stim.Circuit, re
         # Sample form the identity Circuit one shot
         ###########################################
 
-        noisy_samples = sampler_I.sample(shots = number_batches, append_observables = True)
+        noisy_samples = sampler_i.sample(shots = number_batches, 
+                                         append_observables = True)
 
         ####################
         # Run pauli injector
         ####################
 
-        pauli_frame_meas = pauli_injector(circuit = circuit_noiseless.flattened(), noise_info = noisy_info, batch_size = number_batches)
+        pauli_frame_meas = pauli_injector(circuit = circuit_noiseless.flattened(), 
+                                          noise_info = noisy_info, 
+                                          batch_size = number_batches)
 
         for current_batch in range(number_batches):
 
@@ -110,7 +119,7 @@ def mc_estimator(*, circuit : stim.Circuit, circuit_noiseless : stim.Circuit, re
             #########################
 
             if real_measurement is False:
-                
+
                 # Multiplying all gammas/signs together as we look at the log operator
                 """
                 NEEDS REWORK
@@ -127,8 +136,8 @@ def mc_estimator(*, circuit : stim.Circuit, circuit_noiseless : stim.Circuit, re
 
                 # XOR logical Operator and multiply all gammas to it
                 obs_bits = noisy_samples[current_batch, -circuit.num_observables:]
-                xored_vec = obs_bits.astype(bool) ^ log_frame     
-                xored_res = bool(xored_vec[0])       
+                xored_vec = obs_bits.astype(bool) ^ log_frame
+                xored_res = bool(xored_vec[0])
 
                 # Convert into non boolian result
                 non_bool_res = 0

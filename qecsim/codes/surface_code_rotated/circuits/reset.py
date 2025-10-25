@@ -1,18 +1,19 @@
 import stim
-from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, CircuitResult
+
+from qecsim.core.data_models import CircuitResult, ConfigSurface as Config, Context, Patch
 
 Coord = complex
 
 __all__ = ["reset"]
 
-def reset(*, 
-        lct: Context, 
-        patches: dict[str, Patch], 
+def reset(*,
+        lct: Context,
+        patches: dict[str, Patch],
         cfg: Config,
         logical_h: bool = False,
         skip_coords: bool = False,
         offset: complex = 0 + 0j) -> CircuitResult:
-    
+
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
@@ -45,7 +46,7 @@ def reset(*,
     def _logical_z_indices() -> list[int]:
         # Horizontal string at y=1, along real axis
         return [q2i[real + 1j] for real in range(1, 2 * distance, 2)]
-    
+
     def _logical_y_indices() -> list[int]:
         # Both
         z_string =  [q2i[real + 1j] for real in range(3, 2 * distance, 2)]
@@ -101,8 +102,8 @@ def reset(*,
         if log_obs == "Y":
 
             # XORing the observable away
-            reset_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in _logical_y_indices()[0]] + 
-                                     [f"Y{index}" for index in _logical_y_indices()[1]] + 
+            reset_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in _logical_y_indices()[0]] +
+                                     [f"Y{index}" for index in _logical_y_indices()[1]] +
                                      [f"Z{index}" for index in _logical_y_indices()[2]], 0)
 
     #########################
@@ -142,8 +143,8 @@ def reset(*,
         if log_obs == "Y":
 
             # XORing the observable away
-            reset_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in _logical_y_indices()[0]] + 
-                                     [f"Y{index}" for index in _logical_y_indices()[1]] + 
+            reset_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in _logical_y_indices()[0]] +
+                                     [f"Y{index}" for index in _logical_y_indices()[1]] +
                                      [f"Z{index}" for index in _logical_y_indices()[2]], 0)
 
     ###########################
@@ -163,7 +164,7 @@ def reset(*,
         xs = [i2q[i].real - offset.real for i in data]
         ys = [i2q[i].imag - offset.imag for i in data]
 
-        # Calc threshold for diagonal cut        
+        # Calc threshold for diagonal cut
         s0 = (min(xs)+max(xs))/2 + (min(ys)+max(ys))/2
 
         skip_coord = 1 + 1j + offset
@@ -172,7 +173,7 @@ def reset(*,
             c = i2q[data_index]
             if c == skip_coord:
                 continue
-            
+
             # Diagonal Cut
             if (c.real - offset.real + c.imag - offset.imag) >= s0:
                 data_rz.append(q2i[c])

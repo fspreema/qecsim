@@ -1,12 +1,12 @@
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Mapping, Optional, Any
+from typing import Any
 
 # Type aliases
 Coord = complex
 Label = str
 Index = int
-Pair = Tuple[Coord, Coord]
-
+Pair = tuple[Coord, Coord]
 
 #--------------------------
 # Shared Helper Dataclasses
@@ -29,7 +29,7 @@ class CircuitResult:
     Keep this generic so circuit builders can use any circuit object
     """
     circuit: Any
-    obs_indices: Optional[List[int]] = None
+    obs_indices: list[int] | None = None
 
     def __iadd__(self, other: "CircuitResult | Any") -> "CircuitResult":
         """Allow `result += other` regardless of other’s type."""
@@ -73,7 +73,10 @@ class Config_LatticeSurgery:
 # Internal pick-up helper
 #--------------------------
 
-def _pick_up_indices(coords: Dict[Coord, Label], q2i: Mapping[Coord, Index], *labels: str) -> List[Index]:
+def _pick_up_indices(coords: dict[Coord, Label],
+                     q2i: Mapping[Coord, Index],
+                     *labels: str,
+                     ) -> list[Index]:
     """
     Return q2i indices matching any of the provided labels in coords.
     """
@@ -82,29 +85,29 @@ def _pick_up_indices(coords: Dict[Coord, Label], q2i: Mapping[Coord, Index], *la
 
 
 #--------------------
-# Surface-style Patch 
+# Surface-style Patch
 #--------------------
 
 @dataclass
 class Patch:
     """All geometry information is stored here i.e. data/x_stab indices"""
-    coords: Dict[Coord, Label]
-    data: List[Index]
-    x_stab: List[Index]
-    stab_switch_apply_h: List[Index]
-    x_stab_memory: List[Index]
-    z_stab_memory: List[Index]
-    z_stab: List[Index]
-    upper_h: List[Index]
-    right_h: List[Index]
+    coords: dict[Coord, Label]
+    data: list[Index]
+    x_stab: list[Index]
+    stab_switch_apply_h: list[Index]
+    x_stab_memory: list[Index]
+    z_stab_memory: list[Index]
+    z_stab: list[Index]
+    upper_h: list[Index]
+    right_h: list[Index]
 
     @classmethod
     def from_coords(
         cls,
-        coords: Dict[Coord, Label],
+        coords: dict[Coord, Label],
         q2i: Mapping[Coord, Index],
     ) -> "Patch":
-        def pick_up(*labels: str) -> List[Index]:
+        def pick_up(*labels: str) -> list[Index]:
             return _pick_up_indices(coords, q2i, *labels)
 
         return cls(
@@ -127,20 +130,20 @@ class Patch:
 @dataclass
 class Patch_Ancilla:
     """All geometry information is stored here i.e. data x_stab indices"""
-    coords: Dict[Coord, Label]
-    data: List[Index]
-    x_stab: List[Index]
-    z_stab: List[Index]
-    x_bdyB: List[Index]
-    z_bdyR: List[Index]
+    coords: dict[Coord, Label]
+    data: list[Index]
+    x_stab: list[Index]
+    z_stab: list[Index]
+    x_bdy_b: list[Index]
+    z_bdy_r: list[Index]
 
     @classmethod
     def from_coords(
         cls,
-        coords: Dict[Coord, Label],
+        coords: dict[Coord, Label],
         q2i: Mapping[Coord, Index],
     ) -> "Patch_Ancilla":
-        def pick_up(*labels: str) -> List[Index]:
+        def pick_up(*labels: str) -> list[Index]:
             return _pick_up_indices(coords, q2i, *labels)
 
         return cls(
@@ -148,25 +151,25 @@ class Patch_Ancilla:
             data=pick_up("DATA"),
             x_stab=pick_up("X-STAB", "X-STAB-BOUND-A-A", "X-STAB-BOUND-B-A"),
             z_stab=pick_up("Z-STAB", "Z-STAB-BOUND-L-A", "Z-STAB-BOUND-R-A"),
-            x_bdyB=pick_up("X-STAB-BOUND-B-A"),
-            z_bdyR=pick_up("Z-STAB-BOUND-R-A"),
+            x_bdy_b=pick_up("X-STAB-BOUND-B-A"),
+            z_bdy_r=pick_up("Z-STAB-BOUND-R-A"),
         )
 
 
 @dataclass
 class Patch_Control:
-    coords: Dict[Coord, Label]
-    data: List[Index]
-    x_stab: List[Index]
-    z_stab: List[Index]
+    coords: dict[Coord, Label]
+    data: list[Index]
+    x_stab: list[Index]
+    z_stab: list[Index]
 
     @classmethod
     def from_coords(
         cls,
-        coords: Dict[Coord, Label],
+        coords: dict[Coord, Label],
         q2i: Mapping[Coord, Index],
     ) -> "Patch_Control":
-        def pick_up(*labels: str) -> List[Index]:
+        def pick_up(*labels: str) -> list[Index]:
             return _pick_up_indices(coords, q2i, *labels)
 
         return cls(
@@ -179,18 +182,18 @@ class Patch_Control:
 
 @dataclass
 class Patch_Target:
-    coords: Dict[Coord, Label]
-    data: List[Index]
-    x_stab: List[Index]
-    z_stab: List[Index]
+    coords: dict[Coord, Label]
+    data: list[Index]
+    x_stab: list[Index]
+    z_stab: list[Index]
 
     @classmethod
     def from_coords(
         cls,
-        coords: Dict[Coord, Label],
+        coords: dict[Coord, Label],
         q2i: Mapping[Coord, Index],
     ) -> "Patch_Target":
-        def pick_up(*labels: str) -> List[Index]:
+        def pick_up(*labels: str) -> list[Index]:
             return _pick_up_indices(coords, q2i, *labels)
 
         return cls(
@@ -203,19 +206,19 @@ class Patch_Target:
 
 @dataclass
 class Patch_Surgery:
-    coords: Dict[Coord, Label]
-    x_stab_m: List[Index]
-    z_stab_m: List[Index]
-    x_stab_b: List[Index]
-    z_stab_l: List[Index]
+    coords: dict[Coord, Label]
+    x_stab_m: list[Index]
+    z_stab_m: list[Index]
+    x_stab_b: list[Index]
+    z_stab_l: list[Index]
 
     @classmethod
     def from_coords(
         cls,
-        coords: Dict[Coord, Label],
+        coords: dict[Coord, Label],
         q2i: Mapping[Coord, Index],
     ) -> "Patch_Surgery":
-        def pick_up(*labels: str) -> List[Index]:
+        def pick_up(*labels: str) -> list[Index]:
             return _pick_up_indices(coords, q2i, *labels)
 
         return cls(
@@ -236,14 +239,15 @@ class Context:
     """
     Shared information across surface-style lattices
     
-    -> Extra mappings are optional and default to empty dicts so code can selectively use the pieces it needs.
+    -> Extra mappings are optional and default to empty dicts.
+        This allows code to selectively use only the pieces it needs.
     """
-    q2i: Dict[Coord, Index]
-    i2q: Dict[Index, Coord]
-    stab_to_data: Dict[Pair, str]
-    stab_to_data_modified: Dict[Pair, str] = field(default_factory=dict)
-    stab_to_data_modified2: Dict[Pair, str] = field(default_factory=dict)
-    stab_to_data_modified3: Dict[Pair, str] = field(default_factory=dict)
+    q2i: dict[Coord, Index]
+    i2q: dict[Index, Coord]
+    stab_to_data: dict[Pair, str]
+    stab_to_data_modified: dict[Pair, str] = field(default_factory=dict)
+    stab_to_data_modified2: dict[Pair, str] = field(default_factory=dict)
+    stab_to_data_modified3: dict[Pair, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -251,12 +255,12 @@ class LatticeContext:
     """
     Shared information across lattice-surgery-style lattices
     """
-    q2i: Dict[Coord, Index]
-    i2q: Dict[Index, Coord]
-    stab_to_data: Dict[Pair, str]
-    stab_to_data_surgery_ac: Dict[Pair, str]
-    stab_to_data_surgery_at: Dict[Pair, str]
-    surgery_coords: Dict[Coord, Label]
+    q2i: dict[Coord, Index]
+    i2q: dict[Index, Coord]
+    stab_to_data: dict[Pair, str]
+    stab_to_data_surgery_ac: dict[Pair, str]
+    stab_to_data_surgery_at: dict[Pair, str]
+    surgery_coords: dict[Coord, Label]
 
 
 # Backwards-compatibility helpers (thin aliases)

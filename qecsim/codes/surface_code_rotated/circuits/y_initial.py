@@ -1,18 +1,23 @@
 import stim
-from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, NoiseModel, CircuitResult
+
 from qecsim.core.cx_builder import cx_builder
+from qecsim.core.data_models import (
+    CircuitResult,
+    Context,
+    NoiseModel,
+    Patch,
+)
 
 Coord = complex
 
 __all__ = ["y_initial"]
 
-def y_initial(*, 
-              lct: Context, 
-              patch: dict[str, Patch], 
-              cfg: Config,
+def y_initial(*,
+              lct: Context,
+              patch: dict[str, Patch],
               noise: NoiseModel,
               offset: complex = 0 + 0j) -> CircuitResult:
-    
+
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
@@ -64,7 +69,7 @@ def y_initial(*,
     initial_circuit.append("TICK")
 
     #-------Continue-Circuit------------
-    
+
     initial_circuit.append("M", x_stab_index + z_stab_index)
 
     return CircuitResult(circuit=initial_circuit)

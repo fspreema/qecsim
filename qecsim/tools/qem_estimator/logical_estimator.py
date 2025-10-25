@@ -1,8 +1,9 @@
-import numpy as np
-import cvxpy as cp
 import itertools
-import stim
+
+import cvxpy as cp
+import numpy as np
 import pymatching
+import stim
 
 __all__ = ["logical_estimator"]
 
@@ -37,14 +38,14 @@ def _only_diag(ptm: np.ndarray) -> tuple[float, dict, dict]:
     inv_y = 1/ptm[1,1]
     inv_z = 1/ptm[2,2]
 
-    # Calc linear combination of elementary matricees X Y Z I are needed to build ptm 
+    # Calc linear combination of elementary matricees X Y Z I are needed to build ptm
     # -> Quasi Probabilities
-    eta_I = 1/2 * (inv_x + inv_y)
-    eta_X = 1/2 * (inv_x - inv_z)
-    eta_Y = 1/2 * (inv_y - inv_z)
-    eta_Z = 0
+    eta_i = 1/2 * (inv_x + inv_y)
+    eta_x = 1/2 * (inv_x - inv_z)
+    eta_y = 1/2 * (inv_y - inv_z)
+    eta_z = 0
 
-    eta_dict = {'I': eta_I, 'X': eta_X, 'Y': eta_Y, 'Z': eta_Z}
+    eta_dict = {"I": eta_i, "X": eta_x, "Y": eta_y, "Z": eta_z}
 
     # Compute overhead and probs for sampling
     gamma = np.sum(abs(v) for v in eta_dict.values())
@@ -84,10 +85,10 @@ def _even_permutation_check(sigma: tuple[int, int, int]) -> int:
         return +1
     else:
         return -1
-    
+
 def _create_matrix(sigma: tuple[int, int, int],
                   signs: tuple[int, int, int]) -> np.ndarray:
-    
+
     """
     Returns the 3x3 Matrix used for the solver
     -> Describes how the Operator acts on the Paulis i.e. how do each pauli get transformed?
@@ -111,7 +112,7 @@ def _create_matrix(sigma: tuple[int, int, int],
 
 def _perm_sign_dict_conv(sigma: tuple[int, int, int],
                         signs: tuple[int, int, int]) -> tuple[dict, dict]:
-    
+
     """
     Converts the sigma and sign convention into proper dictionaries
 
@@ -168,12 +169,12 @@ def _create_clifford_basis() -> list[dict]:
 
                 # Build tranf Matrix
                 mat = _create_matrix(curr_sigma, curr_sgns)
-                
+
                 basis.append({
                     "name": f"C{curr_idx}",
                     "mat": mat,
                     "perm": perm_dict,
-                    "sgn": sgn_dict
+                    "sgn": sgn_dict,
                 })
 
                 curr_idx += 1
@@ -205,7 +206,7 @@ def _full_mtrx_slv(ptm: np.ndarray) -> tuple[float, dict, dict, list]:
 
     """
     Builds the 24 needed Cliffords Basis, solves equation with minimal overhead required(L1)
-    
+
     Returns:
         * Gamma: Overhead required
         * Probs: Probabilities of each Clifford Basis
@@ -227,15 +228,15 @@ def _full_mtrx_slv(ptm: np.ndarray) -> tuple[float, dict, dict, list]:
 
     # Build equation
     basis = _create_clifford_basis()
-    A_cols = [_stack_vectors_of_mtrx(c['mat']) for c in basis]
-    A = np.column_stack(A_cols)
+    a_cols = [_stack_vectors_of_mtrx(c["mat"]) for c in basis]
+    a = np.column_stack(a_cols)
     b = _stack_vectors_of_mtrx(ptm_inv)
 
     eta = cp.Variable(24)
     eps_val: float = 0.0
 
     # Solve -> eta is vec of 24 entries
-    constraints = [cp.norm2(A @ eta - b) <= eps_val]
+    constraints = [cp.norm2(a @ eta - b) <= eps_val]
     problem = cp.Problem(cp.Minimize(cp.norm1(eta)), constraints)
     problem.solve(solver=cp.ECOS, abstol=1e-9, reltol=1e-9, feastol=1e-9)
     eta_values = np.array(eta.value, dtype=float).reshape(-1)
@@ -243,27 +244,28 @@ def _full_mtrx_slv(ptm: np.ndarray) -> tuple[float, dict, dict, list]:
     # Compute overhead and probs for sampling
     abs_eta = np.abs(eta_values)
     gamma = np.sum(abs(v) for v in eta_values)
-    probs = {basis[k]['name']: float(abs_eta[k] / gamma) for k in range(24)}
-    signs = {basis[k]['name']: (1 if eta_values[k] >= 0 else -1) for k in range(24)}
+    probs = {basis[k]["name"]: float(abs_eta[k] / gamma) for k in range(24)}
+    signs = {basis[k]["name"]: (1 if eta_values[k] >= 0 else -1) for k in range(24)}
 
     return gamma, probs, signs, basis
 
-def logical_estimator(*, 
-                      ptm: np.ndarray, 
+def logical_estimator(*,
+                      ptm: np.ndarray,
                       ptm_circuit_x: stim.Circuit,
                       ptm_circuit_y: stim.Circuit,
                       ptm_circuit_z: stim.Circuit,
                       logical_obs: str,
                       frame_flip: bool,
                       shots: int) -> tuple:
-    
+
     """
     Estimates the choosen logical observable on the given circuit
 
     Arguemnts:
         * ptm: Pauli Transfer Matrix which got build by smapling the circuit ptm_circuit
         * ptm_circuit: Circuit which gets sampled -> F.ex memory in x/z/y basis
-        * logical_obs: Logical Observable which is measured at the end and which expectation value is returned at the end
+        * logical_obs: Logical Observable which is measured at the end 
+        and which expectation value is returned at the end
         * logical_frame: What logical value does the state have i.e. logical gate applied or not?
         * shots: Number of shots this is repeated in order to ahve a big sampling pool
 
@@ -277,7 +279,7 @@ def logical_estimator(*,
     ################################
 
     use_cliffords = _has_off_diagonals(ptm)
-    
+
     #----------------------------------------------------
     # Do only Diagonals (quasi probs eta only of I,X,Y,Z)
     #----------------------------------------------------
@@ -289,17 +291,17 @@ def logical_estimator(*,
         ##########################
         # Precompute Frame updater
         ##########################
-        
+
         """
         In Later runs with Lattice Surgery this needs to be updated as we measure mutli qubit Paulis
         -> i.e. X -> XX or ZZ -> Z etc.
         """
 
         conj_sign = {
-            ('I','X'): +1, ('I','Y'): +1, ('I','Z'): +1,
-            ('X','X'): +1, ('X','Y'): -1, ('X','Z'): -1,
-            ('Y','X'): -1, ('Y','Y'): +1, ('Y','Z'): -1,
-            ('Z','X'): -1, ('Z','Y'): -1, ('Z','Z'): +1,
+            ("I","X"): +1, ("I","Y"): +1, ("I","Z"): +1,
+            ("X","X"): +1, ("X","Y"): -1, ("X","Z"): -1,
+            ("Y","X"): -1, ("Y","Y"): +1, ("Y","Z"): -1,
+            ("Z","X"): -1, ("Z","Y"): -1, ("Z","Z"): +1,
         }
 
     #-----------------------
@@ -315,9 +317,9 @@ def logical_estimator(*,
     #####################################################
 
     circuit_basis = {
-            'X': CircuitAssets(ptm_circuit_x, shots),
-            'Y': CircuitAssets(ptm_circuit_y, shots),
-            'Z': CircuitAssets(ptm_circuit_z, shots),
+            "X": CircuitAssets(ptm_circuit_x, shots),
+            "Y": CircuitAssets(ptm_circuit_y, shots),
+            "Z": CircuitAssets(ptm_circuit_z, shots),
         }
 
     ###########################
@@ -358,7 +360,7 @@ def logical_estimator(*,
     # Sample from different Circuits (Non Diagonals)
     #-----------------------------------------------
 
-    else: 
+    else:
 
         name_to_elem = {c["name"]: c for c in basis}
 
@@ -369,8 +371,8 @@ def logical_estimator(*,
             curr_cliff_dict = name_to_elem[curr_cliff]
 
             # Get infromation what circuit needs to be measured and what sign flip we have
-            which_meas_basis = curr_cliff_dict['perm'][logical_obs]
-            curr_sign = curr_cliff_dict['sgn'][logical_obs]
+            which_meas_basis = curr_cliff_dict["perm"][logical_obs]
+            curr_sign = curr_cliff_dict["sgn"][logical_obs]
 
             # Current measurement dependent on the current pauli sampled
             current_circuit = circuit_basis[which_meas_basis]
@@ -402,7 +404,7 @@ def logical_estimator(*,
         sampling_err = np.sqrt(1/(shots * (shots - 1)) * inner_term)
 
         return logical_estimate, sampling_err
-    
+
     else:
         return logical_estimate
 

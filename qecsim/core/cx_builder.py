@@ -1,5 +1,7 @@
+from collections.abc import Iterable
+
 import stim
-from typing import Iterable
+
 from qecsim.core.data_models import NoiseModel
 
 __all__ = ["cx_builder"]
@@ -22,13 +24,13 @@ def cx_builder(*,
             return [[q2i[cp[1]], q2i[cp[0]]] for cp, o in stab_to_data.items() if o == order]
 
     def _append_by_order(op: str, order: str, noise: float = 0.0) -> None:
-        
+
         # Getting pair info
         for pair in _pairs_for(order):
-            
+
             # Check for excluded index
             if excluded_index not in pair:
-                
+
                 #Adding Pair on Operation
                 if op == "CX":
                     circuit.append(op, pair)
@@ -36,7 +38,7 @@ def cx_builder(*,
                     circuit.append(op, pair, noise)
                 else:
                     raise ValueError("Unsupported Operator")
-            
+
     # Adding all the CX gates
     for order in orders:
         _append_by_order("CX", order)

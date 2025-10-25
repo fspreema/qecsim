@@ -21,9 +21,17 @@ def test_surface_basic():
         2+2j: "X-STAB",
     }
     # default surface call
-    m = populate_stab_to_data(patch, is_flipped=False, y_basis=False, y_switch=False, y_memory=False, distance=2, offset=0+0j)
+    m = populate_stab_to_data(
+        patch,
+        is_flipped=False,
+        y_basis=False,
+        y_switch=False,
+        y_memory=False,
+        distance=2,
+        offset=0 + 0j,
+    )
     # expect entries for these stabs
-    assert any(v.startswith('1-') or v.startswith('2-') for v in m.values())
+    assert any(v.startswith("1-") or v.startswith("2-") for v in m.values())
     assert any(k[1] == 1+1j or k[1] == 2+2j for k in m.keys())
 
 
@@ -36,4 +44,4 @@ def test_lattice_surgery_basic():
     m = populate_stab_to_data(patch, True, "AC")
     assert isinstance(m, dict)
     # expect at least one CX order string
-    assert any(isinstance(v, str) and 'CX' in v for v in m.values())
+    assert any(isinstance(v, str) and "CX" in v for v in m.values())

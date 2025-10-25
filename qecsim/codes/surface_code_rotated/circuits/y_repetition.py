@@ -1,20 +1,27 @@
 import stim
-from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, NoiseModel, CircuitResult
+
 from qecsim.core.cx_builder import cx_builder
+from qecsim.core.data_models import (
+    CircuitResult,
+    ConfigSurface as Config,
+    Context,
+    NoiseModel,
+    Patch,
+)
 
 Coord = complex
 
 __all__ = ["y_repetition_circ"]
 
-def y_repetition_circ(*, 
-                      lct: Context, 
-                      patch: dict[str, Patch], 
-                      cfg: Config, 
+def y_repetition_circ(*,
+                      lct: Context,
+                      patch: dict[str, Patch],
+                      cfg: Config,
                       noise: NoiseModel,
                       offset: complex = 0 + 0j,
                       memory_round: bool = False,
-                      ft_round:bool = False) -> CircuitResult:
-    
+                      ) -> CircuitResult:
+
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
@@ -22,8 +29,10 @@ def y_repetition_circ(*,
     #-Retrieving Global Information
     if not memory_round:
         stab_to_data = lct.stab_to_data
+
     else:
         stab_to_data = lct.stab_to_data_modified3
+        
     q2i = lct.q2i
     distance = cfg.distance
     rounds = cfg.rounds
@@ -81,7 +90,7 @@ def y_repetition_circ(*,
             y_string = [q2i[offset + offset * 1j]]
 
             return(x_string, y_string, z_string)
-        
+
         x_string, y_string, z_string = _logical_y_indices(distance * 2 - 1)
 
         before_round_circuit.append("TICK")
@@ -222,9 +231,9 @@ def y_repetition_circ(*,
 
         rep_circ = round_circuit
         rep_circ += round_circuit * int((rounds - 2) / 2)
-        
+
         return CircuitResult(circuit=rep_circ)
-    
+
     elif memory_round:
 
         rep_circ = before_round_circuit
@@ -254,7 +263,7 @@ def y_repetition_circ(*,
             rec_list = [- i - 1 for i in range(len(log_x))]
 
             return CircuitResult(circuit= rep_circ, obs_indices= rec_list)
-        
+
         elif log_obs == "Z":
 
             # Getting corresponding logical string and rec
@@ -267,5 +276,5 @@ def y_repetition_circ(*,
             rec_list = [- i - 1 for i in range(len(log_z))]
 
             return CircuitResult(circuit= rep_circ, obs_indices= rec_list)
-                
-        return CircuitResult(circuit=rep_circ)        
+
+        return CircuitResult(circuit=rep_circ)

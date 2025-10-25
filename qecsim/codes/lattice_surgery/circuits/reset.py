@@ -1,6 +1,16 @@
-from typing import Mapping, Union
+from collections.abc import Mapping
+
 import stim
-from qecsim.core.data_models import ConfigLatticeSurgery as Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext, NoiseModel
+
+from qecsim.core.data_models import (
+    ConfigLatticeSurgery as Config,
+    LatticeContext,
+    NoiseModel,
+    Patch_Ancilla,
+    Patch_Control,
+    Patch_Surgery,
+    Patch_Target,
+)
 
 Coord = complex
 Label = str
@@ -9,12 +19,12 @@ Pair = tuple[Coord, Coord]
 
 __all__ = ["reset"]
 
-def reset(*, 
-          lct: LatticeContext, 
-          patches: Mapping[str, Union[Patch_Ancilla, Patch_Target, Patch_Control, Patch_Surgery]],
+def reset(*,
+          lct: LatticeContext,
+          patches: Mapping[str, Patch_Ancilla | Patch_Target | Patch_Control | Patch_Surgery],
           cfg: Config,
           noise: NoiseModel) -> stim.Circuit:
-    
+
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
@@ -37,8 +47,8 @@ def reset(*,
     #-Retrieving Index from Stabilizers of the Lattices
     x_stab_index_ancilla = ancilla_patch.x_stab
     z_stab_index_ancilla = ancilla_patch.z_stab
-    x_stab_boundary_b_index_ancilla = ancilla_patch.x_bdyB
-    z_stab_boundary_r_index_ancilla = ancilla_patch.z_bdyR
+    x_stab_boundary_b_index_ancilla = ancilla_patch.x_bdy_b
+    z_stab_boundary_r_index_ancilla = ancilla_patch.z_bdy_r
     x_stab_index_control = control_patch.x_stab
     z_stab_index_control = control_patch.z_stab
     x_stab_index_target = target_patch.x_stab
@@ -49,7 +59,7 @@ def reset(*,
     #----------------------------------------------
 
     all_stabs_not_double = []
-    
+
     #Setting double counter
     counter_x = 0
     counter_z = 0
@@ -146,9 +156,9 @@ def reset(*,
 
         reset_circuit.append("TICK")
         return reset_circuit
-    
+
     else:
         raise ValueError(f"Invalid control/target state initialization: {control_state_init}, {target_state_init}")
 
 
-        
+

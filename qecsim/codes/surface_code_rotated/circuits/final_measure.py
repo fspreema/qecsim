@@ -1,5 +1,12 @@
 import stim
-from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, CircuitResult, NoiseModel
+
+from qecsim.core.data_models import (
+    CircuitResult,
+    ConfigSurface as Config,
+    Context,
+    NoiseModel,
+    Patch,
+)
 
 __all__ = ["final_m"]
 
@@ -13,13 +20,13 @@ OFFSETS = {
     "X-STAB-BOUND-B":   [(-1, -1), (+1, -1)],
 }
 
-def final_m(*, 
-            lct: Context, 
+def final_m(*,
+            lct: Context,
             patches: dict[str, Patch],
-            cfg: Config, 
-            noise: NoiseModel, 
+            cfg: Config,
+            noise: NoiseModel,
             is_flipped: bool ) -> CircuitResult:
-    
+
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
@@ -79,7 +86,7 @@ def final_m(*,
     def _logical_z_indices() -> list[int]:
         # Horizontal string at y=1, along real axis
         return [q2i[real + 1j] for real in range(1, 2 * distance, 2)]
-    
+
     def _logical_y_indices() -> list[int]:
         # Both
         z_string =  [q2i[real + 1j] for real in range(3, 2 * distance, 2)]
@@ -111,7 +118,7 @@ def final_m(*,
 
             elif init_state in {"+", "-"} and log_obs == "X":
                 final_circuit += m_circ_x
-            
+
 
     # Defining Data to measurement indexing
     index_to_rec_data : dict[int, int] = {q: i for i, q in enumerate(reversed(data))}
@@ -131,12 +138,13 @@ def final_m(*,
     # Unified detector construction
     ###############################
     """
-    Here we construct the stabilizers from the last mr round, i.e. measurement of Data is copared with measurement of the ancilla
+    Here we construct the stabilizers from the last mr round, 
+    i.e. measurement of Data is copared with measurement of the ancilla
     -> Results in 5 components that the detector get build up from
 
     Non-Determinstic measurements:
-        * Cannot build these detectors as they are not determinstic (Due to emasurement in different basis)
-        + They are fundamentally not fualt tolerant!!
+        * Cannot build these detectors as they are not determinstic 
+        (Due to emasurement in different basis) + They are fundamentally not fault tolerant!!
     """
 
     # 1) Det circ for comparing stabilizers to data redout -> determinstic measurement basis
@@ -162,10 +170,10 @@ def final_m(*,
 
         #Combining the record targets
         final_record = current_record + last_record
-                    
+
         #Appending Detector
         det_circ1.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
-    
+
 
     if not is_flipped:
 
@@ -191,7 +199,7 @@ def final_m(*,
     ##############################
 
     if is_flipped:
-            
+
         if init_state in {"+", "-"}:
             if log_obs == "Z":
 
@@ -221,7 +229,7 @@ def final_m(*,
                 final_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data) + k) for k in tar_rec], 0)
 
     elif not is_flipped:
-    
+
         if init_state in {"+", "-"}:
             if log_obs == "X":
 
@@ -253,23 +261,25 @@ def final_m(*,
                 rec_list = [-len(data) + k for k in tar_rec]
 
                 return CircuitResult(circuit=final_circuit, obs_indices = rec_list)
-            
+
             if log_obs in {"Y"}:
 
-                final_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in _logical_y_indices()[0]] + 
-                                     [f"Y{index}" for index in _logical_y_indices()[1]] + 
+                final_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in _logical_y_indices()[0]] +
+                                     [f"Y{index}" for index in _logical_y_indices()[1]] +
                                      [f"Z{index}" for index in _logical_y_indices()[2]], 0)
 
                 # For later decoding we need the measurement record postiions of the logical operator
                 tar_rec = []
 
-                for rec_pos, index in enumerate(_logical_y_indices()[0] + _logical_y_indices()[1] + _logical_y_indices()[2]):
+                for rec_pos, _index in enumerate(_logical_y_indices()[0] + 
+                                                 _logical_y_indices()[1] + 
+                                                 _logical_y_indices()[2]):
                     tar_rec.append(rec_pos)
 
                 rec_list = [- k -1 for k in tar_rec]
 
                 return CircuitResult(circuit=final_circuit, obs_indices = rec_list)
-                 
+
         elif init_state in {"0", "1"}:
             if log_obs == "Z":
 
@@ -301,21 +311,23 @@ def final_m(*,
                 rec_list = [-len(data) + k for k in tar_rec]
 
                 return CircuitResult(circuit=final_circuit, obs_indices = rec_list)
-            
+
             if log_obs in {"Y"}:
 
-                final_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in _logical_y_indices()[0]] + 
-                                     [f"Y{index}" for index in _logical_y_indices()[1]] + 
+                final_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in _logical_y_indices()[0]] +
+                                     [f"Y{index}" for index in _logical_y_indices()[1]] +
                                      [f"Z{index}" for index in _logical_y_indices()[2]], 0)
 
                 # For later decoding we need the measurement record postiions of the logical operator
                 tar_rec = []
 
-                for rec_pos, index in enumerate(_logical_y_indices()[0] + _logical_y_indices()[1] + _logical_y_indices()[2]):
+                for rec_pos, _index in enumerate(_logical_y_indices()[0] + 
+                                                _logical_y_indices()[1] + 
+                                                _logical_y_indices()[2]):
                     tar_rec.append(rec_pos)
 
                 rec_list = [- k -1 for k in tar_rec]
 
                 return CircuitResult(circuit=final_circuit, obs_indices = rec_list)
-    
+
     return CircuitResult(circuit=final_circuit)

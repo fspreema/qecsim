@@ -1,17 +1,24 @@
 import stim
-from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, NoiseModel, CircuitResult
+
 from qecsim.core.cx_builder import cx_builder
+from qecsim.core.data_models import (
+    CircuitResult,
+    ConfigSurface as Config,
+    Context,
+    NoiseModel,
+    Patch,
+)
 
 Coord = complex
 
 __all__ = ["initial"]
 
-def initial(*, 
-            lct: Context, 
-            patches: dict[str, Patch], 
-            cfg: Config, 
+def initial(*,
+            lct: Context,
+            patches: dict[str, Patch],
+            cfg: Config,
             noise: NoiseModel) -> CircuitResult:
-    
+
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
@@ -54,7 +61,7 @@ def initial(*,
 
     if noise.after_c_depol_prob > 0:
         initial_circuit.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
-        
+
     #-------Continue-Circuit------------
 
     initial_circuit.append("TICK")
@@ -86,7 +93,7 @@ def initial(*,
         initial_circuit.append("X_ERROR", x_stab_index + z_stab_index, noise.before_m_flip_prob)
 
     #-------Continue-Circuit------------
-    
+
     initial_circuit.append("MR", x_stab_index + z_stab_index)
 
     #-------Adding-After-Reset-Flip-Prob.------------
@@ -102,16 +109,18 @@ def initial(*,
 
     if init_state in {"0", "1"}:
         num_measurements_initial = len(z_stab_index)
-        
+
         for index, q_index in enumerate(z_stab_index):
             current_tar = -1 * num_measurements_initial + index
-            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], 
+                                   (i2q[q_index].real, i2q[q_index].imag, 0))
 
     elif init_state in {"+", "-"}:
         num_measurements_initial = len(x_stab_index + z_stab_index)
-        
+
         for index, q_index in enumerate(x_stab_index):
             current_tar = -1 * num_measurements_initial + index
-            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], 
+                                   (i2q[q_index].real, i2q[q_index].imag, 0))
 
     return CircuitResult(circuit=initial_circuit)

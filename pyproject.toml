@@ -19,6 +19,24 @@ dependencies = [
 	"ecos>=2.0",
 	"stim>=1.12"
 ]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["qecsim*"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+select = ["E","F","W","I","B","UP","N","ARG","COM","ISC","Q"]
+ignore = ["W291", "W293"]
+exclude = [
+".venv",
+".ruff_cache",
+".pytest_cache",
+"playground",
+"qecsim.egg-info",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["qecsim"]
+combine-as-imports = true

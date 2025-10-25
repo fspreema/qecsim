@@ -1,17 +1,22 @@
 import stim
-from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, NoiseModel, CircuitResult
+
+from qecsim.core.data_models import (
+    CircuitResult,
+    Context,
+    NoiseModel,
+    Patch,
+)
 
 Coord = complex
 
 __all__ = ["y_rev_switch_circ"]
 
-def y_rev_switch_circ(*, 
-                 lct: Context, 
-                 patches: dict[str, Patch], 
-                 cfg: Config,
-                 offset: complex = 0+0j, 
+def y_rev_switch_circ(*,
+                 lct: Context,
+                 patches: dict[str, Patch],
+                 offset: complex = 0+0j,
                  noise: NoiseModel) -> CircuitResult:
-    
+
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
@@ -64,7 +69,7 @@ def y_rev_switch_circ(*,
     u_h_stabs = patch.upper_h
 
     # Defining new diagonal and the corresponding stabilizers after the switch:
-    
+
     index_h = []
     index_x_deg = []
     index_nh = []
@@ -115,7 +120,7 @@ def y_rev_switch_circ(*,
     #2) CX Operations
 
     for coord_pairs, order in stab_to_data_switch.items():
-   
+
         #Parallel Implementation of CX
         if order == "5TICK":
 
@@ -133,7 +138,7 @@ def y_rev_switch_circ(*,
     reversed_switch_circ.append("TICK")
 
     for coord_pairs, order in stab_to_data_switch.items():
-   
+
         #Parallel Implementation of CX
         if order == "4TICK":
 
@@ -141,11 +146,11 @@ def y_rev_switch_circ(*,
             index_pairs.append(q2i[coord_pairs[1]])
             index_pairs.append(q2i[coord_pairs[0]])
             reversed_switch_circ.append("CX", index_pairs)
-   
+
     reversed_switch_circ.append("TICK")
 
     for coord_pairs, order in stab_to_data_switch.items():
-   
+
         #Parallel Implementation of CX
         if order == "3.5TICK":
 
@@ -157,7 +162,7 @@ def y_rev_switch_circ(*,
     reversed_switch_circ.append("TICK")
 
     for coord_pairs, order in stab_to_data_switch.items():
-   
+
         #Parallel Implementation of CX
         if order == "3TICK":
 
@@ -169,7 +174,7 @@ def y_rev_switch_circ(*,
     reversed_switch_circ.append("TICK")
 
     for coord_pairs, order in stab_to_data_switch.items():
-   
+
         #Parallel Implementation of CX
         if order == "2TICK":
 
@@ -181,7 +186,7 @@ def y_rev_switch_circ(*,
     reversed_switch_circ.append("TICK")
 
     for coord_pairs, order in stab_to_data_switch_xcy.items():
-   
+
         #Parallel Implementation of CX
         if order == "1TICK":
 

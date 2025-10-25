@@ -1,18 +1,25 @@
 import stim
-from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, NoiseModel, CircuitResult
+
 from qecsim.core.cx_builder import cx_builder
+from qecsim.core.data_models import (
+    CircuitResult,
+    ConfigSurface as Config,
+    Context,
+    NoiseModel,
+    Patch,
+)
 
 Coord = complex
 
 __all__ = ["y_switch_circ"]
 
-def y_switch_circ(*, 
-                  lct: Context, 
-                  patch: dict[str, Patch], 
+def y_switch_circ(*,
+                  lct: Context,
+                  patch: dict[str, Patch],
                   offset: complex = 0 + 0j,
                   cfg: Config,
                   noise: NoiseModel) -> CircuitResult:
-    
+
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
@@ -106,7 +113,7 @@ def y_switch_circ(*,
     u_h_stabs = patch.upper_h
 
     # Defining new diagonal and the corresponding stabilizers after the switch:
-    
+
     index_h = []
     index_x_deg = []
     index_nh = []
@@ -153,7 +160,7 @@ def y_switch_circ(*,
     #2) CX Operations
 
     for coord_pairs, order in stab_to_data_switch_xcy.items():
-   
+
         #Parallel Implementation of CX
         if order == "1TICK":
 
@@ -165,7 +172,7 @@ def y_switch_circ(*,
     switch_circ.append("TICK")
 
     for coord_pairs, order in stab_to_data_switch.items():
-   
+
         #Parallel Implementation of CX
         if order == "2TICK":
 
@@ -177,7 +184,7 @@ def y_switch_circ(*,
     switch_circ.append("TICK")
 
     for coord_pairs, order in stab_to_data_switch.items():
-   
+
         #Parallel Implementation of CX
         if order == "3TICK":
 
@@ -189,7 +196,7 @@ def y_switch_circ(*,
     switch_circ.append("TICK")
 
     for coord_pairs, order in stab_to_data_switch.items():
-   
+
         #Parallel Implementation of CX
         if order == "3.5TICK":
 
@@ -201,7 +208,7 @@ def y_switch_circ(*,
     switch_circ.append("TICK")
 
     for coord_pairs, order in stab_to_data_switch.items():
-   
+
         #Parallel Implementation of CX
         if order == "4TICK":
 
@@ -209,11 +216,11 @@ def y_switch_circ(*,
             index_pairs.append(q2i[coord_pairs[1]])
             index_pairs.append(q2i[coord_pairs[0]])
             switch_circ.append("CX", index_pairs)
-   
+
     switch_circ.append("TICK")
 
     for coord_pairs, order in stab_to_data_switch.items():
-   
+
         #Parallel Implementation of CX
         if order == "5TICK":
 
@@ -229,12 +236,12 @@ def y_switch_circ(*,
                 switch_circ.append("CX", index_pairs)
 
     #-------Continue-Circuit------------
-    
+
     switch_circ.append("TICK")
 
     #3) Basis/ Measurement
     switch_circ.append("H", switch_stab_apply_h)
-    
+
     #-------Continue-Circuit------------
 
     switch_circ.append("TICK")

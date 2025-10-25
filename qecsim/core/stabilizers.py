@@ -1,18 +1,17 @@
-from typing import Dict, Tuple, List, Optional
 
 Coord = complex
 Label = str
-Pair = Tuple[Coord, Coord]
+Pair = tuple[Coord, Coord]
 
 __all__ = ["populate_stab_to_data"]
 
 
-def _populate_xzzx(patch: Dict[Coord, Label]) -> Dict[Pair, str]:
+def _populate_xzzx(patch: dict[Coord, Label]) -> dict[Pair, str]:
     """
     Populate schedule for XZZX-style stabilizers
     """
 
-    stab_to_data: Dict[Pair, str] = {}
+    stab_to_data: dict[Pair, str] = {}
 
     def _attach_interior_cx():
         """
@@ -72,16 +71,18 @@ def _populate_xzzx(patch: Dict[Coord, Label]) -> Dict[Pair, str]:
     return stab_to_data
 
 
-def _populate_lattice_surgery(patch: Dict[Coord, Label], merging: bool, merging_type: Optional[str] = None) -> Dict[Pair, str]:
+def _populate_lattice_surgery(patch: dict[Coord, Label], 
+                              merging: bool, 
+                              merging_type: str | None = None) -> dict[Pair, str]:
     """
     Returns the CX-Schedule {(data_coord, stab_coord): order} for a given lattice
 
     * X-Stabs: control ist the **Data** qubit -> (data, stab)
     * Z-Stabs: control is the **stab** qubit -> (stab, data)
     """
-    stab_to_data: Dict[Pair, str] = {}
+    stab_to_data: dict[Pair, str] = {}
 
-    def attach_interior(merging: bool, merging_type: Optional[str]):
+    def attach_interior(merging: bool, merging_type: str | None):
         """
         Adds the 4-body CX Schedule for the *interior* stabilizers
         """
@@ -148,7 +149,8 @@ def _populate_lattice_surgery(patch: Dict[Coord, Label], merging: bool, merging_
                         stab_to_data[(coords, new_cord3)] = "3-CX"
                         stab_to_data[(coords, new_cord4)] = "4-CX"
 
-    def attach_boundary(merging: bool, merging_type: Optional[str]):
+    def attach_boundary(merging: bool, 
+                        merging_type: str | None):
         """
         Adds the 2-body CX Schedule for the *boundary* stabilizers
         """
@@ -166,7 +168,7 @@ def _populate_lattice_surgery(patch: Dict[Coord, Label], merging: bool, merging_
                     new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
                     stab_to_data[coords, new_cord1] = "3-CX"
                     stab_to_data[coords, new_cord2] = "4-CX"
-                
+
                 elif string == "X-STAB-BOUND-A-A":
                     new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
                     new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
@@ -190,7 +192,7 @@ def _populate_lattice_surgery(patch: Dict[Coord, Label], merging: bool, merging_
                     new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
                     stab_to_data[coords, new_cord1] = "5-CX"
                     stab_to_data[coords, new_cord2] = "6-CX"
-                
+
                 elif string == "X-STAB-BOUND-A-T":
                     new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
                     new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
@@ -214,7 +216,7 @@ def _populate_lattice_surgery(patch: Dict[Coord, Label], merging: bool, merging_
                     new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
                     stab_to_data[coords, new_cord1] = "5-CX"
                     stab_to_data[coords, new_cord2] = "6-CX"
-                
+
                 elif string == "X-STAB-BOUND-A-C":
                     new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
                     new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
@@ -289,7 +291,7 @@ def _populate_lattice_surgery(patch: Dict[Coord, Label], merging: bool, merging_
 
 
 def _populate_surface(
-    patch: Dict[Coord, Label],
+    patch: dict[Coord, Label],
     is_flipped: bool = False,
     y_basis: bool = False,
     y_switch: bool = False,
@@ -297,7 +299,7 @@ def _populate_surface(
     distance: int = 0,
     offset: complex = 0 + 0j,
     ):
-    
+
     """
     Returns the CX-Schedule {(data_coord, stab_coord): order} for a given lattice
 
@@ -306,11 +308,11 @@ def _populate_surface(
 
     * is_fipped -> Switching the role of X and Z stabilizers
     * y_basis -> Initlizing one z edge and one x edge. Each edge is build up out of two sides of the lattice
-    * y_switch -> CX schedule after switch (H & SQRT X DEG gates) -> Implementation of XCY Schedule 
+    * y_switch -> CX schedule after switch (H & SQRT X DEG gates) -> Implementation of XCY Schedule
     """
-    
-    stab_to_data: Dict[Pair, str] = {}
-    stab_to_data_xcy: Dict[Pair, str] = {}
+
+    stab_to_data: dict[Pair, str] = {}
+    stab_to_data_xcy: dict[Pair, str] = {}
 
     def attach_interior():
 
@@ -329,14 +331,14 @@ def _populate_surface(
                 _neighbours(c, -1, +1),
             )
 
-        def _assign_orders(table: Dict[Pair, str], pairs: List[Pair], orders: List[str]) -> None:
-            for (a, b), order in zip(pairs, orders):
+        def _assign_orders(table: dict[Pair, str], pairs: list[Pair], orders: list[str]) -> None:
+            for (a, b), order in zip(pairs, orders, strict=True):
                 table[(a, b)] = order
 
-        ORDERS_X_NORMAL = ["1-CX", "2-CX", "3-CX", "4-CX"]
-        ORDERS_X_YBASIS = ["4-CX", "3-CX", "2-CX", "1-CX"]
-        ORDERS_Z_NORMAL = ["1-CX", "3-CX", "2-CX", "4-CX"]
-        ORDERS_Z_YBASIS = ["4-CX", "2-CX", "3-CX", "1-CX"]
+        orders_x_normal = ["1-CX", "2-CX", "3-CX", "4-CX"]
+        orders_x_ybasis = ["4-CX", "3-CX", "2-CX", "1-CX"]
+        orders_z_normal = ["1-CX", "3-CX", "2-CX", "4-CX"]
+        orders_z_ybasis = ["4-CX", "2-CX", "3-CX", "1-CX"]
 
         if not is_flipped:
             if not y_switch:
@@ -345,21 +347,21 @@ def _populate_surface(
                         q1, q2, q3, q4 = _quad(coords)
                         if qtype == "X-STAB":
                             pairs = [(q1, coords), (q2, coords), (q3, coords), (q4, coords)]
-                            _assign_orders(stab_to_data, pairs, ORDERS_X_NORMAL)
+                            _assign_orders(stab_to_data, pairs, orders_x_normal)
                         elif qtype == "Z-STAB":
                             pairs = [(coords, q1), (coords, q2), (coords, q3), (coords, q4)]
-                            _assign_orders(stab_to_data, pairs, ORDERS_Z_NORMAL)
+                            _assign_orders(stab_to_data, pairs, orders_z_normal)
                 else:
                     for coords, qtype in patch.items():
                         q1, q2, q3, q4 = _quad(coords)
                         if qtype == "X-STAB":
                             pairs = [(q1, coords), (q2, coords), (q3, coords), (q4, coords)]
-                            _assign_orders(stab_to_data, pairs, ORDERS_X_YBASIS)
+                            _assign_orders(stab_to_data, pairs, orders_x_ybasis)
                         elif qtype == "Z-STAB":
                             pairs = [(coords, q1), (coords, q2), (coords, q3), (coords, q4)]
-                            _assign_orders(stab_to_data, pairs, ORDERS_Z_YBASIS)
+                            _assign_orders(stab_to_data, pairs, orders_z_ybasis)
             else:
-                
+
                 # Filtering out the stabs needed for the two XCY Gate TICKS
                 filtered_stabs_x = []
                 filtered_stabs_z = []
@@ -382,13 +384,13 @@ def _populate_surface(
                         stabs_h_dict[cords] = qtype
 
                 # Implementing Solo XCY Gate (Other one in the CX Schedule)
-                for coords, qtype in patch.items():
+                for coords, _qtype in patch.items():
                     if coords in filtered_stabs_x:
                         new_cord = _neighbours(coords, -1, +1)
                         stab_to_data_xcy[(coords, new_cord)] = "1TICK"
 
                 for coords, qtype in stabs_norm_dict.items():
-                    
+
                     # Defining Needed Neighbour Qubits
                     q1, q2, q3, q4 = _quad(coords)
 
@@ -396,14 +398,14 @@ def _populate_surface(
 
                         pairs = [(q1, coords), (q2, coords), (q3, coords), (q4, coords)]
                         _assign_orders(stab_to_data, pairs, ["2TICK", "3TICK", "4TICK", "5TICK"])
-                    
+
                     elif qtype == "Z-STAB":
-                        
+
                         # Checking whether normal CX or the XCY gate
                         if coords not in filtered_stabs_z:
                             pairs = [(coords, q1), (coords, q2), (coords, q3), (coords, q4)]
                             _assign_orders(stab_to_data, pairs, ["2TICK", "4TICK", "3TICK", "5TICK"])
-                        
+
                         else:
                             _assign_orders(stab_to_data, [(q3, coords)], ["3.5TICK"])
                             _assign_orders(stab_to_data, [(coords, q2), (coords, q4)], ["4TICK", "5TICK"])
@@ -452,17 +454,17 @@ def _populate_surface(
                     # Control is stab -> (stab, data)
                     if qtype == "X-STAB":
                         pairs = [(coords, q1), (coords, q2), (coords, q3), (coords, q4)]
-                        _assign_orders(stab_to_data, pairs, ORDERS_Z_NORMAL)
+                        _assign_orders(stab_to_data, pairs, orders_z_normal)
 
                     # Control is data -> (data, stab)
                     elif qtype == "Z-STAB":
                         pairs = [(q1, coords), (q2, coords), (q3, coords), (q4, coords)]
-                        _assign_orders(stab_to_data, pairs, ORDERS_X_NORMAL)
+                        _assign_orders(stab_to_data, pairs, orders_x_normal)
 
             _assign_flipped()
 
     def attach_boundary():
-        
+
         """
         Adds the 2-body CX Schedule for the *boundary* stabilizers
         """
@@ -485,7 +487,7 @@ def _populate_surface(
                         new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
                         stab_to_data[coords, new_cord1] = "3-CX"
                         stab_to_data[coords, new_cord2] = "4-CX"
-                        
+
                     elif qtype == "X-STAB-BOUND-U":
                         new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
                         new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
@@ -515,7 +517,7 @@ def _populate_surface(
                             new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
                             stab_to_data[new_cord1, coords] = "3-CX"
                             stab_to_data[new_cord2, coords] = "1-CX"
-                            
+
                         elif qtype == "Z-STAB-BOUND-U":
                             new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
                             new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
@@ -552,8 +554,8 @@ def _populate_surface(
                             lower_coord = (distance * 2 + offset.real) + (lower_boundary + offset.imag) * 1j
 
                             if coords != lower_coord:
-                                stab_to_data[coords, new_cord2,] = "2TICK"
-                                
+                                stab_to_data[coords, new_cord2] = "2TICK"
+
                             stab_to_data[coords, new_cord1] = "3TICK"
 
                         elif qtype == "X-STAB-BOUND-R-H":
@@ -575,7 +577,7 @@ def _populate_surface(
                             stab_to_data[new_cord2, coords] = "4TICK"
                             stab_to_data[new_cord1, coords] = "5TICK"
 
-                            
+
                         elif qtype == "Z-STAB-BOUND-U":
                             new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
                             new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
@@ -592,7 +594,8 @@ def _populate_surface(
 
                     for coords, qtype in patch.items():
                         """
-                        In the memory Round we switch to the newly introduced boundary operators and deactivate the old ones
+                        In the memory Round we switch to the newly introduced 
+                        boundary operators and deactivate the old ones
                         """
 
                         if qtype == "Z-STAB-BOUND-L":
@@ -620,12 +623,13 @@ def _populate_surface(
                             new_cord2 = (coords.real + 1 ) + (coords.imag - 1) * 1j
                             stab_to_data[new_cord1, coords] = "3-CX"
                             stab_to_data[new_cord2, coords] = "4-CX"
-                        
+
         else:
 
             for coords, qtype in patch.items():
 
-                # Switching the stabilizers so the Z-Stab have switched CX and therefore act like a X-Stab and vice versa
+                # Switching the stabilizers so the Z-Stab have switched 
+                # CX and therefore act like a X-Stab and vice versa
 
                 if qtype == "Z-STAB-BOUND-L":
                     new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
@@ -638,7 +642,7 @@ def _populate_surface(
                     new_cord2 = (coords.real - 1 ) + (coords.imag + 1) * 1j
                     stab_to_data[new_cord1, coords] = "4-CX"
                     stab_to_data[new_cord2, coords] = "3-CX"
-                    
+
                 elif qtype == "X-STAB-BOUND-U":
                     new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
                     new_cord2 = (coords.real + 1 ) + (coords.imag + 1) * 1j
@@ -656,39 +660,53 @@ def _populate_surface(
     attach_boundary()
     if stab_to_data_xcy != {}:
         return stab_to_data, stab_to_data_xcy
-    
+
     return stab_to_data
 
 
-def populate_stab_to_data(patch: Dict[Coord, Label], *args, **kwargs):
+def populate_stab_to_data(patch: dict[Coord, Label], *args, **kwargs):
+    
     """
     Unified entry point
     -> Detects which style to run and forwards args.
     """
+
     # Detect xzzx-style by label names
     labels = set(patch.values())
     if any(label in labels for label in ("STAB-Ver", "STAB-Hor", "STAB-BOUND-L-Hor", "STAB-BOUND-R-Hor")):
         return _populate_xzzx(patch)
 
     # If explicit merging argument present, treat as lattice_surgery
-    if len(args) >= 1 or 'merging' in kwargs or 'merging_type' in kwargs:
+    if len(args) >= 1 or "merging" in kwargs or "merging_type" in kwargs:
+        
         # Accept either positional (merging, merging_type) or keyword args
         merging = False
         merging_type = None
+        
         if len(args) >= 1:
             merging = args[0]
+        
         if len(args) >= 2:
             merging_type = args[1]
-        merging = kwargs.get('merging', merging)
-        merging_type = kwargs.get('merging_type', kwargs.get('merging_type', merging_type))
+        
+        merging = kwargs.get("merging", merging)
+        merging_type = kwargs.get("merging_type", kwargs.get("merging_type", merging_type))
+        
         return _populate_lattice_surgery(patch, merging=bool(merging), merging_type=merging_type)
 
     # Otherwise treat as surface/rotated code
     # Map surface kwargs with defaults matching original signature
-    is_flipped = kwargs.get('is_flipped', kwargs.get('is_flipped', False))
-    y_basis = kwargs.get('y_basis', False)
-    y_switch = kwargs.get('y_switch', False)
-    y_memory = kwargs.get('y_memory', False)
-    distance = kwargs.get('distance', 0)
-    offset = kwargs.get('offset', 0 + 0j)
-    return _populate_surface(patch, is_flipped=is_flipped, y_basis=y_basis, y_switch=y_switch, y_memory=y_memory, distance=distance, offset=offset)
+    is_flipped = kwargs.get("is_flipped", kwargs.get("is_flipped", False))
+    y_basis = kwargs.get("y_basis", False)
+    y_switch = kwargs.get("y_switch", False)
+    y_memory = kwargs.get("y_memory", False)
+    distance = kwargs.get("distance", 0)
+    offset = kwargs.get("offset", 0 + 0j)
+    
+    return _populate_surface(patch, 
+                             is_flipped=is_flipped, 
+                             y_basis=y_basis, 
+                             y_switch=y_switch, 
+                             y_memory=y_memory, 
+                             distance=distance, 
+                             offset=offset)

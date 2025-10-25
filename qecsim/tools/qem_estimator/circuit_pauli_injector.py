@@ -1,18 +1,20 @@
-import stim
 import numpy as np
+import stim
 
 __all__ = ["pauli_injector"]
 
-def pauli_injector(circuit : stim.Circuit, 
+def pauli_injector(circuit : stim.Circuit,
                            noise_info : np.array,
                            batch_size : int = 1) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
 
-    '''
-    This function uses stim.FlipSimualtor in order to determine which measurements get flipped after an arbitary pauli error is included into the circuit
+    """
+    This function uses stim.FlipSimulator in order to determine which measurements get flipped 
+    after an arbitary pauli error is included into the circuit
     
     Procedure:
     -> We take the infromation out of the noise_info array
-    -> We run through each of the postitions and ticks and place either Identity or XYZ pauli depending on a probability of the individual cahnnel
+    -> We run through each of the postitions and ticks and place either Identity or XYZ pauli depending on a
+       probability of the individual channel
         -> Prob is created by the weights and is already provided in the array
     -> If the Circuit has run through and all neccessary changes have been made we give out the measurement flips
     -> Each of the measurement flips also include a sign switch which is also returned in a seperate array
@@ -24,7 +26,7 @@ def pauli_injector(circuit : stim.Circuit,
     Returns:
     -> Measurement flips in an array
     -> Sign keeper where each index corresponds to the index of the qubit this sign needs to be applied to
-    '''
+    """
 
     #############################
     # Initlizie sign/gamma keeper
@@ -40,13 +42,13 @@ def pauli_injector(circuit : stim.Circuit,
     ###########################
     # Initlizing Flip Simulator
     ###########################
-    
+
     flip = stim.FlipSimulator(
         batch_size = batch_size,
         num_qubits = circuit.num_qubits,
-        disable_stabilizer_randomization = True
+        disable_stabilizer_randomization = True,
         )
-    
+
     ##################################################################
     # Getting Tick Information (All noisy ticks an current noisy tick)
     ##################################################################
@@ -56,7 +58,7 @@ def pauli_injector(circuit : stim.Circuit,
 
     ########################################################
     # Running through circuit tick by tick and adding paulis
-    ######################################################## 
+    ########################################################
 
     for i in range(len(all_noisy_ticks)):
 
@@ -73,7 +75,7 @@ def pauli_injector(circuit : stim.Circuit,
         qubit_index = list(noise_info[i,2])
         current_err_prob = noise_info[i,4]
         error_type = noise_info[i,0]
-        sgn_I   = int(noise_info[i,5])
+        sgn_i   = int(noise_info[i,5])
         sgn_err = int(noise_info[i,6])
         current_gamma = noise_info[i,7]
 
@@ -83,12 +85,12 @@ def pauli_injector(circuit : stim.Circuit,
             #############################################################################
             # Looping over Batch number and simulating batch_nuberm fo different outcomes
             #############################################################################
-        
+
             for current_batch in range(batch_size):
 
                 # Creating current random number
                 current_rdm_nmbr = np.random.rand()
-                    
+
                 # Checking if error is applied or not
                 if current_rdm_nmbr < current_err_prob:
 
@@ -115,7 +117,7 @@ def pauli_injector(circuit : stim.Circuit,
                 else:
 
                     # Update sign keeper
-                    sign_keeper[qubit_index[0], current_batch] *= sgn_I
+                    sign_keeper[qubit_index[0], current_batch] *= sgn_i
 
                 # Add gamma keeper
                 gamma_keeper[qubit_index[0], current_batch] *= current_gamma
@@ -133,12 +135,12 @@ def pauli_injector(circuit : stim.Circuit,
                 #############################################################################
                 # Looping over Batch number and simulating batch_nuberm fo different outcomes
                 #############################################################################
-            
+
                 for current_batch in range(batch_size):
 
                     # Creating current random number
                     current_rdm_nmbr = np.random.rand()
-                    
+
                     # Checking if error is applied or not
                     if current_rdm_nmbr < current_err_prob:
 
@@ -156,22 +158,22 @@ def pauli_injector(circuit : stim.Circuit,
                     else:
 
                         # Update sign keeper
-                        sign_keeper[current_qubit, current_batch] *= sgn_I
+                        sign_keeper[current_qubit, current_batch] *= sgn_i
 
                     # Add gamma keeper
                     gamma_keeper[current_qubit, current_batch] *= current_gamma
-                
+
             elif error_type == "X_ERR":
 
                 #############################################################################
                 # Looping over Batch number and simulating batch_nuberm fo different outcomes
                 #############################################################################
-            
+
                 for current_batch in range(batch_size):
-                  
+
                     # Creating current random number
                     current_rdm_nmbr = np.random.rand()
-                    
+
                     # Checking if error is applied or not
                     if current_rdm_nmbr < current_err_prob:
 
@@ -187,7 +189,7 @@ def pauli_injector(circuit : stim.Circuit,
                     else:
 
                         # Update sign keeper
-                        sign_keeper[current_qubit, current_batch] *= sgn_I
+                        sign_keeper[current_qubit, current_batch] *= sgn_i
 
                     # Add gamma keeper
                     gamma_keeper[current_qubit, current_batch] *= current_gamma

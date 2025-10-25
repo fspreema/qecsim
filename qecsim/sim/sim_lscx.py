@@ -1,9 +1,10 @@
-import sinter
-import os
 import gc
+import glob
+import os
+
 import joblib
 import numpy as np
-import glob
+import sinter
 
 from qecsim.lattice_surgery.circuit import surgery_circuit
 
@@ -31,46 +32,46 @@ if __name__ == "__main__":
             ###################
             # Calc d thresholds
             ###################
-            
-            task_noisy_XX = [sinter.Task(
+
+            task_noisy_xx = [sinter.Task(
                 circuit = surgery_circuit(
                     distance = d,
                     round_num = r,
                     round_split = r,
                     round_merge = r,
-                    target_state_init ="X+", 
+                    target_state_init ="X+",
                     control_state_init ="X+",
                     flow_observable = "X -> XX",
                     noise_after_clifford_depol = noise,
                     noise_measure_flip = noise,
                     noise_after_reset = noise,
-                    noise_depol_data_init = noise
+                    noise_depol_data_init = noise,
                     ),
-                json_metadata={'p': noise, 'distance' : d, 'rounds' : r}
+                json_metadata={"p": noise, "distance" : d, "rounds" : r},
                 )
                 for noise in [i for i in np.arange(1e-5, 0.013, 5e-5)]
             ]
 
-            stats_noisy_XX : list[sinter.TaskStats] = sinter.collect(
+            stats_noisy_xx : list[sinter.TaskStats] = sinter.collect(
                 num_workers = os.cpu_count(),
-                tasks = task_noisy_XX,
-                decoders = ['pymatching'],
+                tasks = task_noisy_xx,
+                decoders = ["pymatching"],
                 max_shots = 1_000_000,
                 max_errors = 10_000,
-                print_progress = True
+                print_progress = True,
             )
 
             #Saving Stats
             fname = f"lscx_singlerounds_d{d}_r{r}.pkl"
             try:
-                joblib.dump(stats_noisy_XX, fname, compress=3)
+                joblib.dump(stats_noisy_xx, fname, compress=3)
                 print(f"Successfully saved {fname}")
             except Exception as e:
                 print(f"Failed to save {fname}: {e}")
 
             # Clear RAM by deleting large variables and running garbage collection
-            del stats_noisy_XX
-            del task_noisy_XX
+            del stats_noisy_xx
+            del task_noisy_xx
             gc.collect()
 
     ###########################

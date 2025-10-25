@@ -1,17 +1,24 @@
 import stim
-from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, NoiseModel, CircuitResult
+
 from qecsim.core.cx_builder import cx_builder
+from qecsim.core.data_models import (
+    CircuitResult,
+    ConfigSurface as Config,
+    Context,
+    NoiseModel,
+    Patch,
+)
 
 Coord = complex
 
 __all__ = ["repetition_circ"]
 
-def repetition_circ(*, 
-                    lct: Context, 
-                    patches: dict[str, Patch], 
-                    cfg: Config, 
+def repetition_circ(*,
+                    lct: Context,
+                    patches: dict[str, Patch],
+                    cfg: Config,
                     noise: NoiseModel) -> CircuitResult:
-    
+
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
@@ -105,9 +112,9 @@ def repetition_circ(*,
     for index, q_index in enumerate(x_stab_index + z_stab_index):
         prev_tar = -2 * num_measurements_repeat + index
         current_tar = -1 * num_measurements_repeat + index
-        round_circuit.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)], 
+        round_circuit.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)],
                              (i2q[q_index].real, i2q[q_index].imag, 0))
-        
+
     round_circuit.append("TICK")
 
     rep_circ = round_circuit * (rounds - 1)

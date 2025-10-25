@@ -1,19 +1,28 @@
-import stim
-from typing import Dict, Tuple
 
+import stim
+
+from qecsim.core.data_models import (
+    ConfigLatticeSurgery as Config,
+    LatticeContext,
+    NoiseModel,
+    Patch_Ancilla,
+    Patch_Control,
+    Patch_Surgery,
+    Patch_Target,
+)
 from qecsim.core.geometry import build_lattice
 from qecsim.core.stabilizers import populate_stab_to_data
-from .circuits.reset import reset
+
+from .circuits.final_measure import final_m
 from .circuits.initial import initial
 from .circuits.merge import merge
+from .circuits.reset import reset
 from .circuits.split import split
-from .circuits.final_measure import final_m
-from qecsim.core.data_models import ConfigLatticeSurgery as Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext, NoiseModel
 
 Coord = complex
 Label = str
 Index = int
-Pair = Tuple[Coord, Coord]
+Pair = tuple[Coord, Coord]
 
 __all__ = ["surgery_circuit"]
 
@@ -22,11 +31,11 @@ __all__ = ["surgery_circuit"]
 # -------------------------
 
 def _add_boundary_labels(distance: int,
-                         ancilla: Dict[Coord, Label],
-                         target: Dict[Coord, Label],
-                         control: Dict[Coord, Label],
-                         surgery: Dict[Coord, Label]) -> None:
-    
+                         ancilla: dict[Coord, Label],
+                         target: dict[Coord, Label],
+                         control: dict[Coord, Label],
+                         surgery: dict[Coord, Label]) -> None:
+
     """
     Adds the neseccary Boundary and Surgery Stabilizers needed
     """
@@ -47,7 +56,7 @@ def _add_boundary_labels(distance: int,
     for y in range(4, max_coord, 4):
         coord_ancilla = complex(max_coord, y)
         coord_target = complex(max_coord + (distance * 2), y - 2)
-        coord_control = complex(max_coord, y - 2 + (distance * 2)) 
+        coord_control = complex(max_coord, y - 2 + (distance * 2))
         ancilla[coord_ancilla] = "Z-STAB-BOUND-R-A"
         target[coord_target] = "Z-STAB-BOUND-R-T"
         control[coord_control] = "Z-STAB-BOUND-R-C"
@@ -98,18 +107,18 @@ def _add_boundary_labels(distance: int,
 # Public function -> Building final circuit
 # -----------------------------------------
 
-def surgery_circuit(distance : int, *, 
+def surgery_circuit(distance : int, *,
                     round_num : int = 0,
                     round_merge : int = 0,
                     round_split : int = 0,
-                    target_state_init : str, 
-                    control_state_init : str, 
+                    target_state_init : str,
+                    control_state_init : str,
                     flow_observable : str,
-                    noise_depol_data_init : float = 0.0, 
+                    noise_depol_data_init : float = 0.0,
                     noise_measure_flip : float = 0.0,
-                    noise_after_reset : float = 0.0, 
+                    noise_after_reset : float = 0.0,
                     noise_after_clifford_depol : float = 0.0) -> stim.Circuit:
-    
+
     """
     Returns the full lattice surgery circuit
 
@@ -151,24 +160,24 @@ def surgery_circuit(distance : int, *,
     # Input fixed run settings into dataclass
     #########################################
 
-    cfg = Config(distance = distance, 
-                 target_state_init = target_state_init, 
+    cfg = Config(distance = distance,
+                 target_state_init = target_state_init,
                  control_state_init = control_state_init)
-    
+
     noise = NoiseModel(
         before_round_depol= noise_depol_data_init,
         before_m_flip_prob= noise_measure_flip,
         after_r_flip= noise_after_reset,
-        after_c_depol_prob= noise_after_clifford_depol
+        after_c_depol_prob= noise_after_clifford_depol,
     )
 
     ###############################################################
     # 1. Build independent square patches (using geometry function)
     ###############################################################
-    qubit_coords_ancilla: Dict[Coord, Label] = build_lattice(distance, offset=0+0j, starting_stabilizer_x=True)
-    qubit_coords_target: Dict[Coord, Label] = build_lattice(distance, offset= (distance*2) + 0j, starting_stabilizer_x=False)
-    qubit_coords_control: Dict[Coord, Label] = build_lattice(distance, offset= 0 + (distance*2) * 1j, starting_stabilizer_x=False)
-    qubit_coords_surgery: Dict[Coord, Label] = {}
+    qubit_coords_ancilla: dict[Coord, Label] = build_lattice(distance, offset=0+0j, starting_stabilizer_x=True)
+    qubit_coords_target: dict[Coord, Label] = build_lattice(distance, offset= (distance*2) + 0j, starting_stabilizer_x=False)
+    qubit_coords_control: dict[Coord, Label] = build_lattice(distance, offset= 0 + (distance*2) * 1j, starting_stabilizer_x=False)
+    qubit_coords_surgery: dict[Coord, Label] = {}
 
     #######################################################################################
     # 2. Insert boundary & surgery labels (Only get activated in splitting/merging process)
@@ -186,11 +195,11 @@ def surgery_circuit(distance : int, *,
     ################################################################################
     # 3. Adding the Mapping from Stabilizer to Data for later CX gate implementation
     ################################################################################
-    stab_to_data_ancilla: Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords_ancilla, merging = False)
-    stab_to_data_target: Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords_target, merging = False)
-    stab_to_data_control: Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords_control, merging = False)
-    stab_to_data_surgery_ac : Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(full_srgy_ptch, merging = True, merging_type="AC")
-    stab_to_data_surgery_at : Dict[Tuple[Coord, Coord], str] = populate_stab_to_data(full_srgy_ptch, merging = True, merging_type="AT")
+    stab_to_data_ancilla: dict[tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords_ancilla, merging = False)
+    stab_to_data_target: dict[tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords_target, merging = False)
+    stab_to_data_control: dict[tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords_control, merging = False)
+    stab_to_data_surgery_ac : dict[tuple[Coord, Coord], str] = populate_stab_to_data(full_srgy_ptch, merging = True, merging_type="AC")
+    stab_to_data_surgery_at : dict[tuple[Coord, Coord], str] = populate_stab_to_data(full_srgy_ptch, merging = True, merging_type="AT")
 
     ###############################################
     # 4. Indexing All Qubits From given Coordinates
@@ -198,7 +207,7 @@ def surgery_circuit(distance : int, *,
 
     #Indexing Qubits
     q2i: dict[complex, int] = {q: i for i, q in enumerate(
-    sorted(full_srgy_ptch, key=lambda v: (v.real, v.imag))
+    sorted(full_srgy_ptch, key=lambda v: (v.real, v.imag)),
     )}
 
     #Reverse Indexing
@@ -208,18 +217,18 @@ def surgery_circuit(distance : int, *,
     # Adding Indexes and shared information into lct dataclass
     ##########################################################
 
-    lct = LatticeContext(q2i= q2i, 
-                         i2q= i2q, 
+    lct = LatticeContext(q2i= q2i,
+                         i2q= i2q,
                          stab_to_data = stab_to_data_ancilla | stab_to_data_control | stab_to_data_target,
                          stab_to_data_surgery_ac= stab_to_data_surgery_ac,
                          stab_to_data_surgery_at= stab_to_data_surgery_at,
                          surgery_coords= qubit_coords_surgery)
-    
+
     patches: dict[str, Patch_Ancilla | Patch_Target | Patch_Control | Patch_Surgery] = {
         "ancilla": Patch_Ancilla.from_coords(qubit_coords_ancilla, q2i),
         "target": Patch_Target.from_coords(qubit_coords_target, q2i),
         "control": Patch_Control.from_coords(qubit_coords_control, q2i),
-        "surgery": Patch_Surgery.from_coords(qubit_coords_surgery, q2i)
+        "surgery": Patch_Surgery.from_coords(qubit_coords_surgery, q2i),
     }
 
     #################################
@@ -245,7 +254,7 @@ def surgery_circuit(distance : int, *,
 
     else:
         flow_circuit = initial(lct = lct, patches = patches, cfg = cfg, noise = noise)
-   
+
     #############################################
     # 6. Building Merging Ancilla Control Circuit
     #############################################
@@ -289,7 +298,7 @@ def surgery_circuit(distance : int, *,
     t_log_z = []
     a_log_x = []
     a_log_z = []
-    
+
     for imag in range(((distance * 2) + 1), distance * 4, 2):
         c_log_x.append(q2i[1 + imag * 1j])
 
@@ -317,9 +326,9 @@ def surgery_circuit(distance : int, *,
     if flow_observable == "X -> XX":
         if control_state_init in {"X+", "X-"}:
             if target_state_init in {"X+", "X-"}:
-            
-                left = '*'.join(f"X{i}" for i in c_log_x)
-                right = '*'.join(f"X{i}" for i in c_log_x + t_log_x)
+
+                left = "*".join(f"X{i}" for i in c_log_x)
+                right = "*".join(f"X{i}" for i in c_log_x + t_log_x)
                 result = f"{left} -> {right}"
 
                 (included_measurements,) = flow_circuit.solve_flow_measurements([
@@ -328,16 +337,16 @@ def surgery_circuit(distance : int, *,
 
             else:
                 return ValueError("Wrong target basis for selected flow")
-            
+
         else:
             return ValueError("Wrong control basis for selected flow")
-        
-    elif flow_observable == "XX -> X":   
+
+    elif flow_observable == "XX -> X":
         if control_state_init in {"X+", "X-"}:
             if target_state_init in {"X+", "X-"}:
 
-                left = '*'.join(f"X{i}" for i in c_log_x + t_log_x)
-                right = '*'.join(f"X{i}" for i in c_log_x)
+                left = "*".join(f"X{i}" for i in c_log_x + t_log_x)
+                right = "*".join(f"X{i}" for i in c_log_x)
                 result = f"{left} -> {right}"
 
                 (included_measurements,) = flow_circuit.solve_flow_measurements([
@@ -346,7 +355,7 @@ def surgery_circuit(distance : int, *,
 
             else:
                 return ValueError("Invalid target state")
-            
+
         else:
             return ValueError("Wrong control basis for selected flow")
 
@@ -354,8 +363,8 @@ def surgery_circuit(distance : int, *,
         if control_state_init in {"X+", "X-", "Z0", "Z1"}:
             if target_state_init in {"X+", "X-"}:
 
-                left = '*'.join(f"X{i}" for i in t_log_x)
-                right = '*'.join(f"X{i}" for i in t_log_x)
+                left = "*".join(f"X{i}" for i in t_log_x)
+                right = "*".join(f"X{i}" for i in t_log_x)
                 result = f"{left} -> {right}"
 
                 (included_measurements,) = flow_circuit.solve_flow_measurements([
@@ -364,18 +373,18 @@ def surgery_circuit(distance : int, *,
 
             else:
                 return ValueError("Invalid target basis for selected flow")
-            
+
         else:
             return ValueError("Invalid control state")
 
     #-------------ALL-Z--------------------------
-        
+
     elif flow_observable == "Z -> ZZ":
         if control_state_init in {"Z0", "Z1"}:
             if target_state_init in {"Z0", "Z1"}:
 
-                left = '*'.join(f"Z{i}" for i in t_log_z)
-                right = '*'.join(f"Z{i}" for i in c_log_z + t_log_z)
+                left = "*".join(f"Z{i}" for i in t_log_z)
+                right = "*".join(f"Z{i}" for i in c_log_z + t_log_z)
                 result = f"{left} -> {right}"
 
                 (included_measurements,) = flow_circuit.solve_flow_measurements([
@@ -384,7 +393,7 @@ def surgery_circuit(distance : int, *,
 
             else:
                 return ValueError("Wrong target basis for selected flow")
-            
+
         else:
             return ValueError("Wrong control basis for selected flow")
 
@@ -392,8 +401,8 @@ def surgery_circuit(distance : int, *,
         if control_state_init in {"Z0", "Z1"}:
             if target_state_init in {"Z0", "Z1"}:
 
-                left = '*'.join(f"Z{i}" for i in c_log_z + t_log_z)
-                right = '*'.join(f"Z{i}" for i in t_log_z)
+                left = "*".join(f"Z{i}" for i in c_log_z + t_log_z)
+                right = "*".join(f"Z{i}" for i in t_log_z)
                 result = f"{left} -> {right}"
 
                 (included_measurements,) = flow_circuit.solve_flow_measurements([
@@ -402,16 +411,16 @@ def surgery_circuit(distance : int, *,
 
             else:
                 return ValueError("Wrong target basis for selected flow")
-            
+
         else:
             return ValueError("Wrong control basis for selected flow")
 
-    elif flow_observable == "Z -> Z":   
+    elif flow_observable == "Z -> Z":
         if control_state_init in {"Z0", "Z1"}:
             if target_state_init in {"Z0", "Z1", "X+", "X-"}:
 
-                left = '*'.join(f"Z{i}" for i in c_log_z)
-                right = '*'.join(f"Z{i}" for i in c_log_z)
+                left = "*".join(f"Z{i}" for i in c_log_z)
+                right = "*".join(f"Z{i}" for i in c_log_z)
                 result = f"{left} -> {right}"
 
                 (included_measurements,) = flow_circuit.solve_flow_measurements([
@@ -420,18 +429,18 @@ def surgery_circuit(distance : int, *,
 
             else:
                 return ValueError("Invalid target state")
-            
+
         else:
             return ValueError("Wrong control basis for selected flow")
-        
+
     #-------------------XZ-MIX-------------------------------------
 
-    elif flow_observable == "ZX -> ZX":   
+    elif flow_observable == "ZX -> ZX":
         if control_state_init in {"Z0", "Z1"}:
             if target_state_init in {"X+", "X-"}:
 
-                left = '*'.join([f"Z{i}" for i in c_log_z] + [f"X{i}" for i in t_log_x])
-                right = '*'.join([f"Z{i}" for i in c_log_z] + [f"X{i}" for i in t_log_x])
+                left = "*".join([f"Z{i}" for i in c_log_z] + [f"X{i}" for i in t_log_x])
+                right = "*".join([f"Z{i}" for i in c_log_z] + [f"X{i}" for i in t_log_x])
                 result = f"{left} -> {right}"
 
                 (included_measurements,) = flow_circuit.solve_flow_measurements([
@@ -440,7 +449,7 @@ def surgery_circuit(distance : int, *,
 
             else:
                 return ValueError("Invalid target state")
-            
+
         else:
             return ValueError("Wrong control basis for selected flow")
 
