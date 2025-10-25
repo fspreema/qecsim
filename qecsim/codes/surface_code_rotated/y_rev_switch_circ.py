@@ -9,7 +9,8 @@ __all__ = ["y_rev_switch_circ"]
 def y_rev_switch_circ(*, 
                  lct: Context, 
                  patches: dict[str, Patch], 
-                 cfg: Config, 
+                 cfg: Config,
+                 offset: complex = 0+0j, 
                  noise: NoiseModel) -> CircuitResult:
     
     #################################################
@@ -34,7 +35,7 @@ def y_rev_switch_circ(*,
     switch_stab_apply_h = patch.stab_switch_apply_h
 
     # Finding Upper right qubit index -> need to look in 2-CX
-    y_coords = 1 + 1j
+    y_coords = 1 + 1j + offset
     y_index = q2i[y_coords]
 
     #################################
@@ -74,11 +75,11 @@ def y_rev_switch_circ(*,
         if cords != y_coords:
 
             # Diagonal Cut
-            if cords.real > cords.imag:
+            if cords.real - offset.real > cords.imag - offset.imag:
                 index_h.append(q2i[cords])
 
             # Filtering out the X_DAG -> Not on Data
-            elif cords.real == cords.imag:
+            elif cords.real - offset.real == cords.imag - offset.imag:
                 if qtype != "DATA":
                     index_x_deg.append(q2i[cords])
 

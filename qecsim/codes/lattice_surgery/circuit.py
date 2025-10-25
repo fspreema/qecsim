@@ -413,8 +413,8 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
         
     #-------------------ALL XYZ MIXES----------------------------
 
-    elif flow_observable == "Y -> ZY":   
-        if control_state_init in {"Z0", "Z1", "X+", "X-"}:
+    elif flow_observable == "IY -> ZY":   
+        if control_state_init in {"Z0", "Z1"}:
             if target_state_init in {"Y+", "Y-"}:
 
                 logical_x_string = []
@@ -429,17 +429,18 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
                     logical_z_string.append(q2i[real + distance * 2 + (distance * 2 - 1) * 1j])
 
                 # Adding logical z string
+                for real in range(1, (distance * 2), 2):
+                    logical_z_string.append(q2i[real + (distance * 4 - 1) * 1j])
+
+                # Adding logical z string
                 right = '*'.join([f"Z{idz}" for j, idz in enumerate(logical_z_string)] + 
                                         [f"Y{q2i[logical_y_string]}"] + 
                                         [f"X{idx}" for j, idx in enumerate(logical_x_string)])
                 
                 result = f"{1} -> {right}"
 
-                for flows in flow_circuit.flow_generators():
-                    print(flows)
-
                 (included_measurements,) = flow_circuit.solve_flow_measurements([
-                flow_circuit.flow_generators()[-8],
+                stim.Flow(result),
                 ])
 
             else:
@@ -464,7 +465,7 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
                     print(flows)
 
                 (included_measurements,) = flow_circuit.solve_flow_measurements([
-                flow_circuit.flow_generators()[-37],
+                flow_circuit.flow_generators()[-41],
                 ])
 
             else:
@@ -599,8 +600,8 @@ def surgery_circuit(distance: int, *, target_state_init: str, control_state_init
         else:
             return ValueError("Wrong control basis for selected flow")
 
-    #else:
-    #    return ValueError("Invalid Flow selected")
+    else:
+        return ValueError("Invalid Flow selected")
 
     ###############################
     # 11. Adding State initiliztion

@@ -35,27 +35,6 @@ def y_repetition_circ(*,
     y_coords = 1 + 1j + offset
     y_index = q2i[y_coords]
 
-    #What half is an h applied?
-    index_h = []
-    index_x_deg = []
-    index_nh = []
-
-    for cords, qtype in patch.coords.items():
-
-        if cords != y_coords:
-
-            # Diagonal Cut
-            if cords.real > cords.imag:
-                index_h.append(q2i[cords])
-
-            # Filtering out the X_DAG -> Not on Data
-            elif cords.real == cords.imag:
-                if qtype != "DATA":
-                        index_x_deg.append(q2i[cords])
-
-            else:
-                index_nh.append(q2i[cords])
-
     #-Retrieving Data Coords
     data = patch.data
 

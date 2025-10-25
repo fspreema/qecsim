@@ -1,4 +1,5 @@
 import stim
+from typing import Mapping, Union
 from qecsim.core.data_models import ConfigLatticeSurgery as Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext, NoiseModel
 from qecsim.core.cx_builder import cx_builder
 from qecsim.core.stabilizers import populate_stab_to_data
@@ -7,7 +8,7 @@ Coord = complex
 
 def merge(*, 
           lct: LatticeContext, 
-          patches: dict[str, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery,], 
+          patches: Mapping[str, Union[Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery]],
           cfg: Config, 
           merging_type: str, 
           noise: NoiseModel) -> stim.Circuit:
@@ -25,7 +26,6 @@ def merge(*,
     #-Retrieving Global Infomration
     distance = cfg.distance
     q2i = lct.q2i
-    i2q = lct.i2q
     control_state_init = cfg.control_state_init
     target_state_init = cfg.target_state_init
 
@@ -96,20 +96,12 @@ def merge(*,
         x_stab_index_untouched_circ = x_stab_index_target
         z_stab_index_untouched_circ = z_stab_index_target
 
-        #Shortcut for initilized lattice states
-        untouched_state_init = target_state_init
-        merged_state_init = control_state_init
-
     elif merging_type == "AT":
         stab_to_data_curr_merg = stab_to_data_surgery_at
         stab_to_data_untouched_circ = stab_to_data_control
         x_stab_index_untouched_circ = x_stab_index_control
         z_stab_index_untouched_circ = z_stab_index_control
-
-        #Shortcut for initilized lattice states
-        untouched_state_init = control_state_init
-        merged_state_init = target_state_init
-
+        
     else:
         return ValueError("No valid merging Type in Function selected!")
 

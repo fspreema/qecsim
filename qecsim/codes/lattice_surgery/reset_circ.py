@@ -1,4 +1,4 @@
-from typing import Dict, Tuple, Mapping
+from typing import Dict, Tuple, Mapping, Union
 import stim
 
 from tqecd import annotate_detectors_automatically
@@ -24,7 +24,7 @@ __all__ = ["reset"]
 
 def reset(*, 
           lct: LatticeContext, 
-          patches: dict[str, Patch_Ancilla, Patch_Target, Patch_Control, Patch_Surgery], 
+          patches: Mapping[str, Union[Patch_Ancilla, Patch_Target, Patch_Control, Patch_Surgery]],
           cfg: Config,
           noise: NoiseModel) -> stim.Circuit:
     
@@ -96,12 +96,6 @@ def reset(*,
     """
     -> Used for swithcing of the state in a given basis
     """
-
-    # Ancilla
-    a_log_obs_z_index : list[complex] = []
-
-    for real in range(1, (distance * 2), 2):
-        a_log_obs_z_index.append(q2i[real + 1j])
 
     # Target
     t_log_obs_z_index : list[complex] = []
@@ -276,18 +270,117 @@ def reset(*,
                         offset= curr_offset
                         ).circuit
         
-        build_y_circ += y_repetition_circ(lct= lct_y, 
+        rep_circ = y_repetition_circ(lct= lct_y, 
                                             patch= patches["patch"], 
                                             cfg = cfg_y,
                                             offset= curr_offset, 
                                             noise= noise
                                             ).circuit
         
-        build_y_circ += y_switch_circ(lct= lct_y, 
+        switch_circ = y_switch_circ(lct= lct_y, 
                                         patch= patches["patch"],
                                         offset= curr_offset, 
                                         cfg = cfg_y, 
                                         noise= noise
                                         ).circuit
 
+        build_y_circ += rep_circ
+        build_y_circ += switch_circ
+
+        flow_circ = stim.Circuit()
+        flow_circ += rep_circ
+        flow_circ += switch_circ
+
+        #############################################
+        # Adding Logical Y-Observables-Creation-Flow:
+        #############################################
+
+        """
+        In the following the Y Observable is created depending on which qubit is in Y basis
+        """
+
+        #1) Control Flow:
+        if key[0] in {"Y+", "Y-"}:
+
+            logical_x_string = []
+            logical_z_string = []
+            logical_y_string = distance * 2 - 1 + (distance * 4 - 1) * 1j
+
+            # Finding logical Strings for x and z
+            for imag in range(1, (distance * 2) - 1, 2):
+                logical_x_string.append(q2i[distance * 2 - 1 + (imag + distance * 2) * 1j])
+
+            for real in range(1, (distance * 2) - 1, 2):
+                logical_z_string.append(q2i[real + (distance * 4 - 1) * 1j])
+
+            # Adding logical z string
+            logical_xyz_string = '*'.join([f"Z{idz}" for j, idz in enumerate(logical_z_string)] + 
+                                    [f"Y{q2i[logical_y_string]}"] + 
+                                    [f"X{idx}" for j, idx in enumerate(logical_x_string)])
+            
+            logical_creation = f"{1} -> {logical_xyz_string}"
+
+            (logical_creation_rec,) = flow_circ.solve_flow_measurements([stim.Flow(logical_creation)])
+
+            # Adding the Observable
+            rec_pos = []
+
+            for index_creation in logical_creation_rec:
+                current_rec_crea = flow_circ.num_measurements - index_creation
+                rec_pos.append(- current_rec_crea)
+
+            #build_y_circ.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
+
+        #2) Target Flow:
+        elif key[1] in {"Y+", "Y-"}:
+
+            logical_x_string = []
+            logical_z_string = []
+            logical_y_string = distance * 4 - 1 + (distance * 2 - 1) * 1j
+
+            # Finding logical Strings for x and z
+            for real,imag in zip(range(1,distance * 2, 2),range(1, (distance * 2) - 1, 2)):
+                logical_x_string.append(q2i[distance * 2 + real + imag * 1j])
+
+            for real in range(1, (distance * 2) - 1, 2):
+                logical_z_string.append(q2i[real + distance * 2 + (distance * 2 - 1) * 1j])
+
+            #build_y_circ.append("OBSERVABLE_INCLUDE", [f"Z{idz}" for j, idz in enumerate(logical_z_string)] + 
+            #                    [f"Y{q2i[logical_y_string]}"] + 
+            #                    [f"X{idx}" for j, idx in enumerate(logical_x_string)], 0)
+
+            logical_x_string = []
+            logical_z_string = []
+            logical_y_string = distance * 4 - 1 + (distance * 2 - 1) * 1j
+
+            # Finding logical Strings for x and z
+            for imag in range(1, (distance * 2) - 1, 2):
+                logical_x_string.append(q2i[distance * 4 - 1 + imag * 1j])
+
+            for real in range(1, (distance * 2) - 1, 2):
+                logical_z_string.append(q2i[real + distance * 2 + (distance * 2 - 1) * 1j])
+
+            # Adding logical z string
+            logical_xyz_string = '*'.join([f"Z{idz}" for j, idz in enumerate(logical_z_string)] + 
+                                    [f"Y{q2i[logical_y_string]}"] + 
+                                    [f"X{idx}" for j, idx in enumerate(logical_x_string)])
+            
+            logical_creation = f"{1} -> {logical_xyz_string}"
+
+            for flows in flow_circ.flow_generators():
+                print(flows)
+
+            (logical_creation_rec,) = flow_circ.solve_flow_measurements([flow_circ.flow_generators()[38]])
+
+            # Adding the Observable
+            rec_pos = []
+
+            for index_creation in logical_creation_rec:
+                current_rec_crea = flow_circ.num_measurements - index_creation
+                rec_pos.append(- current_rec_crea)
+
+            #build_y_circ.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
+
         return reset_circuit, build_y_circ
+
+        

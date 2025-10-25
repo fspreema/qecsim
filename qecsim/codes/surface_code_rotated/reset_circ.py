@@ -161,8 +161,8 @@ def reset(*,
         data_rx = []
         data_rz = []
 
-        xs = [i2q[i].real for i in data]
-        ys = [i2q[i].imag for i in data]
+        xs = [i2q[i].real - offset.real for i in data]
+        ys = [i2q[i].imag - offset.imag for i in data]
 
         # Calc threshold for diagonal cut        
         s0 = (min(xs)+max(xs))/2 + (min(ys)+max(ys))/2

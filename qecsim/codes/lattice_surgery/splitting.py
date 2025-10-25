@@ -1,4 +1,4 @@
-from typing import Dict, Tuple, Mapping
+from typing import Dict, Tuple, Mapping, Union
 import stim
 from qecsim.core.data_models import ConfigLatticeSurgery as Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext, NoiseModel
 from qecsim.core.stabilizers import populate_stab_to_data
@@ -8,7 +8,7 @@ Coord = complex
 
 def split(*, 
           lct: LatticeContext, 
-          patches: dict[str, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery,], 
+          patches: Mapping[str, Union[Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery]],
           cfg: Config, 
           split_type: str, 
           noise: NoiseModel) -> stim.Circuit:
@@ -52,14 +52,11 @@ def split(*,
         if pair[0] in region or pair[1] in region
     }
 
-    stab_to_data_ancilla = get_view(ancilla_set)
     stab_to_data_target  = get_view(target_set)
     stab_to_data_control = get_view(control_set)
 
     #-Retrieving Data Coords
     data_ancilla = ancilla_patch.data
-    data_control = control_patch.data
-    data_target = target_patch.data
 
     #-Retrieving Index from Stabilizers of the Lattices
     x_stab_index_ancilla = ancilla_patch.x_stab
@@ -76,24 +73,12 @@ def split(*,
     ###################################################
 
     if split_type == "AC":
-        stab_to_data_curr_merg = stab_to_data_surgery_ac
-        stab_to_data_untouched_circ = stab_to_data_target
         x_stab_index_untouched_circ = x_stab_index_target
         z_stab_index_untouched_circ = z_stab_index_target
 
-        #Shortcut for initilized lattice states
-        untouched_state_init = target_state_init
-        merged_state_init = control_state_init
-
     elif split_type == "AT":
-        stab_to_data_curr_merg = stab_to_data_surgery_at
-        stab_to_data_untouched_circ = stab_to_data_control
         x_stab_index_untouched_circ = x_stab_index_control
         z_stab_index_untouched_circ = z_stab_index_control
-
-        #Shortcut for initilized lattice states
-        untouched_state_init = control_state_init
-        merged_state_init = target_state_init
 
     else:
         return ValueError("No valid merging Type in Function selected!")

@@ -68,28 +68,28 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
 
     measure_circuit.append("TICK")
 
-    if control_state_init in {"X+", "X-"}:
+    if control_state_init in {"X+", "X-"} and target_state_init not in {"Y+", "Y-"}:
         #-------Adding measurement Flip Prob.--------------
         if before_m_flip_prob > 0:
             measure_circuit.append("X_ERROR", data_control, before_m_flip_prob)
         #--------------------------------------------------
         measure_circuit.append("MX", data_control)
 
-    elif control_state_init in {"Z0", "Z1"}:
+    elif control_state_init in {"Z0", "Z1"} and target_state_init not in {"Y+", "Y-"}:
         #-------Adding measurement Flip Prob.--------------
         if before_m_flip_prob > 0:
             measure_circuit.append("X_ERROR", data_control, before_m_flip_prob)
         #--------------------------------------------------
         measure_circuit.append("MZ", data_control)
 
-    if target_state_init in {"X+", "X-"}:
+    if target_state_init in {"X+", "X-"} and control_state_init not in {"Y+", "Y-"}:
         #-------Adding measurement Flip Prob.--------------
         if before_m_flip_prob > 0:
             measure_circuit.append("X_ERROR", data_target, before_m_flip_prob)
         #--------------------------------------------------
         measure_circuit.append("MX", data_target)
 
-    elif target_state_init in {"Z0", "Z1"}:
+    elif target_state_init in {"Z0", "Z1"} and control_state_init not in {"Y+", "Y-"}:
         #-------Adding measurement Flip Prob.--------------
         if before_m_flip_prob > 0:
             measure_circuit.append("X_ERROR", data_target, before_m_flip_prob)
@@ -136,7 +136,7 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
                 final_record = current_record + last_record
                 
                 #Appending Detector
-                measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
+                #measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
 
             elif qtype == "Z-STAB-BOUND-L-T":
                 #Needed Data Qubits
@@ -158,7 +158,7 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
                 final_record = current_record + last_record
                 
                 #Appending Detector
-                measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
+                #measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
 
             elif qtype == "Z-STAB-BOUND-R-T":
                 #Needed Data Qubits
@@ -180,7 +180,7 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
                 final_record = current_record + last_record
                 
                 #Appending Detector
-                measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
+                #measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
 
         if target_state_init in {"X+", "X-"}:
 
@@ -209,7 +209,7 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
                 final_record = current_record + last_record
                 
                 #Appending Detector
-                measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
+                #measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
 
             elif qtype == "X-STAB-BOUND-A-T":
                 #Needed Data Qubits
@@ -231,7 +231,7 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
                 final_record = current_record + last_record
                 
                 #Appending Detector
-                measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
+                #measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
 
             elif qtype == "X-STAB-BOUND-B-T":
                 #Needed Data Qubits
@@ -253,7 +253,7 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
                 final_record = current_record + last_record
                 
                 #Appending Detector
-                measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
+                #measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
 
     # Control
     for q, qtype in qubit_coords_control.items():
@@ -285,7 +285,7 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
                 final_record = current_record + last_record
                 
                 #Appending Detector
-                measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
+                #measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
 
             elif qtype == "Z-STAB-BOUND-L-C":
                 #Needed Data Qubits
@@ -307,7 +307,7 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
                 final_record = current_record + last_record
                 
                 #Appending Detector
-                measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
+                #measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
 
             elif qtype == "Z-STAB-BOUND-R-C":
                 #Needed Data Qubits
@@ -329,7 +329,7 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
                 final_record = current_record + last_record
                 
                 #Appending Detector
-                measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
+                #measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
 
         if control_state_init in {"X+", "X-"}:
 
@@ -358,7 +358,7 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
                 final_record = current_record + last_record
                 
                 #Appending Detector
-                measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
+                #measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
 
             elif qtype == "X-STAB-BOUND-A-C":
                 #Needed Data Qubits
@@ -380,7 +380,7 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
                 final_record = current_record + last_record
                 
                 #Appending Detector
-                measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
+                #measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
 
             elif qtype == "X-STAB-BOUND-B-C":
                 #Needed Data Qubits
@@ -402,7 +402,7 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
                 final_record = current_record + last_record
                 
                 #Appending Detector
-                measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
+                #measure_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg = (q.real, q.imag, 1))
 
     ##############################
     # Defining Logical Observables
@@ -532,7 +532,7 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
 
                 measure_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(- len(data_control + data_target) + k) for k in tar_rec], 0)
 
-    #-----------------------ONLY-ZX-MIX
+    #-----------------------ONLY-ZX-MIX-------------------------
 
     elif flow == "ZX -> ZX":
 
@@ -545,7 +545,7 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
                 for real in range(1, (distance * 2), 2):
                     combined_log_xz.append(q2i[real + ((distance * 2) + 1) * 1j])
 
-                # Target stabilized by x logical
+                # Target stabilized by z logical
                 for imag in range(1, (distance * 2), 2):
                     combined_log_xz.append(q2i[((distance * 2) + 1) + imag*1j])
 
@@ -556,5 +556,58 @@ def final_m(*, lct : LatticeContext, patches: dict[str, Patch_Ancilla, Patch_Con
                         tar_rec.append(rec_pos)
 
                 measure_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(- len(data_control + data_target) + k) for k in tar_rec], 0)
+
+    #-------------------ALL XYZ MIXES----------------------------
+
+    elif flow == "IY -> ZY":
+
+        if control_state_init in {"Z0", "Z1"}:
+            if target_state_init in {"Y+", "Y-"}:
+
+                #1) Target
+                logical_x_string = []
+                logical_z_string = []
+                logical_y_string = distance * 4 - 1 + (distance * 2 - 1) * 1j
+
+                # Finding logical Strings for x and z
+                for imag in range(1, (distance * 2) - 1, 2):
+                    logical_x_string.append(q2i[distance * 4 - 1 + imag * 1j])
+
+                for real in range(1, (distance * 2) - 1, 2):
+                    logical_z_string.append(q2i[real + distance * 2 + (distance * 2 - 1) * 1j])
+
+                #2) Control
+                # Adding logical z string
+                for real in range(1, (distance * 2), 2):
+                    logical_z_string.append(q2i[real + (distance * 4 - 1) * 1j])
+
+                measure_circuit.append("OBSERVABLE_INCLUDE", [f"Z{idz}" for j, idz in enumerate(logical_z_string)] + 
+                                    [f"Y{q2i[logical_y_string]}"] + 
+                                    [f"X{idx}" for j, idx in enumerate(logical_x_string)], 0)
+
+    elif flow == "XY -> YZ":
+
+        if control_state_init in {"X+", "X-"}:
+            if target_state_init in {"Y+", "Y-"}:
+
+                #1) Target
+                logical_x_string = []
+                logical_z_string = []
+                logical_y_string = distance * 2 - 1 + (distance * 4 - 1) * 1j
+
+                # Finding logical Strings for x and z
+                for imag in range(1, (distance * 2) - 1, 2):
+                    logical_x_string.append(q2i[distance * 2 - 1 + (imag + distance * 2)* 1j])
+
+                for real in range(1, (distance * 2) - 1, 2):
+                    logical_z_string.append(q2i[real + (distance * 4 - 1) * 1j])
+
+                #2) Control
+                for real in range(1, (distance * 2), 2):
+                    logical_z_string.append(q2i[real + (distance * 4 - 1) * 1j])
+
+                #measure_circuit.append("OBSERVABLE_INCLUDE", [f"Z{idz}" for j, idz in enumerate(logical_z_string)] + 
+                #                    [f"Y{q2i[logical_y_string]}"] + 
+                #                    [f"X{idx}" for j, idx in enumerate(logical_x_string)], 0)
 
     return measure_circuit

@@ -8,54 +8,67 @@ __all__ = ["populate_stab_to_data"]
 
 
 def _populate_xzzx(patch: Dict[Coord, Label]) -> Dict[Pair, str]:
-    """Populate schedule for XZZX-style stabilizers (keeps original behaviour).
-
-    This implements the logic previously in codes/xzzx/stabilizers.py.
     """
+    Populate schedule for XZZX-style stabilizers
+    """
+
     stab_to_data: Dict[Pair, str] = {}
 
-    for coords, string in patch.items():
-        if string == "STAB-Ver":
-            new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-            new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
-            new_cord3 = (coords.real - 1) + (coords.imag + 1) * 1j
-            new_cord4 = (coords.real + 1) + (coords.imag + 1) * 1j
-            stab_to_data[(new_cord1, coords)] = "1-CX"
-            stab_to_data[(new_cord2, coords)] = "2-CZ"
-            stab_to_data[(new_cord3, coords)] = "3-CZ"
-            stab_to_data[(new_cord4, coords)] = "4-CX"
-        elif string == "STAB-Hor":
-            new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-            new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
-            new_cord3 = (coords.real - 1) + (coords.imag + 1) * 1j
-            new_cord4 = (coords.real + 1) + (coords.imag + 1) * 1j
-            stab_to_data[(new_cord1, coords)] = "1-CX"
-            stab_to_data[(new_cord2, coords)] = "2-CZ"
-            stab_to_data[(new_cord3, coords)] = "3-CZ"
-            stab_to_data[(new_cord4, coords)] = "4-CX"
+    def _attach_interior_cx():
+        """
+        Adds the 4-body CX Schedule for the *interior* stabilizers
+        """
 
-    for coords, string in patch.items():
-        if string == "STAB-BOUND-L-Hor":
-            new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-            new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-            stab_to_data[(new_cord1, coords)] = "3-CZ"
-            stab_to_data[(new_cord2, coords)] = "4-CX"
-        elif string == "STAB-BOUND-R-Hor":
-            new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-            new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
-            stab_to_data[(new_cord1, coords)] = "1-CX"
-            stab_to_data[(new_cord2, coords)] = "2-CZ"
-        elif string == "STAB-BOUND-A-Ver":
-            new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-            new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-            stab_to_data[(new_cord1, coords)] = "3-CZ"
-            stab_to_data[(new_cord2, coords)] = "4-CX"
-        elif string == "STAB-BOUND-B-Ver":
-            new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-            new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
-            stab_to_data[(new_cord1, coords)] = "1-CX"
-            stab_to_data[(new_cord2, coords)] = "2-CZ"
+        for coords, string in patch.items():
+            if string == "STAB-Ver":
+                new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
+                new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
+                new_cord3 = (coords.real - 1) + (coords.imag + 1) * 1j
+                new_cord4 = (coords.real + 1) + (coords.imag + 1) * 1j
+                stab_to_data[(new_cord1, coords)] = "1-CX"
+                stab_to_data[(new_cord2, coords)] = "2-CZ"
+                stab_to_data[(new_cord3, coords)] = "3-CZ"
+                stab_to_data[(new_cord4, coords)] = "4-CX"
+            elif string == "STAB-Hor":
+                new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
+                new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
+                new_cord3 = (coords.real - 1) + (coords.imag + 1) * 1j
+                new_cord4 = (coords.real + 1) + (coords.imag + 1) * 1j
+                stab_to_data[(new_cord1, coords)] = "1-CX"
+                stab_to_data[(new_cord2, coords)] = "2-CZ"
+                stab_to_data[(new_cord3, coords)] = "3-CZ"
+                stab_to_data[(new_cord4, coords)] = "4-CX"
 
+    def _attach_boundary_cx():
+        """
+        Adds the 2-body CX Schedule for the *boundary* stabilizers
+        """
+
+        for coords, string in patch.items():
+            if string == "STAB-BOUND-L-Hor":
+                new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
+                new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
+                stab_to_data[(new_cord1, coords)] = "3-CZ"
+                stab_to_data[(new_cord2, coords)] = "4-CX"
+            elif string == "STAB-BOUND-R-Hor":
+                new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
+                new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
+                stab_to_data[(new_cord1, coords)] = "1-CX"
+                stab_to_data[(new_cord2, coords)] = "2-CZ"
+            elif string == "STAB-BOUND-A-Ver":
+                new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
+                new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
+                stab_to_data[(new_cord1, coords)] = "3-CZ"
+                stab_to_data[(new_cord2, coords)] = "4-CX"
+            elif string == "STAB-BOUND-B-Ver":
+                new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
+                new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
+                stab_to_data[(new_cord1, coords)] = "1-CX"
+                stab_to_data[(new_cord2, coords)] = "2-CZ"
+
+    # Add interior and boundary CXs
+    _attach_interior_cx()
+    _attach_boundary_cx()
     return stab_to_data
 
 

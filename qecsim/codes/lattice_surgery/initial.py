@@ -1,4 +1,4 @@
-from typing import Dict, Tuple, Mapping
+from typing import Dict, Tuple, Mapping, Union
 from tqecd import annotate_detectors_automatically
 import stim
 from qecsim.core.cx_builder import cx_builder
@@ -10,7 +10,7 @@ __all__ = ["initial"]
 
 def initial(*, 
             lct: LatticeContext, 
-            patches: dict[str, Patch_Ancilla, Patch_Target, Patch_Control, Patch_Surgery], 
+            patches: Mapping[str, Union[Patch_Ancilla, Patch_Target, Patch_Control, Patch_Surgery]], 
             cfg: Config, 
             noise: NoiseModel) -> stim.Circuit:
     
@@ -45,67 +45,6 @@ def initial(*,
     z_stab_index_control = control_patch.z_stab
     x_stab_index_target = target_patch.x_stab
     z_stab_index_target = target_patch.z_stab
-
-    #----------------------------------------------
-    # Creating List of all Stabilizers (No Double!)
-    #----------------------------------------------
-
-    all_stabs_not_double = []
-    
-    #Setting double counter
-    counter_x = 0
-    counter_z = 0
-
-    for index in (x_stab_index_ancilla + z_stab_index_ancilla + x_stab_index_control + z_stab_index_control + x_stab_index_target + z_stab_index_target):
-
-        #Double Values possible
-        if index in x_stab_boundary_b_index_ancilla:
-
-            #Value already appended?
-            if counter_x == 0:
-                all_stabs_not_double.append(index)
-                counter_x += 1
-
-        elif index in z_stab_boundary_r_index_ancilla:
-
-            #Value already appended?
-            if counter_z == 0:
-                all_stabs_not_double.append(index)
-                counter_z += 1
-
-        else:
-            all_stabs_not_double.append(index)
-
-    #------------------------------------------------------
-    # Creating list of Logical X/Z string and their indices
-    #------------------------------------------------------
-    """
-    -> Used for swithcing of the state in a given basis
-    """
-
-    # Ancilla
-    a_log_obs_z_index : list[complex] = []
-
-    for real in range(1, (distance * 2), 2):
-        a_log_obs_z_index.append(q2i[real + 1j])
-
-    # Target
-    t_log_obs_z_index : list[complex] = []
-    for real in range((distance * 2) + 1, (distance * 4), 2):
-        t_log_obs_z_index.append(q2i[real + 1j])
-
-    t_log_obs_x_index : list[complex] = []
-    for imag in range(1, (distance * 2), 2):
-        t_log_obs_x_index.append(q2i[((distance * 2) + 1) + imag * 1j])
-
-    # Control
-    c_log_obs_z_index : list[complex] = []
-    for real in range(1, (distance * 2), 2):
-        c_log_obs_z_index.append(q2i[(real + ((distance * 2) + 1) * 1j)])
-
-    c_log_obs_x_index : list[complex] = []
-    for imag in range((distance * 2) + 1, (distance * 4), 2):
-        c_log_obs_x_index.append(q2i[(1 + imag * 1j)])
 
     ########################
     # Define Initial Circuit
@@ -527,5 +466,42 @@ def initial(*,
             #initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
 
     initial_circuit += initial_repeat_circuit * (distance - 1)
+
+    #1) Control Flow:
+    if key[0] in {"Y+", "Y-"}:
+
+        logical_x_string = []
+        logical_z_string = []
+        logical_y_string = distance * 2 - 1 + (distance * 4 - 1) * 1j
+
+        # Finding logical Strings for x and z
+        for imag in range(1, (distance * 2) - 1, 2):
+            logical_x_string.append(q2i[distance * 2 - 1 + (imag + distance * 2) * 1j])
+
+        for real in range(1, (distance * 2) - 1, 2):
+            logical_z_string.append(q2i[real + (distance * 4 - 1) * 1j])
+
+        # Adding logical z string
+        #initial_circuit.append("OBSERVABLE_INCLUDE", [f"Z{idz}" for j, idz in enumerate(logical_z_string)] + 
+        #                        [f"Y{q2i[logical_y_string]}"] + 
+        #                        [f"X{idx}" for j, idx in enumerate(logical_x_string)], 0)
+
+    #2) Target Flow:
+    elif key[1] in {"Y+", "Y-"}:
+
+        logical_x_string = []
+        logical_z_string = []
+        logical_y_string = distance * 4 - 1 + (distance * 2 - 1) * 1j
+
+        # Finding logical Strings for x and z
+        for imag in range(1, (distance * 2) - 1, 2):
+            logical_x_string.append(q2i[distance * 4 - 1 + imag * 1j])
+
+        for real in range(1, (distance * 2) - 1, 2):
+            logical_z_string.append(q2i[real + distance * 2 + (distance * 2 - 1) * 1j])
+
+        #initial_circuit.append("OBSERVABLE_INCLUDE", [f"Z{idz}" for j, idz in enumerate(logical_z_string)] + 
+        #                        [f"Y{q2i[logical_y_string]}"] + 
+        #                        [f"X{idx}" for j, idx in enumerate(logical_x_string)], 0)
 
     return initial_circuit
