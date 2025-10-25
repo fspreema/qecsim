@@ -4,8 +4,8 @@ import itertools
 import pickle
 import numpy as np
 
-from qecsim.xzzx_code.circuit import XZZX_code
-from qecsim.threshold_num.calc_threshold_new import calc_threshold_new
+from qecsim.codes.xzzx.circuit import XZZX_code
+from qecsim.tools.thresholds.threshold_approx import threshold_approx
 
 if __name__ == "__main__":
 
@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
         # calculate threshold and save -> If Error skip and set 0 
         try:
-            calc_th = calc_threshold_new(stats_noisy_v)
+            calc_th = threshold_approx(stats_noisy_v)
             num_value.append([current_bias,calc_th])
 
         except Exception:

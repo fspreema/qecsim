@@ -10,11 +10,14 @@
 
 - Implements CX gate via lattice surgery on the rotated surface code
   - Following Flows are currently Supported:
-    - ...
+    - X -> XX
+    - XX -> X
+    - x -> X
+    - Z -> ZZ
+    - ZZ -> Z
+    - Z -> Z
+    - ZX -> ZX
 
 - Numerical Threshold Approximation
   - Implements numerical threhsold approximations for any given Sinter.TaskStats File
-
-### Usage
-- To create a given circuit...
 

@@ -33,3 +33,7 @@ Thumbs.db
 
 # Code File
 playground/code (1)
+
+# Pytest and Ruff cache
+.ruff_cache/
+.pytest_cache/

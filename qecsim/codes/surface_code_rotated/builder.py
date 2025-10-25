@@ -4,16 +4,16 @@ from tqecd import annotate_detectors_automatically
 
 from qecsim.core.geometry import build_lattice
 from qecsim.core.stabilizers import populate_stab_to_data
-from .initial import initial
-from .repetition_circ import repetition_circ
-from .reset_circ import reset
-from .final_m_circuit import final_m
-from .h_switched_round import h_switched_circ
-from .h_switched_init import h_switched_circ_init
-from .y_initial import y_initial
-from .y_repetition_circ import y_repetition_circ
-from .y_switch import y_switch_circ
-from .y_rev_switch_circ import y_rev_switch_circ
+from .circuits.initial import initial
+from .circuits.repetition import repetition_circ
+from .circuits.reset import reset
+from .circuits.final_measure import final_m
+from .circuits.h_switched_round import h_switched_circ
+from .circuits.h_switched_init import h_switched_circ_init
+from .circuits.y_initial import y_initial
+from .circuits.y_repetition import y_repetition_circ
+from .circuits.y_switch import y_switch_circ
+from .circuits.y_rev_switch import y_rev_switch_circ
 from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, NoiseModel, CircuitResult
 
 Coord = complex
