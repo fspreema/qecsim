@@ -292,49 +292,41 @@ def calc_ptm(*,
     cvrtr_0_x = circuit_0_x.compile_m2d_converter()
     dets_ops_0_x = cvrtr_0_x.convert(measurements = rstls_smpls_0_x, append_observables=True)
     num_dets = dem_0_x.num_detectors
-    num_obs  = dem_0_x.num_observables
     dets_0_x = dets_ops_0_x[:, :num_dets]
 
     cvrtr_1_x = circuit_1_x.compile_m2d_converter()
     dets_ops_1_x = cvrtr_1_x.convert(measurements = rstls_smpls_1_x, append_observables=True)
     num_dets = dem_1_x.num_detectors
-    num_obs  = dem_1_x.num_observables
     dets_1_x = dets_ops_1_x[:, :num_dets]
 
     cvrtr_p_z = circuit_p_z.compile_m2d_converter()
     dets_ops_p_z = cvrtr_p_z.convert(measurements = rstls_smpls_p_z, append_observables=True)
     num_dets = dem_p_z.num_detectors
-    num_obs  = dem_p_z.num_observables
     dets_p_z = dets_ops_p_z[:, :num_dets]
 
     cvrtr_m_z = circuit_m_z.compile_m2d_converter()
     dets_ops_m_z = cvrtr_m_z.convert(measurements = rstls_smpls_m_z, append_observables=True)
     num_dets = dem_m_z.num_detectors
-    num_obs  = dem_m_z.num_observables
     dets_m_z = dets_ops_m_z[:, :num_dets]
 
     cvrtr_0_y = circuit_0_y.compile_m2d_converter()
     dets_ops_0_y = cvrtr_0_y.convert(measurements=rstls_smpls_0_y, append_observables=True)
     num_dets = dem_0_y.num_detectors
-    num_obs  = dem_0_y.num_observables
     dets_0_y = dets_ops_0_y[:, :num_dets]
 
     cvrtr_1_y = circuit_1_y.compile_m2d_converter()
     dets_ops_1_y = cvrtr_1_y.convert(measurements=rstls_smpls_1_y, append_observables=True)
     num_dets = dem_1_y.num_detectors
-    num_obs  = dem_1_y.num_observables
     dets_1_y = dets_ops_1_y[:, :num_dets]
 
     cvrtr_p_y = circuit_p_y.compile_m2d_converter()
     dets_ops_p_y = cvrtr_p_y.convert(measurements=rstls_smpls_p_y, append_observables=True)
     num_dets = dem_p_y.num_detectors
-    num_obs  = dem_p_y.num_observables
     dets_p_y = dets_ops_p_y[:, :num_dets]
 
     cvrtr_m_y = circuit_m_y.compile_m2d_converter()
     dets_ops_m_y = cvrtr_m_y.convert(measurements=rstls_smpls_m_y, append_observables=True)
     num_dets = dem_m_y.num_detectors
-    num_obs  = dem_m_y.num_observables
     dets_m_y = dets_ops_m_y[:, :num_dets]
 
     cvrtr_pi_x = circuit_pi_x.compile_m2d_converter()

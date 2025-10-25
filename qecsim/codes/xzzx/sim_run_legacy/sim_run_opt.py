@@ -1,6 +1,7 @@
 import sinter
-import os, pickle, itertools, collections
-import functools
+import os
+import pickle
+import itertools
 import random
 import numpy as np
 import glob

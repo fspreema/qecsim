@@ -34,9 +34,7 @@ def final_m(*,
 
     #-Retrieving Global Infomration
     q2i = lct.q2i
-    i2q = lct.i2q
     distance = cfg.distance
-    rounds = cfg.rounds
     init_state = cfg.state_init
     log_obs = cfg.obs
 

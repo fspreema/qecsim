@@ -1,6 +1,5 @@
 import stim
 import numpy as np
-import math
 
 from .circuit_pauli_injector import pauli_injector
 from .noise_array import return_noise_pos
@@ -13,8 +12,6 @@ def mc_estimator(*, circuit : stim.Circuit, circuit_noiseless : stim.Circuit, re
     #############################################################
     # Init measurement result vec and sampler of original Circuit
     #############################################################
-
-    meas_result = np.zeros(number_samples)
 
     # Build the sampler which is needed (i.e. real measurement or measurements flipped?)
     if real_measurement is False:
@@ -36,13 +33,15 @@ def mc_estimator(*, circuit : stim.Circuit, circuit_noiseless : stim.Circuit, re
             ms_idx.append([i.value for i in inst.targets_copy()])
 
     # init qubit index
-    qbt_index : list = []
+    _qbt_index: list = []
 
     # going through the circuit until one has gotten to the i-th measurement
     for tick, inst in enumerate(reversed(circuit.flattened())):
 
         if inst.name in {"M", "MR", "MX", "MZ"}:
-            curr_qubit_meas = [i.value for i in inst.targets_copy()]
+
+            # Currently not used
+            _curr_qubit_meas = [i.value for i in inst.targets_copy()]
 
             """
             if check current measurement if we have one which is included in ms_idx
@@ -101,7 +100,7 @@ def mc_estimator(*, circuit : stim.Circuit, circuit_noiseless : stim.Circuit, re
         for current_batch in range(number_batches):
 
             # Extract Frames
-            meas_frame : np.array = pauli_frame_meas[0][:,current_batch]
+            # meas_frame is not used; omit to reduce lint noise
             log_frame : np.array = pauli_frame_meas[2][:,current_batch]
             sgn_keeper : np.array = pauli_frame_meas[3][:,current_batch]
             gamma_frame : np.array = pauli_frame_meas[4][:,current_batch]
@@ -134,7 +133,7 @@ def mc_estimator(*, circuit : stim.Circuit, circuit_noiseless : stim.Circuit, re
                 # Convert into non boolian result
                 non_bool_res = 0
 
-                if xored_res == True:
+                if xored_res:
                     non_bool_res = -1 * full_gmsgn
                 else:
                     non_bool_res = 1 * full_gmsgn

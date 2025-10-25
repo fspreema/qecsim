@@ -19,11 +19,7 @@ def y_initial(*,
 
     #-Retrieving Global Infomration
     q2i = lct.q2i
-    i2q = lct.i2q
     stab_to_data = lct.stab_to_data
-
-    #-Retrieving Data Coords
-    data = patch.data
 
     #-Retrieving Index from Stabilizers of the Lattices
     x_stab_index = patch.x_stab

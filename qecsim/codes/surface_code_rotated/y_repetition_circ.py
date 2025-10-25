@@ -1,5 +1,4 @@
 import stim
-import numpy as np
 from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, NoiseModel, CircuitResult
 from qecsim.core.cx_builder import cx_builder
 

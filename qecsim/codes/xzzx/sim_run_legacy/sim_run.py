@@ -1,10 +1,11 @@
 import sinter
-import os, pickle, itertools, collections
-import functools
+import os
+import pickle
+import itertools
+import collections
 import random
 import numpy as np
 
-from collections import namedtuple, defaultdict
 from multiprocessing import Manager, Pool, cpu_count
 
 from qecsim.xzzx_code.circuit import XZZX_code

@@ -1,6 +1,5 @@
 from __future__ import division 
 import numpy as np
-import matplotlib.pyplot as plt
 
 __all__ = ["calc_threshold_new"]
 
@@ -99,8 +98,8 @@ def calc_threshold_new(data_stats : list):
         # Sort and convert and convert to log log for linear fit
         ########################################################
 
-        filtered = [(p, l) for p, l in zip(physical_p, logical_p) if l > 0 and p > 0]
-        
+        filtered = [(p, lp) for p, lp in zip(physical_p, logical_p) if lp > 0 and p > 0]
+
         if len(filtered) < 2:
             raise ValueError("Not enough valid points i.e. p > 0")
 

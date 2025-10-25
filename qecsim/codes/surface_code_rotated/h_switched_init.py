@@ -22,7 +22,6 @@ def h_switched_circ_init(*,
     #-Retrieving Global Infomration
     q2i = lct.q2i
     i2q = lct.i2q
-    distance = cfg.distance
     stab_to_data = lct.stab_to_data_modified
 
     #-Retrieving Data Coords

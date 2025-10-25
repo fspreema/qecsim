@@ -467,12 +467,7 @@ def _populate_surface(
         Adds the 2-body CX Schedule for the *boundary* stabilizers
         """
 
-        BOUNDARY_CASES_NORMAL = {
-        "Z-STAB-BOUND-L": {"offsets": [(+1, -1), (+1, +1)], "orders": ["1-CX", "2-CX"], "pair": "stab->data"},
-        "Z-STAB-BOUND-R": {"offsets": [(-1, -1), (-1, +1)], "orders": ["3-CX", "4-CX"], "pair": "stab->data"},
-        "X-STAB-BOUND-U": {"offsets": [(-1, +1), (+1, +1)], "orders": ["4-CX", "3-CX"], "pair": "data->stab"},
-        "X-STAB-BOUND-B": {"offsets": [(-1, -1), (+1, -1)], "orders": ["2-CX", "1-CX"], "pair": "data->stab"},
-        }
+    # (boundary case reference removed; inlined logic below)
 
         if not is_flipped:
             if not y_basis:
@@ -672,7 +667,7 @@ def populate_stab_to_data(patch: Dict[Coord, Label], *args, **kwargs):
     """
     # Detect xzzx-style by label names
     labels = set(patch.values())
-    if any(l in labels for l in ("STAB-Ver", "STAB-Hor", "STAB-BOUND-L-Hor", "STAB-BOUND-R-Hor")):
+    if any(label in labels for label in ("STAB-Ver", "STAB-Hor", "STAB-BOUND-L-Hor", "STAB-BOUND-R-Hor")):
         return _populate_xzzx(patch)
 
     # If explicit merging argument present, treat as lattice_surgery

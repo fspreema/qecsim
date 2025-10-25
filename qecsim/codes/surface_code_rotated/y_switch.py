@@ -25,9 +25,6 @@ def y_switch_circ(*,
     stab_to_data_switch = lct.stab_to_data_modified
     stab_to_data_switch_xcy = lct.stab_to_data_modified2
 
-    #-Retrieving Data Coords
-    data = patch.data
-
     #-Retrieving Index from Stabilizers of the Lattices
     x_stab_index = patch.x_stab
     z_stab_index = patch.z_stab
@@ -80,7 +77,7 @@ def y_switch_circ(*,
     pre_switch_circ.append("SHIFT_COORDS", arg = (0,0,1))
 
     #4) Detectors
-    num_measurements_repeat = len(x_stab_index + z_stab_index)
+    _num_measurements_repeat = len(x_stab_index + z_stab_index)
     """
     for index, q_index in enumerate(x_stab_index + z_stab_index):
         prev_tar = -2 * num_measurements_repeat + index

@@ -1,12 +1,11 @@
 import sinter
-import os, itertools
+import os
+import itertools
 import pickle
 import numpy as np
 
 from qecsim.xzzx_code.circuit import XZZX_code
-from qecsim.threshold_num.calc_threshold import threshold_approx
 from qecsim.threshold_num.calc_threshold_new import calc_threshold_new
-from stimbposd import SinterDecoder_BPOSD, sinter_decoders
 
 if __name__ == "__main__":
 

@@ -1,10 +1,9 @@
 from scipy.optimize import minimize_scalar
 from scipy.interpolate import UnivariateSpline
-import matplotlib.pyplot as plt
 import numpy as np
 import sinter
 
-__all__ = ["calc_threshold"]
+__all__ = ["threshold_approx"]
 
 #-----------------
 # Global Function:
@@ -57,7 +56,7 @@ def threshold_approx(data_stats: list[sinter.TaskStats], p_min : float = 0.0025,
         # Sort and convert and convert to log log for linear fit
         ########################################################
 
-        filtered = [(p, l) for p, l in zip(physical_p, logical_p) if l > 0 and p > 0]
+        filtered = [(p, lp) for p, lp in zip(physical_p, logical_p) if lp > 0 and p > 0]
         if len(filtered) < 2:
             raise ValueError("Not enough valid points (logical_p > 0) for interpolation")
 

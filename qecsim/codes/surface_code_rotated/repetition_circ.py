@@ -1,5 +1,4 @@
 import stim
-import numpy as np
 from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, NoiseModel, CircuitResult
 from qecsim.core.cx_builder import cx_builder
 
@@ -24,7 +23,6 @@ def repetition_circ(*,
     q2i = lct.q2i
     i2q = lct.i2q
     rounds = cfg.rounds
-    distance = cfg.distance
     stab_to_data = lct.stab_to_data
 
     #-Retrieving Data Coords

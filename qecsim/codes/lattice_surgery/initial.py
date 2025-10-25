@@ -1,5 +1,4 @@
-from typing import Dict, Tuple, Mapping, Union
-from tqecd import annotate_detectors_automatically
+from typing import Mapping, Union
 import stim
 from qecsim.core.cx_builder import cx_builder
 from qecsim.core.data_models import ConfigLatticeSurgery as Config, Patch_Ancilla, Patch_Control, Patch_Target, Patch_Surgery, LatticeContext, NoiseModel
@@ -40,7 +39,6 @@ def initial(*,
     x_stab_index_ancilla = ancilla_patch.x_stab
     z_stab_index_ancilla = ancilla_patch.z_stab
     x_stab_boundary_b_index_ancilla = ancilla_patch.x_bdyB
-    z_stab_boundary_r_index_ancilla = ancilla_patch.z_bdyR
     x_stab_index_control = control_patch.x_stab
     z_stab_index_control = control_patch.z_stab
     x_stab_index_target = target_patch.x_stab
@@ -81,15 +79,7 @@ def initial(*,
         initial_circuit.append("DEPOLARIZE1", data_ancilla + data_control + data_target, noise.before_round_depol)
     #--------------------------------------------------
 
-    # Adding reset for the y basis initilization
-    if control_state_init in {"Y+", "Y-"}:
-        initial_circuit.append("R", x_stab_index_control + z_stab_index_control)
-        initial_circuit.append("TICK")
-    elif target_state_init in {"Y+", "Y-"}:
-        initial_circuit.append("R", x_stab_index_target + z_stab_index_target)
-        initial_circuit.append("TICK")
-    else:
-        initial_circuit.append("TICK")
+    initial_circuit.append("TICK")
     
     #Adding h gate for X stabilizers -> Filtering out double coords
     combined_x_stab : list = []
@@ -166,11 +156,10 @@ def initial(*,
             pos_to_index_ancilla_z.append([pos, index])
 
     #Adding the needed Detectors
-    if control_state_init in {"Z0", "Z1", "X+", "X-"} and target_state_init in {"Z0", "Z1", "X+", "X-"}:
-        for index_pos in pos_to_index_ancilla_x:
-            current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
-            q_index = index_pos[1]
-            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+    for index_pos in pos_to_index_ancilla_x:
+        current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        q_index = index_pos[1]
+        initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
 
 
     #Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
@@ -230,49 +219,47 @@ def initial(*,
 
         elif index in z_stab_index_target:
             pos_to_index_target_z.append([pos, index])
-
-    if target_state_init in {"Z0", "Z1", "X+", "X-"} and control_state_init in {"Z0", "Z1", "X+", "X-"}:
     
-        ####################################
-        # Implementing Detectors for Control
-        ####################################
+    ####################################
+    # Implementing Detectors for Control
+    ####################################
 
-        #Z-Basis (0/1 - state)
-        if control_state_init in {"Z0", "Z1"}:
+    #Z-Basis (0/1 - state)
+    if control_state_init in {"Z0", "Z1"}:
 
-            for index_pos in pos_to_index_control_z:
-                current_tar = index_pos[0] - len(control_target_stabs)
-                q_index = index_pos[1]
-                #initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+        for index_pos in pos_to_index_control_z:
+            current_tar = index_pos[0] - len(control_target_stabs)
+            q_index = index_pos[1]
+            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+    
+    #X-Basis (+/- - state)
+    elif control_state_init in {"X-", "X+"}:
+
+        for index_pos in pos_to_index_control_x:
+            current_tar = index_pos[0] - len(control_target_stabs)
+            q_index = index_pos[1]
+            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
         
-        #X-Basis (+/- - state)
-        elif control_state_init in {"X-", "X+"}:
+    ########################################
+    # Implementing Detectors for Target
+    ########################################
 
-            for index_pos in pos_to_index_control_x:
-                current_tar = index_pos[0] - len(control_target_stabs)
-                q_index = index_pos[1]
-                #initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
-            
-        ########################################
-        # Implementing Detectors for Target
-        ########################################
+    #Z-Basis (0/1 - state)
+    if target_state_init in {"Z0", "Z1"}:
 
-        #Z-Basis (0/1 - state)
-        if target_state_init in {"Z0", "Z1"}:
+        for index_pos in pos_to_index_target_z:
+            current_tar = index_pos[0] - len(control_target_stabs)
+            q_index = index_pos[1]
+            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
     
-            for index_pos in pos_to_index_target_z:
-                current_tar = index_pos[0] - len(control_target_stabs)
-                q_index = index_pos[1]
-                #initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
-        
-        #X-Basis (+/- - state)
-        elif target_state_init in {"X-", "X+"}:
+    #X-Basis (+/- - state)
+    elif target_state_init in {"X-", "X+"}:
 
-            for index_pos in pos_to_index_target_x:
-                current_tar = index_pos[0] - len(control_target_stabs)
-                q_index = index_pos[1]
-                #initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
-    
+        for index_pos in pos_to_index_target_x:
+            current_tar = index_pos[0] - len(control_target_stabs)
+            q_index = index_pos[1]
+            initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+
     ###########################################
     # Adding Repeat Block
     ###########################################
@@ -354,22 +341,19 @@ def initial(*,
     -> Detectors on x and z stabs uncorrelated to the inital state
     """
 
-    if control_state_init in {"Z0", "Z1", "X+", "X-"} and target_state_init in {"Z0", "Z1", "X+", "X-"}:
+    #Adding the needed Detectors (X-Basis)
+    for index_pos in pos_to_index_ancilla_x:
+        current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        previous_tar = index_pos[0] - 2 * len(x_stab_index_ancilla + z_stab_index_ancilla) - len(control_target_stabs)
+        q_index = index_pos[1]
+        initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
 
-        #Adding the needed Detectors (X-Basis)
-        for index_pos in pos_to_index_ancilla_x:
-            current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
-            previous_tar = index_pos[0] - 2 * len(x_stab_index_ancilla + z_stab_index_ancilla) - len(control_target_stabs)
-            q_index = index_pos[1]
-            #initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
-
-        #Adding the needed Detectors (Z-Basis)
-        for index_pos in pos_to_index_ancilla_z:
-            current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
-            previous_tar = index_pos[0] - 2 * len(x_stab_index_ancilla + z_stab_index_ancilla) - len(control_target_stabs)
-            q_index = index_pos[1]
-            #initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
-
+    #Adding the needed Detectors (Z-Basis)
+    for index_pos in pos_to_index_ancilla_z:
+        current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        previous_tar = index_pos[0] - 2 * len(x_stab_index_ancilla + z_stab_index_ancilla) - len(control_target_stabs)
+        q_index = index_pos[1]
+        initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
 
     #Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
     cx_builder(q2i= q2i,
@@ -428,80 +412,40 @@ def initial(*,
 
         elif index in z_stab_index_target:
             pos_to_index_target_z.append([pos, index])
+
+    ####################################
+    # Implementing Detectors for Control
+    ####################################
+
+    for index_pos in pos_to_index_control_z:
+        current_tar = index_pos[0] - len(control_target_stabs)
+        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        q_index = index_pos[1]
+        initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
     
+
+    for index_pos in pos_to_index_control_x:
+        current_tar = index_pos[0] - len(control_target_stabs)
+        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        q_index = index_pos[1]
+        initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+
+    ########################################
+    # Implementing Detectors for Target
+    ########################################
+
+    for index_pos in pos_to_index_target_z:
+        current_tar = index_pos[0] - len(control_target_stabs)
+        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        q_index = index_pos[1]
+        initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
     
-    if control_state_init in {"Z0", "Z1", "X+", "X-"} and target_state_init in {"Z0", "Z1", "X+", "X-"}:
-
-        ####################################
-        # Implementing Detectors for Control
-        ####################################
-
-        for index_pos in pos_to_index_control_z:
-            current_tar = index_pos[0] - len(control_target_stabs)
-            previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
-            q_index = index_pos[1]
-            #initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
-        
-
-        for index_pos in pos_to_index_control_x:
-            current_tar = index_pos[0] - len(control_target_stabs)
-            previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
-            q_index = index_pos[1]
-            #initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
-
-        ########################################
-        # Implementing Detectors for Target
-        ########################################
-
-        for index_pos in pos_to_index_target_z:
-            current_tar = index_pos[0] - len(control_target_stabs)
-            previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
-            q_index = index_pos[1]
-            #initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
-        
-        for index_pos in pos_to_index_target_x:
-            current_tar = index_pos[0] - len(control_target_stabs)
-            previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
-            q_index = index_pos[1]
-            #initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+    for index_pos in pos_to_index_target_x:
+        current_tar = index_pos[0] - len(control_target_stabs)
+        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        q_index = index_pos[1]
+        initial_repeat_circuit.append("DETECTOR", [stim.target_rec(current_tar), stim.target_rec(previous_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
 
     initial_circuit += initial_repeat_circuit * (distance - 1)
-
-    #1) Control Flow:
-    if key[0] in {"Y+", "Y-"}:
-
-        logical_x_string = []
-        logical_z_string = []
-        logical_y_string = distance * 2 - 1 + (distance * 4 - 1) * 1j
-
-        # Finding logical Strings for x and z
-        for imag in range(1, (distance * 2) - 1, 2):
-            logical_x_string.append(q2i[distance * 2 - 1 + (imag + distance * 2) * 1j])
-
-        for real in range(1, (distance * 2) - 1, 2):
-            logical_z_string.append(q2i[real + (distance * 4 - 1) * 1j])
-
-        # Adding logical z string
-        #initial_circuit.append("OBSERVABLE_INCLUDE", [f"Z{idz}" for j, idz in enumerate(logical_z_string)] + 
-        #                        [f"Y{q2i[logical_y_string]}"] + 
-        #                        [f"X{idx}" for j, idx in enumerate(logical_x_string)], 0)
-
-    #2) Target Flow:
-    elif key[1] in {"Y+", "Y-"}:
-
-        logical_x_string = []
-        logical_z_string = []
-        logical_y_string = distance * 4 - 1 + (distance * 2 - 1) * 1j
-
-        # Finding logical Strings for x and z
-        for imag in range(1, (distance * 2) - 1, 2):
-            logical_x_string.append(q2i[distance * 4 - 1 + imag * 1j])
-
-        for real in range(1, (distance * 2) - 1, 2):
-            logical_z_string.append(q2i[real + distance * 2 + (distance * 2 - 1) * 1j])
-
-        #initial_circuit.append("OBSERVABLE_INCLUDE", [f"Z{idz}" for j, idz in enumerate(logical_z_string)] + 
-        #                        [f"Y{q2i[logical_y_string]}"] + 
-        #                        [f"X{idx}" for j, idx in enumerate(logical_x_string)], 0)
 
     return initial_circuit

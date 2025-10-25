@@ -1,9 +1,4 @@
 import stim
-import math
-import pymatching
-import sinter
-import matplotlib.pyplot as plt
-import os
 
 __all__ = ["repetition_code"]
 

@@ -282,7 +282,7 @@ def logical_estimator(*,
     # Do only Diagonals (quasi probs eta only of I,X,Y,Z)
     #----------------------------------------------------
 
-    if use_cliffords == False:
+    if not use_cliffords:
 
         gamma, probs, signs = _only_diag(ptm= ptm)
 
@@ -332,7 +332,7 @@ def logical_estimator(*,
     # Sample from the same circuit as obs measured
     #--------------------------------------------
 
-    if use_cliffords == False:
+    if not use_cliffords:
 
         # Current measurement circuit stays the same
         current_circuit = circuit_basis[logical_obs]

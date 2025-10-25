@@ -1,4 +1,3 @@
-from itertools import chain
 import stim
 from qecsim.core.data_models import ConfigSurface as Config, Patch, Context, NoiseModel, CircuitResult
 
