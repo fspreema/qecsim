@@ -724,7 +724,8 @@ def xzzx_code(
 
     ###########################################
     # 6) Implementing Final Measurement-Round
-    # -> Detectors compromised by last round stab. measurements & Data parity checks from final measurement
+    # -> Detectors compromised by last round stab. measurements
+    #    & Data parity checks from final measurement
     ###########################################
 
     final_circuit.append("MZ", data_z)
@@ -735,8 +736,10 @@ def xzzx_code(
     index_to_rec_ancilla: dict[int, int] = {q: i for i, q in enumerate(reversed(stab_index))}
 
     """
-    Why do we only check the Z stabilizers in the last measurement round and not also the x stabilizers as we did before
-    -> We need to meassure the X stabilizers in the X basis but we already meassured in the z basis (XZ do not commute)
+    Why do we only check the Z stabilizers in the last measurement round and 
+    not also the x stabilizers as we did before
+    -> We need to meassure the X stabilizers in the X basis but we already 
+       meassured in the z basis (XZ do not commute)
     """
 
     if state_init in {"Ver"}:
@@ -771,7 +774,9 @@ def xzzx_code(
 
                 # Appending Detector
                 final_circuit.append(
-                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
+                    "DETECTOR",
+                    [stim.target_rec(i) for i in final_record],
+                    arg=(q.real, q.imag, 1),
                 )
 
             elif qtype == "STAB-BOUND-A-Ver":
@@ -798,7 +803,9 @@ def xzzx_code(
 
                 # Appending Detector
                 final_circuit.append(
-                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
+                    "DETECTOR",
+                    [stim.target_rec(i) for i in final_record],
+                    arg=(q.real, q.imag, 1),
                 )
 
             elif qtype == "STAB-BOUND-B-Ver":
@@ -825,7 +832,9 @@ def xzzx_code(
 
                 # Appending Detector
                 final_circuit.append(
-                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
+                    "DETECTOR",
+                    [stim.target_rec(i) for i in final_record],
+                    arg=(q.real, q.imag, 1),
                 )
 
     elif state_init in {"Hor"}:
@@ -860,7 +869,9 @@ def xzzx_code(
 
                 # Appending Detector
                 final_circuit.append(
-                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
+                    "DETECTOR",
+                    [stim.target_rec(i) for i in final_record],
+                    arg=(q.real, q.imag, 1),
                 )
 
             elif qtype == "STAB-BOUND-L-Hor":
@@ -887,7 +898,9 @@ def xzzx_code(
 
                 # Appending Detector
                 final_circuit.append(
-                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
+                    "DETECTOR",
+                    [stim.target_rec(i) for i in final_record],
+                    arg=(q.real, q.imag, 1),
                 )
 
             elif qtype == "STAB-BOUND-R-Hor":
@@ -914,7 +927,9 @@ def xzzx_code(
 
                 # Appending Detector
                 final_circuit.append(
-                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
+                    "DETECTOR",
+                    [stim.target_rec(i) for i in final_record],
+                    arg=(q.real, q.imag, 1),
                 )
 
     ########################################################
@@ -935,7 +950,9 @@ def xzzx_code(
                 tar_rec.append(rec_pos)
 
         final_circuit.append(
-            "OBSERVABLE_INCLUDE", [stim.target_rec(-len(data_z + data_x) + k) for k in tar_rec], 0,
+            "OBSERVABLE_INCLUDE",
+            [stim.target_rec(-len(data_z + data_x) + k) for k in tar_rec],
+            0,
         )
 
     elif state_init in {"Hor"}:
@@ -952,7 +969,9 @@ def xzzx_code(
                 tar_rec.append(rec_pos)
 
         final_circuit.append(
-            "OBSERVABLE_INCLUDE", [stim.target_rec(-len(data_z + data_x) + k) for k in tar_rec], 0,
+            "OBSERVABLE_INCLUDE",
+            [stim.target_rec(-len(data_z + data_x) + k) for k in tar_rec],
+            0,
         )
 
     ################################

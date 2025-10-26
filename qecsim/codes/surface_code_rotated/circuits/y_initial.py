@@ -14,7 +14,11 @@ __all__ = ["y_initial"]
 
 
 def y_initial(
-    *, lct: Context, patch: dict[str, Patch], noise: NoiseModel, offset: complex = 0 + 0j,
+    *,
+    lct: Context,
+    patch: dict[str, Patch],
+    noise: NoiseModel,
+    offset: complex = 0 + 0j,
 ) -> CircuitResult:
     #################################################
     # Exporting all necessary values from Dataclasses

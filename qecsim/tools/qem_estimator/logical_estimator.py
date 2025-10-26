@@ -113,7 +113,8 @@ def _create_matrix(sigma: tuple[int, int, int], signs: tuple[int, int, int]) -> 
 
 
 def _perm_sign_dict_conv(
-    sigma: tuple[int, int, int], signs: tuple[int, int, int]
+    sigma: tuple[int, int, int],
+    signs: tuple[int, int, int],
 ) -> tuple[dict, dict]:
     """
     Converts the sigma and sign convention into proper dictionaries
@@ -359,7 +360,9 @@ def logical_estimator(
 
             # XOR flip with noiseless Measurement
             # -> Taking first entry for first logical observable
-            final_meas = 1 - 2 * (current_circuit.pred[curr_shot, 0].astype(np.int8) ^ np.int8(noisy_meas))
+            final_meas = 1 - 2 * (
+                current_circuit.pred[curr_shot, 0].astype(np.int8) ^ np.int8(noisy_meas)
+            )
 
             # Calculate Current Weight and with that shot based result
             weight = signs[curr_pauli] * gamma * conj_sign[curr_pauli, logical_obs]
@@ -391,7 +394,9 @@ def logical_estimator(
 
             # XOR flip with noiseless Measurement
             # -> Taking first entry for first logical observable
-            final_meas = 1 - 2 * (current_circuit.pred[curr_shot, 0].astype(np.int8) ^ np.int8(noisy_meas))
+            final_meas = 1 - 2 * (
+                current_circuit.pred[curr_shot, 0].astype(np.int8) ^ np.int8(noisy_meas)
+            )
 
             # Calculate Current Weight and with that shot based result
             weight = signs[curr_cliff] * gamma * curr_sign

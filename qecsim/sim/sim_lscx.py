@@ -6,14 +6,17 @@ import joblib
 import numpy as np
 import sinter
 
-from qecsim.lattice_surgery.circuit import surgery_circuit
+from qecsim.codes.lattice_surgery.builder import surgery_circuit
 
 """
 This is super INEFFICIENT!
 
--> For high d and really low prob for phys error, max_shots are to low to detect any error (Can be skipped)
--> Combined files are saved thorugh loop which loops until d_max = 15 (Have files we don't need in form of _12_ _14_)
--> Only save the run datasets where 2 distances are included -> Every other doesn't need to be calculated
+-> For high d and really low prob for phys error, max_shots are to low to detect any error 
+(Can be skipped)
+-> Combined files are saved thorugh loop which loops until d_max = 15 
+(Have files we don't need in form of _12_ _14_)
+-> Only save the run datasets where 2 distances are included 
+    -> Every other doesn't need to be calculated
 
 TODO:
 -> Rewrite sim run with different noise for different distances

@@ -303,8 +303,9 @@ def _populate_surface(
     * X-Stabs: control ist the **Data** qubit -> (data, stab)
     * Z-Stabs: control is the **stab** qubit -> (stab, data)
 
-    * is_fipped -> Switching the role of X and Z stabilizers
-    * y_basis -> Initlizing one z edge and one x edge. Each edge is build up out of two sides of the lattice
+    * is_flipped -> Switching the role of X and Z stabilizers
+    * y_basis -> Initlizing one z edge and one x edge.
+                 Each edge is build up out of two sides of the lattice
     * y_switch -> CX schedule after switch (H & SQRT X DEG gates) -> Implementation of XCY Schedule
     """
 
@@ -397,13 +398,17 @@ def _populate_surface(
                         if coords not in filtered_stabs_z:
                             pairs = [(coords, q1), (coords, q2), (coords, q3), (coords, q4)]
                             _assign_orders(
-                                stab_to_data, pairs, ["2TICK", "4TICK", "3TICK", "5TICK"],
+                                stab_to_data,
+                                pairs,
+                                ["2TICK", "4TICK", "3TICK", "5TICK"],
                             )
 
                         else:
                             _assign_orders(stab_to_data, [(q3, coords)], ["3.5TICK"])
                             _assign_orders(
-                                stab_to_data, [(coords, q2), (coords, q4)], ["4TICK", "5TICK"],
+                                stab_to_data,
+                                [(coords, q2), (coords, q4)],
+                                ["4TICK", "5TICK"],
                             )
 
                 """
@@ -521,10 +526,12 @@ def _populate_surface(
                 elif y_switch and not y_memory:
                     for coords, qtype in patch.items():
                         """
-                        As the H gates was applied we need to flip the corressponding stabilizer schedule
+                        As the H gates was applied we need to flip the corressponding 
+                        stabilizer schedule
                         
-                        * ATTENTION -> ONLY FLIP THESE WHICH WHERE FLIPPED I.E. on only one diagonal half
-                                    -> Additional Boundary Stabs do CX both ways i.e. detecting z and x errors!
+                        * ATTENTION *
+                        -> ONLY FLIP THESE WHICH WHERE FLIPPED I.E. on only one diagonal half
+                        -> Additional Boundary Stabs do CX both ways i.e. detecting z and x errors!
                         """
                         if qtype == "Z-STAB-BOUND-L":
                             new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
@@ -536,7 +543,8 @@ def _populate_surface(
                             new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
                             new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
 
-                            # Check for lower boundary condition and exclude the cx which gets replaced by CYX
+                            # Check for lower boundary condition and exclude
+                            # the cx which gets replaced by CYX
                             lower_boundary = [i for i in range(4, distance * 2, 4)][-1]
                             lower_coord = (distance * 2 + offset.real) + (
                                 lower_boundary + offset.imag

@@ -198,11 +198,15 @@ def rotated_surface_code(
 
     if is_y:
         qubit_coords: dict[Coord, Label] = build_lattice(
-            distance, offset=0 + 0j, starting_stabilizer_x=False,
+            distance,
+            offset=0 + 0j,
+            starting_stabilizer_x=False,
         )
     else:
         qubit_coords: dict[Coord, Label] = build_lattice(
-            distance, offset=0 + 0j, starting_stabilizer_x=True,
+            distance,
+            offset=0 + 0j,
+            starting_stabilizer_x=True,
         )
 
     ####################
@@ -233,9 +237,10 @@ def rotated_surface_code(
     # Reverse Indexing
     i2q: dict[int, complex] = {i: q for q, i in q2i.items()}
 
-    #######################################################################################################
-    # 4. Adding the Mapping from Stabilizer to Data for later CX gate implementation and add into dataclass
-    #######################################################################################################
+    ############################################################
+    # 4. Adding the Mapping from Stabilizer to Data for later CX
+    # gate implementation and add into dataclass
+    ############################################################
 
     """
     stab_to_data_switch: For the implementation fo the XCY gates for the Y basis init
@@ -244,7 +249,8 @@ def rotated_surface_code(
 
     if is_y:
         stab_to_data: dict[tuple[Coord, Coord], str] = populate_stab_to_data(
-            qubit_coords, y_basis=True,
+            qubit_coords,
+            y_basis=True,
         )
 
         stab_to_data_switch, stab_to_data_xcy = populate_stab_to_data(
@@ -272,10 +278,14 @@ def rotated_surface_code(
         stab_to_data: dict[tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords)
 
         stab_to_data_flipped: dict[tuple[Coord, Coord], str] = populate_stab_to_data(
-            qubit_coords, is_flipped=True,
+            qubit_coords,
+            is_flipped=True,
         )
         lct = Context(
-            q2i=q2i, i2q=i2q, stab_to_data=stab_to_data, stab_to_data_modified=stab_to_data_flipped,
+            q2i=q2i,
+            i2q=i2q,
+            stab_to_data=stab_to_data,
+            stab_to_data_modified=stab_to_data_flipped,
         )
     else:
         stab_to_data: dict[tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords)
@@ -322,7 +332,8 @@ def rotated_surface_code(
     """
     We now rund d rounds with flipped stabilizer roles
     -> i.e. X stabilizers convert to z stabilizers and x to z
-    -> Flipped the stabs_to_data formalism and changed inside the function the role of x and z stab indices
+    -> Flipped the stabs_to_data formalism and changed inside 
+       the function the role of x and z stab indices
     """
 
     # Determine if flip needed by helper
@@ -345,7 +356,11 @@ def rotated_surface_code(
 
     if not is_y:
         final_measurement = final_m(
-            lct=lct, patches=patches, cfg=cfg, noise=noise, is_flipped=flip_needed,
+            lct=lct,
+            patches=patches,
+            cfg=cfg,
+            noise=noise,
+            is_flipped=flip_needed,
         )
 
         state_init_circuit += initial_circuit
@@ -357,7 +372,11 @@ def rotated_surface_code(
 
     else:
         y_memory = y_repetition_circ(
-            lct=lct, patch=patches["patch"], cfg=cfg, noise=noise, memory_round=True,
+            lct=lct,
+            patch=patches["patch"],
+            cfg=cfg,
+            noise=noise,
+            memory_round=True,
         )
 
         state_init_circuit += initial_circuit
@@ -426,7 +445,9 @@ def rotated_surface_code(
                 rec_pos.append(-current_rec_cont)
 
             state_init_circuit.circuit.append(
-                "OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0,
+                "OBSERVABLE_INCLUDE",
+                [stim.target_rec(k) for k in rec_pos],
+                0,
             )
 
             #############################################################################
@@ -434,7 +455,10 @@ def rotated_surface_code(
             #############################################################################
 
             final_measurement = y_repetition_circ(
-                lct=lct, patch=patches["patch"], cfg=cfg, noise=noise,
+                lct=lct,
+                patch=patches["patch"],
+                cfg=cfg,
+                noise=noise,
             )
 
             state_init_circuit += final_measurement

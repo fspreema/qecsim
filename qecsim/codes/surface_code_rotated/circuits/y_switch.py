@@ -89,13 +89,17 @@ def y_switch_circ(
 
     # 4) Detectors
     _num_measurements_repeat = len(x_stab_index + z_stab_index)
+
     """
     for index, q_index in enumerate(x_stab_index + z_stab_index):
         prev_tar = -2 * num_measurements_repeat + index
         current_tar = -1 * num_measurements_repeat + index
-        pre_switch_circ.append("DETECTOR", [stim.target_rec(current_tar),stim.target_rec(prev_tar)], 
-                             (i2q[q_index].real, i2q[q_index].imag, 0))
+        pre_switch_circ.append("DETECTOR", 
+                            [stim.target_rec(current_tar),stim.target_rec(prev_tar)], 
+                             (i2q[q_index].real, i2q[q_index].imag, 0)
+                            )
     """
+
     pre_switch_circ.append("TICK")
 
     ############################################

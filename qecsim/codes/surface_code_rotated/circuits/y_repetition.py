@@ -148,7 +148,9 @@ def y_repetition_circ(
 
     if noise.before_m_flip_prob > 0 and memory_round:
         before_round_circuit.append(
-            "X_ERROR", x_stab_index + z_stab_index, noise.before_m_flip_prob,
+            "X_ERROR",
+            x_stab_index + z_stab_index,
+            noise.before_m_flip_prob,
         )
 
     # -------Continue-Circuit----------

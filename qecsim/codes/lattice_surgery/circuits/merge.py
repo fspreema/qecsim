@@ -96,7 +96,8 @@ def merge(
     ]
 
     """
-    We now redefine the CX implementation which now does Control + Ancilla or Target + Ancilla as one lattice!
+    We now redefine the CX implementation which now does Control + Ancilla or Target + Ancilla 
+    as one lattice!
     """
 
     ###################################################
@@ -162,7 +163,8 @@ def merge(
     combined_z_stab_merging_lattices: list = []
 
     if merging_type == "AC":
-        # Adding h gate for X stabilizers only on merging lattices -> Filtering out double coords in big lattice
+        # Adding h gate for X stabilizers only on merging lattices
+        # -> Filtering out double coords in big lattice
         for coords in x_stab_index_ancilla + x_stab_index_control:
             if coords not in combined_x_stab_merging_lattices:
                 combined_x_stab_merging_lattices.append(coords)
@@ -177,7 +179,8 @@ def merge(
                 combined_z_stab_merging_lattices.append(coords)
 
     elif merging_type == "AT":
-        # Adding h gate for X stabilizers only on merging lattices -> Filtering out double coords in big lattice
+        # Adding h gate for X stabilizers only on merging lattices
+        # -> Filtering out double coords in big lattice
         for coords in (
             x_stab_index_ancilla
             + x_stab_index_target
@@ -198,7 +201,9 @@ def merge(
     # -------Adding-After-Clifford-Depol.------------
     if noise.after_c_depol_prob > 0:
         merge_init_circuit.append(
-            "DEPOLARIZE1", combined_x_stab_merging_lattices, noise.after_c_depol_prob,
+            "DEPOLARIZE1",
+            combined_x_stab_merging_lattices,
+            noise.after_c_depol_prob,
         )
     # -----------------------------------------------
 
@@ -214,11 +219,13 @@ def merge(
     # --------------------------------------------------
 
     merge_init_circuit.append(
-        "M", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        "M",
+        combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
     )
     merge_init_circuit.append("TICK")
     merge_init_circuit.append(
-        "R", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        "R",
+        combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
     )
 
     # -------Adding-After-Reset-Flip-Prob.------------
@@ -232,9 +239,10 @@ def merge(
 
     merge_init_circuit.append("TICK")
 
-    ###########################################################################################################
-    # Adding Detectors -> Firstly Stabilizers which measurement is already known i.e. outside of merging region
-    ###########################################################################################################
+    ##########################################################################################
+    # Adding Detectors
+    # -> Firstly Stabilizers which measurement is already known i.e. outside of merging region
+    ##########################################################################################
 
     # Determining Position in the measurement Run of only the Ancilla
     # (Shared Stabilizers excluded i.e. shared boundary stabs)
@@ -346,12 +354,14 @@ def merge(
                     (i2q[q_index].real, i2q[q_index].imag, 0),
                 )
 
-    # Adding the needed Detectors dependent of logical state of the lattice and the current lattice in merging
+    # Adding the needed Detectors dependent of logical state of the lattice
+    # and the current lattice in merging
     pos_to_index_x_merging_lattice: list = []
     pos_to_index_z_merging_lattice: list = []
 
     if merging_type == "AC":
-        # Determining Position in the measurement Run of only the current merging Lattice (Shared Stabilizers excluded)
+        # Determining Position in the measurement Run of only the current merging Lattice
+        # (Shared Stabilizers excluded)
         for pos, index in enumerate(
             combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
         ):
@@ -402,7 +412,8 @@ def merge(
                     )
 
     elif merging_type == "AT":
-        # Determining Position in the measurement Run of only the current merging Lattice (Shared Stabilizers excluded)
+        # Determining Position in the measurement Run of only the current merging Lattice
+        # (Shared Stabilizers excluded)
         for pos, index in enumerate(
             combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
         ):
@@ -568,7 +579,9 @@ def merge(
         # -------Adding-After-Clifford-Depol.------------
         if noise.after_c_depol_prob > 0:
             merge_init_circuit.append(
-                "DEPOLARIZE1", x_stab_boundary_b_index_ancilla, noise.after_c_depol_prob,
+                "DEPOLARIZE1",
+                x_stab_boundary_b_index_ancilla,
+                noise.after_c_depol_prob,
             )
         # -----------------------------------------------
 
@@ -594,7 +607,9 @@ def merge(
     # -------Adding-After-Clifford-Depol.------------
     if noise.after_c_depol_prob > 0:
         merge_init_circuit.append(
-            "DEPOLARIZE1", x_stab_index_untouched_circ, noise.after_c_depol_prob,
+            "DEPOLARIZE1",
+            x_stab_index_untouched_circ,
+            noise.after_c_depol_prob,
         )
     # -----------------------------------------------
 
@@ -752,7 +767,9 @@ def merge(
     # -------Adding-After-Clifford-Depol.------------
     if noise.after_c_depol_prob > 0:
         merge_round_circuit.append(
-            "DEPOLARIZE1", combined_x_stab_merging_lattices, noise.after_c_depol_prob,
+            "DEPOLARIZE1",
+            combined_x_stab_merging_lattices,
+            noise.after_c_depol_prob,
         )
     # -----------------------------------------------
 
@@ -768,11 +785,13 @@ def merge(
     # --------------------------------------------------
 
     merge_round_circuit.append(
-        "M", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        "M",
+        combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
     )
     merge_round_circuit.append("TICK")
     merge_round_circuit.append(
-        "R", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        "R",
+        combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
     )
 
     # -------Adding-After-Reset-Flip-Prob.------------
@@ -786,9 +805,10 @@ def merge(
 
     merge_round_circuit.append("TICK")
 
-    ###########################################################################################################
-    # Adding Detectors -> Firstly Stabilizers which measurement is already known i.e. outside of merging region
-    ###########################################################################################################
+    ##########################################################################################
+    # Adding Detectors
+    # -> Firstly Stabilizers which measurement is already known i.e. outside of merging region
+    ##########################################################################################
 
     # Adding the needed Detectors for Ancilla (X & Z-Stabs)
     for index_pos_merge in pos_to_index_ancilla_x_merge:
@@ -931,7 +951,9 @@ def merge(
         # -------Adding-After-Clifford-Depol.------------
         if noise.after_c_depol_prob > 0:
             merge_round_circuit.append(
-                "DEPOLARIZE1", x_stab_boundary_b_index_ancilla, noise.after_c_depol_prob,
+                "DEPOLARIZE1",
+                x_stab_boundary_b_index_ancilla,
+                noise.after_c_depol_prob,
             )
         # -----------------------------------------------
 
@@ -957,7 +979,9 @@ def merge(
     # -------Adding-After-Clifford-Depol.------------
     if noise.after_c_depol_prob > 0:
         merge_round_circuit.append(
-            "DEPOLARIZE1", x_stab_index_untouched_circ, noise.after_c_depol_prob,
+            "DEPOLARIZE1",
+            x_stab_index_untouched_circ,
+            noise.after_c_depol_prob,
         )
     # -----------------------------------------------
 

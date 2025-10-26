@@ -130,7 +130,7 @@ def reset(
 
         if log_obs == "Z":
             """
-            We need to remove the added Pauli measurement from the end of the circuit
+            We need to remove the added Pauli measurement from the end of the circuit 
             -> Else the Z paulis tring would anticommute with the RZ reset of the data
             """
 

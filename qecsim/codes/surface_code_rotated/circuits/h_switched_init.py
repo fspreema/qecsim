@@ -14,7 +14,10 @@ __all__ = ["h_switched_circ_init"]
 
 
 def h_switched_circ_init(
-    *, lct: Context, patches: dict[str, Patch], noise: NoiseModel,
+    *,
+    lct: Context,
+    patches: dict[str, Patch],
+    noise: NoiseModel,
 ) -> CircuitResult:
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -107,7 +110,8 @@ def h_switched_circ_init(
     switched_init_circ.append("SHIFT_COORDS", arg=(0, 0, 1))
 
     """
-    For the detectors we now compare the newly formed stabilizers with the old ones on the same position!
+    For the detectors we now compare the newly formed stabilizers with the old 
+    ones on the same position!
     -> Z stabilizers (Here after switch) lays on the old x stabilizers
     -> We compare this Z stabilizer to the old X stabilizer
     -> We compare current qubit index with the same qubit index of old emasurement round

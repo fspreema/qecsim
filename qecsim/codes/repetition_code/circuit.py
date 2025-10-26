@@ -17,7 +17,8 @@ def repetition_code(
     Args:
     -> Distance (Int): Gives Distance of the Code i.e. the number of data qubits
     -> rounds (Int): Gives the number of Repeating rounds
-    -> Noise (Float): Gives the probability of an initilization-Error at the beginning for the data qubits
+    -> Noise (Float): Gives the probability of an initilization-Error at the beginning
+       for the data qubits
 
     Returns:
     -> Stim.Circuit() with logical Z Operator
@@ -197,7 +198,9 @@ def repetition_code(
 
     # Adding logical Observables
     final_circuit.append(
-        "OBSERVABLE_INCLUDE", [stim.target_rec(-i - 1) for i, q in enumerate(index_data)], 0,
+        "OBSERVABLE_INCLUDE",
+        [stim.target_rec(-i - 1) for i, q in enumerate(index_data)],
+        0,
     )
 
     return final_circuit

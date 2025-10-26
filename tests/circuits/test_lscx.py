@@ -8,64 +8,94 @@ def _has_observable(circuit: stim.Circuit) -> bool:
     return "OBSERVABLE_INCLUDE" in str(circuit)
 
 
-def test_lscx_valid_flows_compile_and_have_observable():
+@pytest.mark.parametrize("distance", [3, 5], ids=["d3", "d5"])
+@pytest.mark.parametrize(
+    "flow,control,target",
+    [
+        # All-X: X -> XX
+        ("X -> XX", "X+", "X+"),
+        ("X -> XX", "X+", "X-"),
+        ("X -> XX", "X-", "X+"),
+        ("X -> XX", "X-", "X-"),
+        # All-X: XX -> X
+        ("XX -> X", "X+", "X+"),
+        ("XX -> X", "X+", "X-"),
+        ("XX -> X", "X-", "X+"),
+        ("XX -> X", "X-", "X-"),
+        # All-X: X -> X
+        ("X -> X", "X+", "X+"),
+        ("X -> X", "X+", "X-"),
+        ("X -> X", "X-", "X+"),
+        ("X -> X", "X-", "X-"),
+        ("X -> X", "Z0", "X+"),
+        ("X -> X", "Z0", "X-"),
+        ("X -> X", "Z1", "X+"),
+        ("X -> X", "Z1", "X-"),
+        # All-Z: Z -> ZZ
+        ("Z -> ZZ", "Z0", "Z0"),
+        ("Z -> ZZ", "Z0", "Z1"),
+        ("Z -> ZZ", "Z1", "Z0"),
+        ("Z -> ZZ", "Z1", "Z1"),
+        # All-Z: ZZ -> Z
+        ("ZZ -> Z", "Z0", "Z0"),
+        ("ZZ -> Z", "Z0", "Z1"),
+        ("ZZ -> Z", "Z1", "Z0"),
+        ("ZZ -> Z", "Z1", "Z1"),
+        # All-Z: Z -> Z
+        ("Z -> Z", "Z0", "Z0"),
+        ("Z -> Z", "Z0", "Z1"),
+        ("Z -> Z", "Z1", "Z0"),
+        ("Z -> Z", "Z1", "Z1"),
+        ("Z -> Z", "Z0", "X+"),
+        ("Z -> Z", "Z0", "X-"),
+        ("Z -> Z", "Z1", "X+"),
+        ("Z -> Z", "Z1", "X-"),
+        # Mixed ZX: ZX -> ZX
+        ("ZX -> ZX", "Z0", "X+"),
+        ("ZX -> ZX", "Z0", "X-"),
+        ("ZX -> ZX", "Z1", "X+"),
+        ("ZX -> ZX", "Z1", "X-"),
+    ],
+)
+def test_lscx_valid_flows_compile_and_have_observable(distance, flow, control, target):
     """Each supported flow compiles for valid state combos and includes observable."""
-    distances = [3, 5]
+    circuit = surgery_circuit(
+        distance=distance,
+        target_state_init=target,
+        control_state_init=control,
+        flow_observable=flow,
+    )
 
-    valid_cases = [
-        # All-X
-        ("X -> XX", {"control": ["X+", "X-"], "target": ["X+", "X-"]}),
-        ("XX -> X", {"control": ["X+", "X-"], "target": ["X+", "X-"]}),
-        ("X -> X", {"control": ["X+", "X-", "Z0", "Z1"], "target": ["X+", "X-"]}),
-        # All-Z
-        ("Z -> ZZ", {"control": ["Z0", "Z1"], "target": ["Z0", "Z1"]}),
-        ("ZZ -> Z", {"control": ["Z0", "Z1"], "target": ["Z0", "Z1"]}),
-        ("Z -> Z", {"control": ["Z0", "Z1"], "target": ["Z0", "Z1", "X+", "X-"]}),
-        # Mixed ZX
-        ("ZX -> ZX", {"control": ["Z0", "Z1"], "target": ["X+", "X-"]}),
-    ]
-
-    for d in distances:
-        for flow, roles in valid_cases:
-            # test a couple of specific combos for speed
-            for control in roles["control"][:2]:
-                for target in roles["target"][:2]:
-                    circuit = surgery_circuit(
-                        distance=d,
-                        target_state_init=target,
-                        control_state_init=control,
-                        flow_observable=flow,
-                    )
-
-                    assert isinstance(circuit, stim.Circuit)
-                    assert _has_observable(circuit)
+    assert isinstance(circuit, stim.Circuit)
+    assert _has_observable(circuit)
 
 
-def test_lscx_qubit_count_lower_bound():
+@pytest.mark.parametrize("d", [3, 5, 7], ids=["d3", "d5", "d7"])
+def test_lscx_qubit_count_lower_bound(d):
     """Qubit count should be at least 3 patches worth (ancilla, control, target)."""
-    for d in [3, 5, 7]:
-        circuit = surgery_circuit(
-            distance=d,
-            target_state_init="X+",
-            control_state_init="X+",
-            flow_observable="X -> XX",
-        )
+    circuit = surgery_circuit(
+        distance=d,
+        target_state_init="X+",
+        control_state_init="X+",
+        flow_observable="X -> XX",
+    )
 
-        assert isinstance(circuit, stim.Circuit)
-        # One rotated surface code patch uses 2*d^2 - 1 qubits.
-        # We have 3 patches plus surgery extras.
-        expected_min_qubits = 3 * (2 * d**2 - 1)
-        assert circuit.num_qubits >= expected_min_qubits
+    assert isinstance(circuit, stim.Circuit)
+
+    # One rotated surface code patch uses 2*d^2 - 1 qubits.
+    expected_min_qubits = 3 * (2 * d**2 - 1)
+
+    assert circuit.num_qubits >= expected_min_qubits
 
 
-def test_lscx_invalid_flow_and_state_combinations_return_error():
+@pytest.mark.parametrize("distance", [3, 5], ids=["d3", "d5"])
+def test_lscx_invalid_flow_and_state_combinations_return_error(distance):
     """Invalid combinations should raise ValueError."""
-    d = 3
 
     # Invalid flow name raises ValueError
     with pytest.raises(ValueError, match="Invalid Flow selected"):
         surgery_circuit(
-            distance=d,
+            distance=distance,
             target_state_init="X+",
             control_state_init="X+",
             flow_observable="INVALID",
@@ -77,7 +107,7 @@ def test_lscx_invalid_flow_and_state_combinations_return_error():
         match="Invalid control/target state initialization",
     ):
         surgery_circuit(
-            distance=d,
+            distance=distance,
             target_state_init="Y+",
             control_state_init="X+",
             flow_observable="X -> X",
@@ -87,7 +117,7 @@ def test_lscx_invalid_flow_and_state_combinations_return_error():
     # X -> XX requires both control and target in X basis
     with pytest.raises(ValueError, match="Wrong target basis for selected flow"):
         surgery_circuit(
-            distance=d,
+            distance=distance,
             target_state_init="Z0",
             control_state_init="X+",
             flow_observable="X -> XX",
@@ -96,7 +126,7 @@ def test_lscx_invalid_flow_and_state_combinations_return_error():
     # Z -> ZZ requires both control and target in Z basis
     with pytest.raises(ValueError, match="Wrong target basis for selected flow"):
         surgery_circuit(
-            distance=d,
+            distance=distance,
             target_state_init="X+",
             control_state_init="Z0",
             flow_observable="Z -> ZZ",
@@ -105,21 +135,20 @@ def test_lscx_invalid_flow_and_state_combinations_return_error():
     # ZX -> ZX requires control in Z basis and target in X basis
     with pytest.raises(ValueError, match="Wrong control basis for selected flow"):
         surgery_circuit(
-            distance=d,
+            distance=distance,
             target_state_init="Z0",
             control_state_init="X+",
             flow_observable="ZX -> ZX",
         )
 
 
-def test_lscx_even_distance_is_invalid():
+@pytest.mark.parametrize("distance", [2, 4, 10], ids=["d2", "d4", "d10"])
+def test_lscx_even_distance_is_invalid(distance):
     """Even distances are invalid (geometry build requires odd d)."""
-
-    for distance in [2, 4, 6, 8]:
-        with pytest.raises(ValueError):
-            surgery_circuit(
-                distance=distance,
-                target_state_init="X+",
-                control_state_init="X+",
-                flow_observable="X -> XX",
-            )
+    with pytest.raises(ValueError):
+        surgery_circuit(
+            distance=distance,
+            target_state_init="X+",
+            control_state_init="X+",
+            flow_observable="X -> XX",
+        )

@@ -23,7 +23,8 @@ def return_noise_pos(circuit: stim.Circuit) -> np.array:
     q_already_calc_depol2 = False
 
     """
-    We can't use the enumeration as a TICK method as the noisy and noiseless circuit have different lengths
+    We can't use the enumeration as a TICK method as the noisy and noiseless circuit 
+    have different lengths
     -> gate_num: How many gate where before this error?
     """
 
@@ -102,7 +103,16 @@ def return_noise_pos(circuit: stim.Circuit) -> np.array:
 
                 # Append into List
                 noise_overview.append(
-                    ["X_ERR", gate_num, q_number, prob_i_x, prob_err_x, sgn_i_x, sgn_err_x, gamma_x],
+                    [
+                        "X_ERR",
+                        gate_num,
+                        q_number,
+                        prob_i_x,
+                        prob_err_x,
+                        sgn_i_x,
+                        sgn_err_x,
+                        gamma_x,
+                    ],
                 )
 
                 # Setting Bool to True
@@ -114,7 +124,16 @@ def return_noise_pos(circuit: stim.Circuit) -> np.array:
 
                 # Append into List
                 noise_overview.append(
-                    ["X_ERR", gate_num, q_number, prob_i_x, prob_err_x, sgn_i_x, sgn_err_x, gamma_x],
+                    [
+                        "X_ERR",
+                        gate_num,
+                        q_number,
+                        prob_i_x,
+                        prob_err_x,
+                        sgn_i_x,
+                        sgn_err_x,
+                        gamma_x,
+                    ],
                 )
 
         elif inst.name in {"DEPOLARIZE2"}:

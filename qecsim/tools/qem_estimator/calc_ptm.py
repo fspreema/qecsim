@@ -6,7 +6,9 @@ __all__ = ["calc_ptm"]
 
 
 def _define_off_diag_log_rec(
-    samples_from_sampler: np.ndarray, curr_shot: int, rec_pos: list[int]
+    samples_from_sampler: np.ndarray,
+    curr_shot: int,
+    rec_pos: list[int],
 ) -> np.ndarray:
     """
     Returns per shot full logical measurement by xoring the needed measurements
@@ -29,7 +31,9 @@ def _define_off_diag_log_rec(
 
 
 def _xor_meas_and_decoder(
-    decoder_prediction: np.ndarray, logical_state_meas: list, curr_shot: int
+    decoder_prediction: np.ndarray,
+    logical_state_meas: list,
+    curr_shot: int,
 ) -> int:
     """
     Returns the final measurement for the current shot
@@ -37,8 +41,9 @@ def _xor_meas_and_decoder(
     -> i.e. correct measured observable through decoder prediction
     """
 
-    final_log_meas = 1 - 2 * (decoder_prediction[curr_shot, 0].astype(np.int8) ^
-    np.int8(logical_state_meas[curr_shot]))
+    final_log_meas = 1 - 2 * (
+        decoder_prediction[curr_shot, 0].astype(np.int8) ^ np.int8(logical_state_meas[curr_shot])
+    )
     return final_log_meas
 
 
@@ -257,18 +262,66 @@ def calc_ptm(
     log_state_mi_z = []
 
     for curr_shot in range(samples):
-        measurement_res_0_x = _define_off_diag_log_rec(rstls_smpls_0_x, curr_shot, rec_pos_log_x)
-        measurement_res_1_x = _define_off_diag_log_rec(rstls_smpls_1_x, curr_shot, rec_pos_log_x)
-        measurement_res_p_z = _define_off_diag_log_rec(rstls_smpls_p_z, curr_shot, rec_pos_log_z)
-        measurement_res_m_z = _define_off_diag_log_rec(rstls_smpls_m_z, curr_shot, rec_pos_log_z)
-        measurement_res_0_y = _define_off_diag_log_rec(rstls_smpls_0_y, curr_shot, rec_pos_log_y01)
-        measurement_res_1_y = _define_off_diag_log_rec(rstls_smpls_1_y, curr_shot, rec_pos_log_y01)
-        measurement_res_p_y = _define_off_diag_log_rec(rstls_smpls_p_y, curr_shot, rec_pos_log_ypm)
-        measurement_res_m_y = _define_off_diag_log_rec(rstls_smpls_m_y, curr_shot, rec_pos_log_ypm)
-        measurement_res_pi_x = _define_off_diag_log_rec(rstls_smpls_pi_x, curr_shot, rec_pos_log_x_pmi)
-        measurement_res_mi_x = _define_off_diag_log_rec(rstls_smpls_mi_x, curr_shot, rec_pos_log_x_pmi)
-        measurement_res_pi_z = _define_off_diag_log_rec(rstls_smpls_pi_z, curr_shot, rec_pos_log_z_pmi)
-        measurement_res_mi_z = _define_off_diag_log_rec(rstls_smpls_mi_z, curr_shot, rec_pos_log_z_pmi)
+        measurement_res_0_x = _define_off_diag_log_rec(
+            rstls_smpls_0_x,
+            curr_shot,
+            rec_pos_log_x,
+        )
+        measurement_res_1_x = _define_off_diag_log_rec(
+            rstls_smpls_1_x,
+            curr_shot,
+            rec_pos_log_x,
+        )
+        measurement_res_p_z = _define_off_diag_log_rec(
+            rstls_smpls_p_z,
+            curr_shot,
+            rec_pos_log_z,
+        )
+        measurement_res_m_z = _define_off_diag_log_rec(
+            rstls_smpls_m_z,
+            curr_shot,
+            rec_pos_log_z,
+        )
+        measurement_res_0_y = _define_off_diag_log_rec(
+            rstls_smpls_0_y,
+            curr_shot,
+            rec_pos_log_y01,
+        )
+        measurement_res_1_y = _define_off_diag_log_rec(
+            rstls_smpls_1_y,
+            curr_shot,
+            rec_pos_log_y01,
+        )
+        measurement_res_p_y = _define_off_diag_log_rec(
+            rstls_smpls_p_y,
+            curr_shot,
+            rec_pos_log_ypm,
+        )
+        measurement_res_m_y = _define_off_diag_log_rec(
+            rstls_smpls_m_y,
+            curr_shot,
+            rec_pos_log_ypm,
+        )
+        measurement_res_pi_x = _define_off_diag_log_rec(
+            rstls_smpls_pi_x,
+            curr_shot,
+            rec_pos_log_x_pmi,
+        )
+        measurement_res_mi_x = _define_off_diag_log_rec(
+            rstls_smpls_mi_x,
+            curr_shot,
+            rec_pos_log_x_pmi,
+        )
+        measurement_res_pi_z = _define_off_diag_log_rec(
+            rstls_smpls_pi_z,
+            curr_shot,
+            rec_pos_log_z_pmi,
+        )
+        measurement_res_mi_z = _define_off_diag_log_rec(
+            rstls_smpls_mi_z,
+            curr_shot,
+            rec_pos_log_z_pmi,
+        )
 
         # Appending the current measurements to the list
         log_state_0_x.append(measurement_res_0_x)

@@ -51,8 +51,8 @@ def mc_estimator(
             """
 
         """
-        Else shorten qubit index with -current + len(curr_qubit_meas) and then continue looking in the next 
-        measurement operator
+        Else shorten qubit index with -current + len(curr_qubit_meas) and then continue 
+        looking in the next measurement operator
         """
 
     ###################################################################
@@ -76,8 +76,8 @@ def mc_estimator(
     """
     -> What we should do here ist the following
         1. Run n shots
-        2. In each shot go to each postion where there is the noisy gate and apply the inverse channel 
-        with the given weight of the postion (Or rather of this channel)
+        2. In each shot go to each postion where there is the noisy gate and apply 
+        the inverse channel with the given weight of the postion (Or rather of this channel)
         3. After full implementing the Flip Simulator check what operators have flipped
         4. XOR these Operations onto the noisy run of the normal noisy sample
     """

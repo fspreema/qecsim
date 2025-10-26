@@ -211,5 +211,6 @@ def reset(
 
     else:
         raise ValueError(
-            f"Invalid control/target state initialization: {control_state_init}, {target_state_init}",
+            f"Invalid control/target state initialization: "
+            f"{control_state_init}, {target_state_init}",
         )

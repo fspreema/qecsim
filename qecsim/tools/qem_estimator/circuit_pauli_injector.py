@@ -5,7 +5,9 @@ __all__ = ["pauli_injector"]
 
 
 def pauli_injector(
-    circuit: stim.Circuit, noise_info: np.array, batch_size: int = 1,
+    circuit: stim.Circuit,
+    noise_info: np.array,
+    batch_size: int = 1,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     This function uses stim.FlipSimulator in order to determine which measurements get flipped
@@ -13,11 +15,13 @@ def pauli_injector(
 
     Procedure:
     -> We take the infromation out of the noise_info array
-    -> We run through each of the postitions and ticks and place either Identity or XYZ pauli depending on a
-       probability of the individual channel
+    -> We run through each of the postitions and ticks and place either Identity or XYZ pauli
+       depending on a probability of the individual channel
         -> Prob is created by the weights and is already provided in the array
-    -> If the Circuit has run through and all neccessary changes have been made we give out the measurement flips
-    -> Each of the measurement flips also include a sign switch which is also returned in a seperate array
+    -> If the Circuit has run through and all neccessary changes have been made we give
+       out the measurement flips
+    -> Each of the measurement flips also include a sign switch which is also
+       returned in a seperate array
 
     Arguments:
         circuit: Currently used stim.Circuit where the pauli should be inserted
@@ -25,7 +29,8 @@ def pauli_injector(
 
     Returns:
     -> Measurement flips in an array
-    -> Sign keeper where each index corresponds to the index of the qubit this sign needs to be applied to
+    -> Sign keeper where each index corresponds to the index of the qubit this
+       sign needs to be applied to
     """
 
     #############################
@@ -221,4 +226,10 @@ def pauli_injector(
     # Returning if emasurements were flipped
     ########################################
 
-    return meas_mask.astype(bool), det_mask.astype(bool), obs_mask.astype(bool), sign_keeper, gamma_keeper
+    return (
+        meas_mask.astype(bool),
+        det_mask.astype(bool),
+        obs_mask.astype(bool),
+        sign_keeper,
+        gamma_keeper,
+    )

@@ -128,25 +128,25 @@ def surgery_circuit(
     Returns the full lattice surgery circuit
 
     Arguments:
-                -> target_state_init:
-                In which basis should the target lattice be initlized?
-                -> control_state_init:
-                In which basis should the control lattice be initilized?
-                -> flow_observable:
-                What Observable should stim track?
-                -> distance/rounds:
-                Distance and rounds of the circuit (If not given any value distance = rounds)
-                -> noise_depol_data_init:
-                Depolaization noise after initlization of the data qubits with given probability
-                -> noise_measure_flip:
-                X_Error before measurement to simulate faulty measurement with given probability
-                -> noise_after_reset:
-                X_Error after reset of ancilla in order so simulate faulty reset with given probability
-                -> nosie_after_clifford_depol:
-                Depolarization gate after each Clifford (CX and H) with given probability
+        -> target_state_init:
+        In which basis should the target lattice be initlized?
+        -> control_state_init:
+        In which basis should the control lattice be initilized?
+        -> flow_observable:
+        What Observable should stim track?
+        -> distance/rounds:
+        Distance and rounds of the circuit (If not given any value distance = rounds)
+        -> noise_depol_data_init:
+        Depolaization noise after initlization of the data qubits with given probability
+        -> noise_measure_flip:
+        X_Error before measurement to simulate faulty measurement with given probability
+        -> noise_after_reset:
+        X_Error after reset of ancilla in order so simulate faulty reset with given probability
+        -> noise_after_clifford_depol:
+        Depolarization gate after each Clifford (CX and H) with given probability
 
     Returns:
-                -> Fully implemented CX-Gate in stim.Circuit format
+        -> Fully implemented CX-Gate in stim.Circuit format
     """
     ####################
     # Check Round number
@@ -182,7 +182,9 @@ def surgery_circuit(
     # 1. Build independent square patches (using geometry function)
     ###############################################################
     qubit_coords_ancilla: dict[Coord, Label] = build_lattice(
-        distance, offset=0 + 0j, starting_stabilizer_x=True,
+        distance,
+        offset=0 + 0j,
+        starting_stabilizer_x=True,
     )
     qubit_coords_target: dict[Coord, Label] = build_lattice(
         distance,
@@ -209,8 +211,11 @@ def surgery_circuit(
 
     # Merge into different Patches
     """
-    Different Patches are needed, because of different Keywords on identical Coordinates (inside dict.):
-    X-Stab-Boundary-Above-Control & X-Stab-Boundary-Below-Ancilla f.ex. get Keywords for surgery stabilizers
+    Different Patches are needed, because of different Keywords on 
+    identical Coordinates (inside dict.):
+
+    -> X-Stab-Boundary-Above-Control & X-Stab-Boundary-Below-Ancilla f.ex. 
+       get Keywords for surgery stabilizers
     """
 
     full_srgy_ptch = (
@@ -221,13 +226,16 @@ def surgery_circuit(
     # 3. Adding the Mapping from Stabilizer to Data for later CX gate implementation
     ################################################################################
     stab_to_data_ancilla: dict[tuple[Coord, Coord], str] = populate_stab_to_data(
-        qubit_coords_ancilla, merging=False,
+        qubit_coords_ancilla,
+        merging=False,
     )
     stab_to_data_target: dict[tuple[Coord, Coord], str] = populate_stab_to_data(
-        qubit_coords_target, merging=False,
+        qubit_coords_target,
+        merging=False,
     )
     stab_to_data_control: dict[tuple[Coord, Coord], str] = populate_stab_to_data(
-        qubit_coords_control, merging=False,
+        qubit_coords_control,
+        merging=False,
     )
     stab_to_data_surgery_ac: dict[tuple[Coord, Coord], str] = populate_stab_to_data(
         full_srgy_ptch,
