@@ -12,7 +12,9 @@ from qecsim.core.data_models import (
 __all__ = ["h_switched_circ"]
 
 
-def h_switched_circ(*, lct: Context, patches: dict[str, Patch], cfg: Config, noise: NoiseModel) -> CircuitResult:
+def h_switched_circ(
+    *, lct: Context, patches: dict[str, Patch], cfg: Config, noise: NoiseModel,
+) -> CircuitResult:
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################

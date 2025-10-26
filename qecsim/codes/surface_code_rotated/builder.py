@@ -35,7 +35,11 @@ __all__ = ["rotated_surface_code"]
 
 
 def _add_boundary_labels(
-    *, distance: int, offset: complex = 0 + 0j, qubit_coords: dict[Coord, Label], y_basis: bool = False,
+    *,
+    distance: int,
+    offset: complex = 0 + 0j,
+    qubit_coords: dict[Coord, Label],
+    y_basis: bool = False,
 ) -> None:
     """
     Adds the neseccary Boundary and Surgery Stabilizers needed for the code
@@ -193,9 +197,13 @@ def rotated_surface_code(
     is_y = state_init in {"+i", "-i"}
 
     if is_y:
-        qubit_coords: dict[Coord, Label] = build_lattice(distance, offset=0 + 0j, starting_stabilizer_x=False)
+        qubit_coords: dict[Coord, Label] = build_lattice(
+            distance, offset=0 + 0j, starting_stabilizer_x=False,
+        )
     else:
-        qubit_coords: dict[Coord, Label] = build_lattice(distance, offset=0 + 0j, starting_stabilizer_x=True)
+        qubit_coords: dict[Coord, Label] = build_lattice(
+            distance, offset=0 + 0j, starting_stabilizer_x=True,
+        )
 
     ####################
     # 2. Insert boundary
@@ -235,14 +243,21 @@ def rotated_surface_code(
     """
 
     if is_y:
-        stab_to_data: dict[tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords, y_basis=True)
+        stab_to_data: dict[tuple[Coord, Coord], str] = populate_stab_to_data(
+            qubit_coords, y_basis=True,
+        )
 
         stab_to_data_switch, stab_to_data_xcy = populate_stab_to_data(
-            qubit_coords, y_basis=True, y_switch=True, distance=distance,
+            qubit_coords,
+            y_basis=True,
+            y_switch=True,
+            distance=distance,
         )
 
         stab_to_data_memory: dict[tuple[Coord, Coord], str] = populate_stab_to_data(
-            qubit_coords, y_basis=True, y_memory=True,
+            qubit_coords,
+            y_basis=True,
+            y_memory=True,
         )
         lct = Context(
             q2i=q2i,
@@ -256,8 +271,12 @@ def rotated_surface_code(
     elif logical_h:
         stab_to_data: dict[tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords)
 
-        stab_to_data_flipped: dict[tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords, is_flipped=True)
-        lct = Context(q2i=q2i, i2q=i2q, stab_to_data=stab_to_data, stab_to_data_modified=stab_to_data_flipped)
+        stab_to_data_flipped: dict[tuple[Coord, Coord], str] = populate_stab_to_data(
+            qubit_coords, is_flipped=True,
+        )
+        lct = Context(
+            q2i=q2i, i2q=i2q, stab_to_data=stab_to_data, stab_to_data_modified=stab_to_data_flipped,
+        )
     else:
         stab_to_data: dict[tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords)
         lct = Context(q2i=q2i, i2q=i2q, stab_to_data=stab_to_data)
@@ -325,7 +344,9 @@ def rotated_surface_code(
     state_init_circuit = reset(lct=lct, patches=patches, cfg=cfg, logical_h=flip_needed)
 
     if not is_y:
-        final_measurement = final_m(lct=lct, patches=patches, cfg=cfg, noise=noise, is_flipped=flip_needed)
+        final_measurement = final_m(
+            lct=lct, patches=patches, cfg=cfg, noise=noise, is_flipped=flip_needed,
+        )
 
         state_init_circuit += initial_circuit
         state_init_circuit += final_measurement
@@ -335,7 +356,9 @@ def rotated_surface_code(
     ##################################
 
     else:
-        y_memory = y_repetition_circ(lct=lct, patch=patches["patch"], cfg=cfg, noise=noise, memory_round=True)
+        y_memory = y_repetition_circ(
+            lct=lct, patch=patches["patch"], cfg=cfg, noise=noise, memory_round=True,
+        )
 
         state_init_circuit += initial_circuit
         state_init_circuit += y_memory
@@ -402,13 +425,17 @@ def rotated_surface_code(
                 current_rec_cont = contraction_records - index_contraction
                 rec_pos.append(-current_rec_cont)
 
-            state_init_circuit.circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
+            state_init_circuit.circuit.append(
+                "OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0,
+            )
 
             #############################################################################
             # Y ONLY: Adding needed y_inital rounds in order top guarentee faul tolerance
             #############################################################################
 
-            final_measurement = y_repetition_circ(lct=lct, patch=patches["patch"], cfg=cfg, noise=noise)
+            final_measurement = y_repetition_circ(
+                lct=lct, patch=patches["patch"], cfg=cfg, noise=noise,
+            )
 
             state_init_circuit += final_measurement
 

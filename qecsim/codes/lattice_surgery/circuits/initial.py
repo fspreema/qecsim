@@ -7,10 +7,10 @@ from qecsim.core.data_models import (
     ConfigLatticeSurgery as Config,
     LatticeContext,
     NoiseModel,
-    Patch_Ancilla,
-    Patch_Control,
-    Patch_Surgery,
-    Patch_Target,
+    PatchAncilla,
+    PatchControl,
+    PatchSurgery,
+    PatchTarget,
 )
 
 Coord = complex
@@ -21,7 +21,7 @@ __all__ = ["initial"]
 def initial(
     *,
     lct: LatticeContext,
-    patches: Mapping[str, Patch_Ancilla | Patch_Target | Patch_Control | Patch_Surgery],
+    patches: Mapping[str, PatchAncilla | PatchTarget | PatchControl | PatchSurgery],
     cfg: Config,
     noise: NoiseModel,
 ) -> stim.Circuit:
@@ -90,7 +90,11 @@ def initial(
 
     # -------Adding Before Round Data Depol.------------
     if noise.before_round_depol > 0:
-        initial_circuit.append("DEPOLARIZE1", data_ancilla + data_control + data_target, noise.before_round_depol)
+        initial_circuit.append(
+            "DEPOLARIZE1",
+            data_ancilla + data_control + data_target,
+            noise.before_round_depol,
+        )
     # --------------------------------------------------
 
     initial_circuit.append("TICK")
@@ -130,7 +134,11 @@ def initial(
 
     # -------Adding Measurement Flip--------------------
     if noise.before_m_flip_prob > 0:
-        initial_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, noise.before_m_flip_prob)
+        initial_circuit.append(
+            "X_ERROR",
+            x_stab_index_ancilla + z_stab_index_ancilla,
+            noise.before_m_flip_prob,
+        )
     # --------------------------------------------------
 
     initial_circuit.append("M", x_stab_index_ancilla + z_stab_index_ancilla)
@@ -139,7 +147,11 @@ def initial(
 
     # -------Adding-After-Reset-Flip-Prob.------------
     if noise.after_r_flip > 0:
-        initial_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, noise.after_r_flip)
+        initial_circuit.append(
+            "X_ERROR",
+            x_stab_index_ancilla + z_stab_index_ancilla,
+            noise.after_r_flip,
+        )
     # ------------------------------------------------
 
     initial_circuit.append("TICK")
@@ -147,7 +159,11 @@ def initial(
 
     # -------Adding-After-Clifford-Depol.------------
     if noise.after_c_depol_prob > 0:
-        initial_circuit.append("DEPOLARIZE1", x_stab_boundary_b_index_ancilla, noise.after_c_depol_prob)
+        initial_circuit.append(
+            "DEPOLARIZE1",
+            x_stab_boundary_b_index_ancilla,
+            noise.after_c_depol_prob,
+        )
     # -----------------------------------------------
 
     initial_circuit.append("TICK")
@@ -171,13 +187,25 @@ def initial(
     for index_pos in pos_to_index_ancilla_x:
         current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
         q_index = index_pos[1]
-        initial_circuit.append("DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0))
+        initial_circuit.append(
+            "DETECTOR",
+            [stim.target_rec(current_tar)],
+            (i2q[q_index].real, i2q[q_index].imag, 0),
+        )
 
     # Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
-    cx_builder(q2i=q2i, stab_to_data=stab_to_data, circuit=initial_circuit, orders=("5-CX", "6-CX"), noise=noise)
+    cx_builder(
+        q2i=q2i,
+        stab_to_data=stab_to_data,
+        circuit=initial_circuit,
+        orders=("5-CX", "6-CX"),
+        noise=noise,
+    )
 
     # All Stabilizers from the Target and Control Lattice
-    control_target_stabs = x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
+    control_target_stabs = (
+        x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
+    )
 
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     initial_circuit.append("TICK")
@@ -186,7 +214,11 @@ def initial(
 
     # -------Adding-After-Clifford-Depol.------------
     if noise.after_c_depol_prob > 0:
-        initial_circuit.append("DEPOLARIZE1", x_stab_index_control + x_stab_index_target, noise.after_c_depol_prob)
+        initial_circuit.append(
+            "DEPOLARIZE1",
+            x_stab_index_control + x_stab_index_target,
+            noise.after_c_depol_prob,
+        )
     # -----------------------------------------------
 
     initial_circuit.append("TICK")
@@ -237,7 +269,13 @@ def initial(
             current_tar = index_pos[0] - len(control_target_stabs)
             q_index = index_pos[1]
             initial_circuit.append(
-                "DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0),
+                "DETECTOR",
+                [stim.target_rec(current_tar)],
+                (
+                    i2q[q_index].real,
+                    i2q[q_index].imag,
+                    0,
+                ),
             )
 
     # X-Basis (+/- - state)
@@ -246,7 +284,13 @@ def initial(
             current_tar = index_pos[0] - len(control_target_stabs)
             q_index = index_pos[1]
             initial_circuit.append(
-                "DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0),
+                "DETECTOR",
+                [stim.target_rec(current_tar)],
+                (
+                    i2q[q_index].real,
+                    i2q[q_index].imag,
+                    0,
+                ),
             )
 
     ########################################
@@ -259,7 +303,13 @@ def initial(
             current_tar = index_pos[0] - len(control_target_stabs)
             q_index = index_pos[1]
             initial_circuit.append(
-                "DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0),
+                "DETECTOR",
+                [stim.target_rec(current_tar)],
+                (
+                    i2q[q_index].real,
+                    i2q[q_index].imag,
+                    0,
+                ),
             )
 
     # X-Basis (+/- - state)
@@ -268,7 +318,13 @@ def initial(
             current_tar = index_pos[0] - len(control_target_stabs)
             q_index = index_pos[1]
             initial_circuit.append(
-                "DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0),
+                "DETECTOR",
+                [stim.target_rec(current_tar)],
+                (
+                    i2q[q_index].real,
+                    i2q[q_index].imag,
+                    0,
+                ),
             )
 
     ###########################################
@@ -308,7 +364,11 @@ def initial(
 
     # -------Adding Measurement Flip--------------------
     if noise.before_m_flip_prob > 0:
-        initial_repeat_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, noise.before_m_flip_prob)
+        initial_repeat_circuit.append(
+            "X_ERROR",
+            x_stab_index_ancilla + z_stab_index_ancilla,
+            noise.before_m_flip_prob,
+        )
     # --------------------------------------------------
 
     initial_repeat_circuit.append("M", x_stab_index_ancilla + z_stab_index_ancilla)
@@ -317,7 +377,11 @@ def initial(
 
     # -------Adding-After-Reset-Flip-Prob.------------
     if noise.after_r_flip > 0:
-        initial_repeat_circuit.append("X_ERROR", x_stab_index_ancilla + z_stab_index_ancilla, noise.after_r_flip)
+        initial_repeat_circuit.append(
+            "X_ERROR",
+            x_stab_index_ancilla + z_stab_index_ancilla,
+            noise.after_r_flip,
+        )
     # ------------------------------------------------
 
     initial_repeat_circuit.append("TICK")
@@ -325,7 +389,11 @@ def initial(
 
     # -------Adding-After-Clifford-Depol.------------
     if noise.after_c_depol_prob > 0:
-        initial_repeat_circuit.append("DEPOLARIZE1", x_stab_boundary_b_index_ancilla, noise.after_c_depol_prob)
+        initial_repeat_circuit.append(
+            "DEPOLARIZE1",
+            x_stab_boundary_b_index_ancilla,
+            noise.after_c_depol_prob,
+        )
     # -----------------------------------------------
 
     initial_repeat_circuit.append("TICK")
@@ -353,8 +421,13 @@ def initial(
     # Adding the needed Detectors (X-Basis)
     for index_pos in pos_to_index_ancilla_x:
         current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
-        previous_tar = index_pos[0] - 2 * len(x_stab_index_ancilla + z_stab_index_ancilla) - len(control_target_stabs)
+        previous_tar = (
+            index_pos[0]
+            - 2 * len(x_stab_index_ancilla + z_stab_index_ancilla)
+            - len(control_target_stabs)
+        )
         q_index = index_pos[1]
+
         initial_repeat_circuit.append(
             "DETECTOR",
             [stim.target_rec(current_tar), stim.target_rec(previous_tar)],
@@ -364,8 +437,13 @@ def initial(
     # Adding the needed Detectors (Z-Basis)
     for index_pos in pos_to_index_ancilla_z:
         current_tar = index_pos[0] - len(x_stab_index_ancilla + z_stab_index_ancilla)
-        previous_tar = index_pos[0] - 2 * len(x_stab_index_ancilla + z_stab_index_ancilla) - len(control_target_stabs)
+        previous_tar = (
+            index_pos[0]
+            - 2 * len(x_stab_index_ancilla + z_stab_index_ancilla)
+            - len(control_target_stabs)
+        )
         q_index = index_pos[1]
+
         initial_repeat_circuit.append(
             "DETECTOR",
             [stim.target_rec(current_tar), stim.target_rec(previous_tar)],
@@ -373,10 +451,18 @@ def initial(
         )
 
     # Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
-    cx_builder(q2i=q2i, stab_to_data=stab_to_data, circuit=initial_repeat_circuit, orders=("5-CX", "6-CX"), noise=noise)
+    cx_builder(
+        q2i=q2i,
+        stab_to_data=stab_to_data,
+        circuit=initial_repeat_circuit,
+        orders=("5-CX", "6-CX"),
+        noise=noise,
+    )
 
     # All Stabilizers from the Target and Control Lattice
-    control_target_stabs = x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
+    control_target_stabs = (
+        x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
+    )
 
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     initial_repeat_circuit.append("TICK")
@@ -386,7 +472,9 @@ def initial(
     # -------Adding-After-Clifford-Depol.------------
     if noise.after_c_depol_prob > 0:
         initial_repeat_circuit.append(
-            "DEPOLARIZE1", x_stab_index_control + x_stab_index_target, noise.after_c_depol_prob,
+            "DEPOLARIZE1",
+            x_stab_index_control + x_stab_index_target,
+            noise.after_c_depol_prob,
         )
     # -----------------------------------------------
 
@@ -434,7 +522,11 @@ def initial(
 
     for index_pos in pos_to_index_control_z:
         current_tar = index_pos[0] - len(control_target_stabs)
-        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        previous_tar = (
+            index_pos[0]
+            - 2 * len(control_target_stabs)
+            - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        )
         q_index = index_pos[1]
         initial_repeat_circuit.append(
             "DETECTOR",
@@ -444,7 +536,11 @@ def initial(
 
     for index_pos in pos_to_index_control_x:
         current_tar = index_pos[0] - len(control_target_stabs)
-        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        previous_tar = (
+            index_pos[0]
+            - 2 * len(control_target_stabs)
+            - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        )
         q_index = index_pos[1]
         initial_repeat_circuit.append(
             "DETECTOR",
@@ -458,7 +554,11 @@ def initial(
 
     for index_pos in pos_to_index_target_z:
         current_tar = index_pos[0] - len(control_target_stabs)
-        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        previous_tar = (
+            index_pos[0]
+            - 2 * len(control_target_stabs)
+            - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        )
         q_index = index_pos[1]
         initial_repeat_circuit.append(
             "DETECTOR",
@@ -468,7 +568,11 @@ def initial(
 
     for index_pos in pos_to_index_target_x:
         current_tar = index_pos[0] - len(control_target_stabs)
-        previous_tar = index_pos[0] - 2 * len(control_target_stabs) - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        previous_tar = (
+            index_pos[0]
+            - 2 * len(control_target_stabs)
+            - len(x_stab_index_ancilla + z_stab_index_ancilla)
+        )
         q_index = index_pos[1]
         initial_repeat_circuit.append(
             "DETECTOR",

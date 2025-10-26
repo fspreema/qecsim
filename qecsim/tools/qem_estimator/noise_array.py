@@ -51,14 +51,16 @@ def return_noise_pos(circuit: stim.Circuit) -> np.array:
 
                 # Append into List
                 noise_overview.append(
-                    ["DEPOL", 
-                     gate_num, 
-                     q_number, 
-                     prob_i_depol, 
-                     prob_err_depol, 
-                     sgn_i_depol, 
-                     sgn_err_depol, 
-                     gamma_depol],
+                    [
+                        "DEPOL",
+                        gate_num,
+                        q_number,
+                        prob_i_depol,
+                        prob_err_depol,
+                        sgn_i_depol,
+                        sgn_err_depol,
+                        gamma_depol,
+                    ],
                 )
 
                 # Setting Bool to True
@@ -70,14 +72,16 @@ def return_noise_pos(circuit: stim.Circuit) -> np.array:
 
                 # Append into List
                 noise_overview.append(
-                    ["DEPOL", 
-                     gate_num, 
-                     q_number, 
-                     prob_i_depol, 
-                     prob_err_depol, 
-                     sgn_i_depol, 
-                     sgn_err_depol, 
-                     gamma_depol],
+                    [
+                        "DEPOL",
+                        gate_num,
+                        q_number,
+                        prob_i_depol,
+                        prob_err_depol,
+                        sgn_i_depol,
+                        sgn_err_depol,
+                        gamma_depol,
+                    ],
                 )
 
         elif inst.name in {"X_ERROR"}:
@@ -97,7 +101,9 @@ def return_noise_pos(circuit: stim.Circuit) -> np.array:
                 q_number = tuple(t.value for t in inst.targets_copy() if t.is_qubit_target)
 
                 # Append into List
-                noise_overview.append(["X_ERR", gate_num, q_number, prob_i_x, prob_err_x, sgn_i_x, sgn_err_x, gamma_x])
+                noise_overview.append(
+                    ["X_ERR", gate_num, q_number, prob_i_x, prob_err_x, sgn_i_x, sgn_err_x, gamma_x],
+                )
 
                 # Setting Bool to True
                 q_already_calc_x = True
@@ -107,7 +113,9 @@ def return_noise_pos(circuit: stim.Circuit) -> np.array:
                 q_number = tuple(t.value for t in inst.targets_copy() if t.is_qubit_target)
 
                 # Append into List
-                noise_overview.append(["X_ERR", gate_num, q_number, prob_i_x, prob_err_x, sgn_i_x, sgn_err_x, gamma_x])
+                noise_overview.append(
+                    ["X_ERR", gate_num, q_number, prob_i_x, prob_err_x, sgn_i_x, sgn_err_x, gamma_x],
+                )
 
         elif inst.name in {"DEPOLARIZE2"}:
             if q_already_calc_depol2 is False:

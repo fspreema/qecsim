@@ -124,7 +124,9 @@ class Patch:
             coords=coords,
             data=pick_up("DATA"),
             x_stab=pick_up("X-STAB", "X-STAB-BOUND-U", "X-STAB-BOUND-B", "X-STAB-BOUND-R"),
-            stab_switch_apply_h=pick_up("X-STAB", "Z-STAB-BOUND-U", "X-STAB-BOUND-B", "Z-STAB-BOUND-U-H"),
+            stab_switch_apply_h=pick_up(
+                "X-STAB", "Z-STAB-BOUND-U", "X-STAB-BOUND-B", "Z-STAB-BOUND-U-H",
+            ),
             x_stab_memory=pick_up("X-STAB", "Z-STAB-BOUND-U-H", "X-STAB-BOUND-B"),
             z_stab_memory=pick_up("Z-STAB", "Z-STAB-BOUND-L", "X-STAB-BOUND-R-H"),
             z_stab=pick_up("Z-STAB", "Z-STAB-BOUND-L", "Z-STAB-BOUND-R", "Z-STAB-BOUND-U"),

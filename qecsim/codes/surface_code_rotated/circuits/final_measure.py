@@ -22,7 +22,12 @@ OFFSETS = {
 
 
 def final_m(
-    *, lct: Context, patches: dict[str, Patch], cfg: Config, noise: NoiseModel, is_flipped: bool,
+    *,
+    lct: Context,
+    patches: dict[str, Patch],
+    cfg: Config,
+    noise: NoiseModel,
+    is_flipped: bool,
 ) -> CircuitResult:
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -30,7 +35,8 @@ def final_m(
 
     """
     The final measurement needs to be either in the normal basis or the swapped stab basis
-    -> We do an if condition corresponding to if a flip is needed due to the needed basis measurements
+    -> We do an if condition corresponding to if a flip is needed due to the needed basis
+    measurements
     """
 
     # -Loading in Patches
@@ -116,7 +122,12 @@ def final_m(
 
     # Defining Data to measurement indexing
     index_to_rec_data: dict[int, int] = {q: i for i, q in enumerate(reversed(data))}
-    index_to_rec_ancilla: dict[int, int] = {q: i for i, q in enumerate(reversed(x_stab_index + z_stab_index))}
+    index_to_rec_ancilla: dict[int, int] = {
+        q: i
+        for i, q in enumerate(
+            reversed(x_stab_index + z_stab_index),
+        )
+    }
 
     # Select which stabilizers form the final detectors
     if is_flipped:
@@ -126,6 +137,7 @@ def final_m(
             if log_obs in {"X"}
             else {"X-STAB", "X-STAB-BOUND-U", "X-STAB-BOUND-B"}
         )
+
     else:
         # not flipped: same family as the measurement basis
         commuting_stabs = (
@@ -172,11 +184,15 @@ def final_m(
         final_record = current_record + last_record
 
         # Appending Detector
-        det_circ1.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1))
+        det_circ1.append(
+            "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
+        )
 
     if not is_flipped:
         # Det Observable
-        if (init_state in {"1", "0"} and log_obs == "Z") or (init_state in {"+", "-"} and log_obs == "X"):
+        if (init_state in {"1", "0"} and log_obs == "Z") or (
+            init_state in {"+", "-"} and log_obs == "X"
+        ):
             final_circuit += det_circ1
 
         # Non-Det Observable
@@ -205,7 +221,9 @@ def final_m(
                     if index in log_x:
                         tar_rec.append(rec_pos)
 
-                final_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data) + k) for k in tar_rec], 0)
+                final_circuit.append(
+                    "OBSERVABLE_INCLUDE", [stim.target_rec(-len(data) + k) for k in tar_rec], 0,
+                )
 
         elif init_state in {"0", "1"}:
             if log_obs == "X":
@@ -218,7 +236,9 @@ def final_m(
                     if index in log_z:
                         tar_rec.append(rec_pos)
 
-                final_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data) + k) for k in tar_rec], 0)
+                final_circuit.append(
+                    "OBSERVABLE_INCLUDE", [stim.target_rec(-len(data) + k) for k in tar_rec], 0,
+                )
 
     elif not is_flipped:
         if init_state in {"+", "-"}:
@@ -232,7 +252,9 @@ def final_m(
                     if index in log_x:
                         tar_rec.append(rec_pos)
 
-                final_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data) + k) for k in tar_rec], 0)
+                final_circuit.append(
+                    "OBSERVABLE_INCLUDE", [stim.target_rec(-len(data) + k) for k in tar_rec], 0,
+                )
 
             if log_obs == "Z":
                 # Getting corresponding logical string and rec
@@ -240,7 +262,8 @@ def final_m(
 
                 final_circuit.append("OBSERVABLE_INCLUDE", [f"Z{index}" for index in log_z], 0)
 
-                # For later decoding we need the measurement record postiions of the logical operator
+                # For later decoding we need the measurement record postiions of the logical
+                # operator
                 tar_rec = []
 
                 for rec_pos, index in enumerate(data):
@@ -260,7 +283,8 @@ def final_m(
                     0,
                 )
 
-                # For later decoding we need the measurement record postiions of the logical operator
+                # For later decoding we need the measurement record postiions of the logical
+                # operator
                 tar_rec = []
 
                 for rec_pos, _index in enumerate(
@@ -283,7 +307,9 @@ def final_m(
                     if index in log_z:
                         tar_rec.append(rec_pos)
 
-                final_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data) + k) for k in tar_rec], 0)
+                final_circuit.append(
+                    "OBSERVABLE_INCLUDE", [stim.target_rec(-len(data) + k) for k in tar_rec], 0,
+                )
 
             if log_obs in {"X"}:
                 # Getting corresponding logical string and rec
@@ -291,7 +317,8 @@ def final_m(
 
                 final_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in log_x], 0)
 
-                # For later decoding we need the measurement record postiions of the logical operator
+                # For later decoding we need the measurement record postiions of the logical
+                # operator
                 tar_rec = []
 
                 for rec_pos, index in enumerate(data):
@@ -311,7 +338,8 @@ def final_m(
                     0,
                 )
 
-                # For later decoding we need the measurement record postiions of the logical operator
+                # For later decoding we need the measurement record postiions of the logical
+                # operator
                 tar_rec = []
 
                 for rec_pos, _index in enumerate(

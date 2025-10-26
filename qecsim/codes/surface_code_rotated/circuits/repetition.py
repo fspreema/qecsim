@@ -14,7 +14,9 @@ Coord = complex
 __all__ = ["repetition_circ"]
 
 
-def repetition_circ(*, lct: Context, patches: dict[str, Patch], cfg: Config, noise: NoiseModel) -> CircuitResult:
+def repetition_circ(
+    *, lct: Context, patches: dict[str, Patch], cfg: Config, noise: NoiseModel,
+) -> CircuitResult:
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################

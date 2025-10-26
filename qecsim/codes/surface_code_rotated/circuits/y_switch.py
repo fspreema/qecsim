@@ -15,7 +15,12 @@ __all__ = ["y_switch_circ"]
 
 
 def y_switch_circ(
-    *, lct: Context, patch: dict[str, Patch], offset: complex = 0 + 0j, cfg: Config, noise: NoiseModel,
+    *,
+    lct: Context,
+    patch: dict[str, Patch],
+    offset: complex = 0 + 0j,
+    cfg: Config,
+    noise: NoiseModel,
 ) -> CircuitResult:
     #################################################
     # Exporting all necessary values from Dataclasses

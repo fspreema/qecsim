@@ -5,7 +5,6 @@ import stim
 from qecsim.core.data_models import (
     ConfigLatticeSurgery as Config,
     LatticeContext,
-    NoiseModel,
     PatchAncilla,
     PatchControl,
     PatchSurgery,
@@ -25,7 +24,6 @@ def reset(
     lct: LatticeContext,
     patches: Mapping[str, PatchAncilla | PatchTarget | PatchControl | PatchSurgery],
     cfg: Config,
-    _noise: NoiseModel,
 ) -> stim.Circuit:
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -136,15 +134,29 @@ def reset(
 
     init_patterns = {
         ("Z0", "Z0"): [("R", data_control + data_target + all_stabs_not_double)],
-        ("Z0", "Z1"): [("R", data_control + data_target + all_stabs_not_double), ("X", t_log_obs_x_index)],
+        ("Z0", "Z1"): [
+            ("R", data_control + data_target + all_stabs_not_double),
+            ("X", t_log_obs_x_index),
+        ],
         ("Z0", "X+"): [("RX", data_target), ("R", data_control + all_stabs_not_double)],
-        ("Z0", "X-"): [("RX", data_target), ("R", data_control + all_stabs_not_double), ("Z", t_log_obs_z_index)],
-        ("Z1", "Z0"): [("R", data_control + data_target + all_stabs_not_double), ("X", c_log_obs_x_index)],
+        ("Z0", "X-"): [
+            ("RX", data_target),
+            ("R", data_control + all_stabs_not_double),
+            ("Z", t_log_obs_z_index),
+        ],
+        ("Z1", "Z0"): [
+            ("R", data_control + data_target + all_stabs_not_double),
+            ("X", c_log_obs_x_index),
+        ],
         ("Z1", "Z1"): [
             ("R", data_control + data_target + all_stabs_not_double),
             ("X", c_log_obs_x_index + t_log_obs_x_index),
         ],
-        ("Z1", "X+"): [("RX", data_target), ("R", data_control + all_stabs_not_double), ("X", c_log_obs_x_index)],
+        ("Z1", "X+"): [
+            ("RX", data_target),
+            ("R", data_control + all_stabs_not_double),
+            ("X", c_log_obs_x_index),
+        ],
         ("Z1", "X-"): [
             ("RX", data_target),
             ("R", data_control + all_stabs_not_double),
@@ -159,15 +171,27 @@ def reset(
             ("Z", c_log_obs_z_index),
         ],
         ("X+", "X+"): [("RX", data_control + data_target), ("R", all_stabs_not_double)],
-        ("X+", "X-"): [("RX", data_control + data_target), ("R", all_stabs_not_double), ("Z", t_log_obs_z_index)],
-        ("X-", "Z0"): [("RX", data_control), ("R", data_target + all_stabs_not_double), ("Z", c_log_obs_z_index)],
+        ("X+", "X-"): [
+            ("RX", data_control + data_target),
+            ("R", all_stabs_not_double),
+            ("Z", t_log_obs_z_index),
+        ],
+        ("X-", "Z0"): [
+            ("RX", data_control),
+            ("R", data_target + all_stabs_not_double),
+            ("Z", c_log_obs_z_index),
+        ],
         ("X-", "Z1"): [
             ("RX", data_control),
             ("R", data_target + all_stabs_not_double),
             ("X", t_log_obs_x_index),
             ("Z", c_log_obs_z_index),
         ],
-        ("X-", "X+"): [("RX", data_control + data_target), ("R", all_stabs_not_double), ("Z", c_log_obs_z_index)],
+        ("X-", "X+"): [
+            ("RX", data_control + data_target),
+            ("R", all_stabs_not_double),
+            ("Z", c_log_obs_z_index),
+        ],
         ("X-", "X-"): [
             ("RX", data_control + data_target),
             ("R", all_stabs_not_double),
@@ -186,4 +210,6 @@ def reset(
         return reset_circuit
 
     else:
-        raise ValueError(f"Invalid control/target state initialization: {control_state_init}, {target_state_init}")
+        raise ValueError(
+            f"Invalid control/target state initialization: {control_state_init}, {target_state_init}",
+        )

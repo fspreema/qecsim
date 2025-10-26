@@ -33,7 +33,8 @@ def pauli_injector(
     #############################
 
     """
-    We need this as we have also the sign as well as gamma which need to be multiplied by the final measurement outcome
+    We need this as we have also the sign as well as gamma which need to be multiplied by the final
+    measurement outcome
     """
 
     sign_keeper = np.ones((circuit.num_qubits, batch_size), dtype=int)
@@ -98,8 +99,16 @@ def pauli_injector(
                     chosen_pauli1, chosen_pauli2 = depol2[rng.integers(15)]
 
                     # Add Paulis into noiseless circuit
-                    flip.set_pauli_flip(chosen_pauli1, qubit_index=qubit_index[0], instance_index=current_batch)
-                    flip.set_pauli_flip(chosen_pauli2, qubit_index=qubit_index[1], instance_index=current_batch)
+                    flip.set_pauli_flip(
+                        chosen_pauli1,
+                        qubit_index=qubit_index[0],
+                        instance_index=current_batch,
+                    )
+                    flip.set_pauli_flip(
+                        chosen_pauli2,
+                        qubit_index=qubit_index[1],
+                        instance_index=current_batch,
+                    )
 
                     # Updating sign keeper
                     """
@@ -123,7 +132,8 @@ def pauli_injector(
 
         # Looping over all qubit indexes
         for current_qubit in qubit_index:
-            # Check what type of noise we have in order to determine what elements the inverse channel has
+            # Check what type of noise we have in order to determine what elements the inverse
+            # channel has
             if error_type == "DEPOL":
                 #############################################################################
                 # Looping over Batch number and simulating batch_nuberm fo different outcomes
@@ -141,7 +151,11 @@ def pauli_injector(
                         chosen_pauli = paulis[rng.integers(3)]
 
                         # Add Pauli into noiseless circuit
-                        flip.set_pauli_flip(chosen_pauli, qubit_index=current_qubit, instance_index=current_batch)
+                        flip.set_pauli_flip(
+                            chosen_pauli,
+                            qubit_index=current_qubit,
+                            instance_index=current_batch,
+                        )
 
                         # Updating sign keeper
                         sign_keeper[current_qubit, current_batch] *= sgn_err
@@ -168,7 +182,11 @@ def pauli_injector(
                         chosen_pauli = "X"
 
                         # Add Pauli into nosieless Circ
-                        flip.set_pauli_flip(chosen_pauli, qubit_index=current_qubit, instance_index=current_batch)
+                        flip.set_pauli_flip(
+                            chosen_pauli,
+                            qubit_index=current_qubit,
+                            instance_index=current_batch,
+                        )
 
                         # Updating sign keeper
                         sign_keeper[current_qubit, current_batch] *= sgn_err

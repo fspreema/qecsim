@@ -13,7 +13,9 @@ Coord = complex
 __all__ = ["h_switched_circ_init"]
 
 
-def h_switched_circ_init(*, lct: Context, patches: dict[str, Patch], noise: NoiseModel) -> CircuitResult:
+def h_switched_circ_init(
+    *, lct: Context, patches: dict[str, Patch], noise: NoiseModel,
+) -> CircuitResult:
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################

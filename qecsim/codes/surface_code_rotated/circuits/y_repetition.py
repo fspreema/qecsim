@@ -147,7 +147,9 @@ def y_repetition_circ(
     # -------Adding-Before-Measurement-Flip-Prob.-------
 
     if noise.before_m_flip_prob > 0 and memory_round:
-        before_round_circuit.append("X_ERROR", x_stab_index + z_stab_index, noise.before_m_flip_prob)
+        before_round_circuit.append(
+            "X_ERROR", x_stab_index + z_stab_index, noise.before_m_flip_prob,
+        )
 
     # -------Continue-Circuit----------
 

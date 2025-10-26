@@ -185,13 +185,19 @@ def repetition_code(
             lower_meas = -len(index_data) + i
             final_circuit.append(
                 "DETECTOR",
-                [stim.target_rec(prev_dec), stim.target_rec(upper_meas), stim.target_rec(lower_meas)],
+                [
+                    stim.target_rec(prev_dec),
+                    stim.target_rec(upper_meas),
+                    stim.target_rec(lower_meas),
+                ],
                 arg=(q, 0, 1),
             )
 
     final_circuit.append("TICK")
 
     # Adding logical Observables
-    final_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-i - 1) for i, q in enumerate(index_data)], 0)
+    final_circuit.append(
+        "OBSERVABLE_INCLUDE", [stim.target_rec(-i - 1) for i, q in enumerate(index_data)], 0,
+    )
 
     return final_circuit

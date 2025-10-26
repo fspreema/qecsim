@@ -37,3 +37,6 @@ playground/code (1)
 # Pytest and Ruff cache
 .ruff_cache/
 .pytest_cache/
+
+# Pre-commit
+.pre-commit-config.yaml

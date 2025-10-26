@@ -99,7 +99,9 @@ def mc_estimator(
         ####################
 
         pauli_frame_meas = pauli_injector(
-            circuit=circuit_noiseless.flattened(), noise_info=noisy_info, batch_size=number_batches,
+            circuit=circuit_noiseless.flattened(),
+            noise_info=noisy_info,
+            batch_size=number_batches,
         )
 
         for current_batch in range(number_batches):
@@ -142,7 +144,7 @@ def mc_estimator(
                     non_bool_res = 1 * full_gmsgn
 
             else:
-                return ValueError("Currently not supported")
+                raise ValueError("Currently not supported")
 
             ##########################
             # Return Final Measurement

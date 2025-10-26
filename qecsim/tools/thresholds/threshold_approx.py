@@ -58,7 +58,9 @@ def threshold_approx(
         # Sort and convert and convert to log log for linear fit
         ########################################################
 
-        filtered = [(p, lp) for p, lp in zip(physical_p, logical_p, strict=True) if lp > 0 and p > 0]
+        filtered = [
+            (p, lp) for p, lp in zip(physical_p, logical_p, strict=True) if lp > 0 and p > 0
+        ]
         if len(filtered) < 2:
             raise ValueError("Not enough valid points (logical_p > 0) for interpolation")
 

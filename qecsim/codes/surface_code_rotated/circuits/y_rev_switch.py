@@ -13,7 +13,11 @@ __all__ = ["y_rev_switch_circ"]
 
 
 def y_rev_switch_circ(
-    *, lct: Context, patches: dict[str, Patch], offset: complex = 0 + 0j, noise: NoiseModel,
+    *,
+    lct: Context,
+    patches: dict[str, Patch],
+    offset: complex = 0 + 0j,
+    noise: NoiseModel,
 ) -> CircuitResult:
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -196,7 +200,9 @@ def y_rev_switch_circ(
 
     if noise.before_m_flip_prob > 0:
         reversed_switch_circ.append(
-            "X_ERROR", x_stab_index + z_stab_index + r_h_stabs + u_h_stabs + [y_index], noise.before_m_flip_prob,
+            "X_ERROR",
+            x_stab_index + z_stab_index + r_h_stabs + u_h_stabs + [y_index],
+            noise.before_m_flip_prob,
         )
 
     # Adding Resets

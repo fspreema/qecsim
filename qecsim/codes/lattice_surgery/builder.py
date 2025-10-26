@@ -165,7 +165,11 @@ def surgery_circuit(
     # Input fixed run settings into dataclass
     #########################################
 
-    cfg = Config(distance=distance, target_state_init=target_state_init, control_state_init=control_state_init)
+    cfg = Config(
+        distance=distance,
+        target_state_init=target_state_init,
+        control_state_init=control_state_init,
+    )
 
     noise = NoiseModel(
         before_round_depol=noise_depol_data_init,
@@ -177,12 +181,18 @@ def surgery_circuit(
     ###############################################################
     # 1. Build independent square patches (using geometry function)
     ###############################################################
-    qubit_coords_ancilla: dict[Coord, Label] = build_lattice(distance, offset=0 + 0j, starting_stabilizer_x=True)
+    qubit_coords_ancilla: dict[Coord, Label] = build_lattice(
+        distance, offset=0 + 0j, starting_stabilizer_x=True,
+    )
     qubit_coords_target: dict[Coord, Label] = build_lattice(
-        distance, offset=(distance * 2) + 0j, starting_stabilizer_x=False,
+        distance,
+        offset=(distance * 2) + 0j,
+        starting_stabilizer_x=False,
     )
     qubit_coords_control: dict[Coord, Label] = build_lattice(
-        distance, offset=0 + (distance * 2) * 1j, starting_stabilizer_x=False,
+        distance,
+        offset=0 + (distance * 2) * 1j,
+        starting_stabilizer_x=False,
     )
     qubit_coords_surgery: dict[Coord, Label] = {}
 
@@ -190,7 +200,11 @@ def surgery_circuit(
     # 2. Insert boundary & surgery labels (Only get activated in splitting/merging process)
     #######################################################################################
     _add_boundary_labels(
-        distance, qubit_coords_ancilla, qubit_coords_target, qubit_coords_control, qubit_coords_surgery,
+        distance,
+        qubit_coords_ancilla,
+        qubit_coords_target,
+        qubit_coords_control,
+        qubit_coords_surgery,
     )
 
     # Merge into different Patches
@@ -199,19 +213,31 @@ def surgery_circuit(
     X-Stab-Boundary-Above-Control & X-Stab-Boundary-Below-Ancilla f.ex. get Keywords for surgery stabilizers
     """
 
-    full_srgy_ptch = qubit_coords_ancilla | qubit_coords_control | qubit_coords_target | qubit_coords_surgery
+    full_srgy_ptch = (
+        qubit_coords_ancilla | qubit_coords_control | qubit_coords_target | qubit_coords_surgery
+    )
 
     ################################################################################
     # 3. Adding the Mapping from Stabilizer to Data for later CX gate implementation
     ################################################################################
-    stab_to_data_ancilla: dict[tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords_ancilla, merging=False)
-    stab_to_data_target: dict[tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords_target, merging=False)
-    stab_to_data_control: dict[tuple[Coord, Coord], str] = populate_stab_to_data(qubit_coords_control, merging=False)
+    stab_to_data_ancilla: dict[tuple[Coord, Coord], str] = populate_stab_to_data(
+        qubit_coords_ancilla, merging=False,
+    )
+    stab_to_data_target: dict[tuple[Coord, Coord], str] = populate_stab_to_data(
+        qubit_coords_target, merging=False,
+    )
+    stab_to_data_control: dict[tuple[Coord, Coord], str] = populate_stab_to_data(
+        qubit_coords_control, merging=False,
+    )
     stab_to_data_surgery_ac: dict[tuple[Coord, Coord], str] = populate_stab_to_data(
-        full_srgy_ptch, merging=True, merging_type="AC",
+        full_srgy_ptch,
+        merging=True,
+        merging_type="AC",
     )
     stab_to_data_surgery_at: dict[tuple[Coord, Coord], str] = populate_stab_to_data(
-        full_srgy_ptch, merging=True, merging_type="AT",
+        full_srgy_ptch,
+        merging=True,
+        merging_type="AT",
     )
 
     ###############################################
@@ -254,10 +280,10 @@ def surgery_circuit(
     #################################
 
     if target_state_init in {"Y+", "Y-"} or control_state_init in {"Y+", "Y-"}:
-        reset_circ, y_circ = reset(lct=lct, patches=patches, cfg=cfg, noise=noise)
+        reset_circ, y_circ = reset(lct=lct, patches=patches, cfg=cfg)
 
     else:
-        reset_circ = reset(lct=lct, patches=patches, cfg=cfg, noise=noise)
+        reset_circ = reset(lct=lct, patches=patches, cfg=cfg)
 
     ###################################
     # 5. Building Initilization Circuit
@@ -354,10 +380,10 @@ def surgery_circuit(
                 )
 
             else:
-                return ValueError("Wrong target basis for selected flow")
+                raise ValueError("Wrong target basis for selected flow")
 
         else:
-            return ValueError("Wrong control basis for selected flow")
+            raise ValueError("Wrong control basis for selected flow")
 
     elif flow_observable == "XX -> X":
         if control_state_init in {"X+", "X-"}:
@@ -373,10 +399,10 @@ def surgery_circuit(
                 )
 
             else:
-                return ValueError("Invalid target state")
+                raise ValueError("Invalid target state")
 
         else:
-            return ValueError("Wrong control basis for selected flow")
+            raise ValueError("Wrong control basis for selected flow")
 
     elif flow_observable == "X -> X":
         if control_state_init in {"X+", "X-", "Z0", "Z1"}:
@@ -392,10 +418,10 @@ def surgery_circuit(
                 )
 
             else:
-                return ValueError("Invalid target basis for selected flow")
+                raise ValueError("Invalid target basis for selected flow")
 
         else:
-            return ValueError("Invalid control state")
+            raise ValueError("Invalid control state")
 
     # -------------ALL-Z--------------------------
 
@@ -413,10 +439,10 @@ def surgery_circuit(
                 )
 
             else:
-                return ValueError("Wrong target basis for selected flow")
+                raise ValueError("Wrong target basis for selected flow")
 
         else:
-            return ValueError("Wrong control basis for selected flow")
+            raise ValueError("Wrong control basis for selected flow")
 
     elif flow_observable == "ZZ -> Z":
         if control_state_init in {"Z0", "Z1"}:
@@ -432,10 +458,10 @@ def surgery_circuit(
                 )
 
             else:
-                return ValueError("Wrong target basis for selected flow")
+                raise ValueError("Wrong target basis for selected flow")
 
         else:
-            return ValueError("Wrong control basis for selected flow")
+            raise ValueError("Wrong control basis for selected flow")
 
     elif flow_observable == "Z -> Z":
         if control_state_init in {"Z0", "Z1"}:
@@ -451,10 +477,10 @@ def surgery_circuit(
                 )
 
             else:
-                return ValueError("Invalid target state")
+                raise ValueError("Invalid target state")
 
         else:
-            return ValueError("Wrong control basis for selected flow")
+            raise ValueError("Wrong control basis for selected flow")
 
     # -------------------XZ-MIX-------------------------------------
 
@@ -472,20 +498,24 @@ def surgery_circuit(
                 )
 
             else:
-                return ValueError("Invalid target state")
+                raise ValueError("Invalid target state")
 
         else:
-            return ValueError("Wrong control basis for selected flow")
+            raise ValueError("Wrong control basis for selected flow")
 
     else:
-        return ValueError("Invalid Flow selected")
+        raise ValueError("Invalid Flow selected")
 
     ###############################
     # 11. Adding State initiliztion
     ###############################
 
     final_measurement = final_m(
-        lct=lct, patches=patches, cfg=cfg, flow=flow_observable, before_m_flip_prob=noise_measure_flip,
+        lct=lct,
+        patches=patches,
+        cfg=cfg,
+        flow=flow_observable,
+        before_m_flip_prob=noise_measure_flip,
     )
 
     reset_circ += flow_circuit

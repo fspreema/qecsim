@@ -16,7 +16,9 @@ if __name__ == "__main__":
     step = 0.0125
     bias_steps = np.arange(0.0, 1 + (step / 2), step)
     all_bias_triplets = [
-        [bx, by, 1 - bx - by] for bx, by in itertools.product(bias_steps, repeat=2) if 0 <= 1 - bx - by <= 1
+        [bx, by, 1 - bx - by]
+        for bx, by in itertools.product(bias_steps, repeat=2)
+        if 0 <= 1 - bx - by <= 1
     ]
 
     # Changing Bias setting

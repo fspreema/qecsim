@@ -112,7 +112,9 @@ def _create_matrix(sigma: tuple[int, int, int], signs: tuple[int, int, int]) -> 
     return mat
 
 
-def _perm_sign_dict_conv(sigma: tuple[int, int, int], signs: tuple[int, int, int]) -> tuple[dict, dict]:
+def _perm_sign_dict_conv(
+    sigma: tuple[int, int, int], signs: tuple[int, int, int]
+) -> tuple[dict, dict]:
     """
     Converts the sigma and sign convention into proper dictionaries
 
@@ -351,7 +353,8 @@ def logical_estimator(
             # Choose what logical frame update given by upper probs
             curr_pauli = _sample_pauli_or_cliff(probs=probs)
 
-            # Determine current noisy Operator states (i.e. xor obs from det sample with noiseless Measurement outcome)
+            # Determine current noisy Operator states (i.e. xor obs from det sample with noiseless
+            # Measurement outcome)
             noisy_meas = current_circuit.obs[curr_shot, 0] ^ clean_meas
 
             # XOR flip with noiseless Measurement
@@ -382,7 +385,8 @@ def logical_estimator(
             # Current measurement dependent on the current pauli sampled
             current_circuit = circuit_basis[which_meas_basis]
 
-            # Determine current noisy Operator states (i.e. xor obs from det sample with noiseless Measurement outcome)
+            # Determine current noisy Operator states (i.e. xor obs from det sample with noiseless
+            # Measurement outcome)
             noisy_meas = current_circuit.obs[curr_shot, 0] ^ clean_meas
 
             # XOR flip with noiseless Measurement

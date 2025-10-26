@@ -71,7 +71,9 @@ def _populate_xzzx(patch: dict[Coord, Label]) -> dict[Pair, str]:
 
 
 def _populate_lattice_surgery(
-    patch: dict[Coord, Label], merging: bool, merging_type: str | None = None,
+    patch: dict[Coord, Label],
+    merging: bool,
+    merging_type: str | None = None,
 ) -> dict[Pair, str]:
     """
     Returns the CX-Schedule {(data_coord, stab_coord): order} for a given lattice
@@ -394,11 +396,15 @@ def _populate_surface(
                         # Checking whether normal CX or the XCY gate
                         if coords not in filtered_stabs_z:
                             pairs = [(coords, q1), (coords, q2), (coords, q3), (coords, q4)]
-                            _assign_orders(stab_to_data, pairs, ["2TICK", "4TICK", "3TICK", "5TICK"])
+                            _assign_orders(
+                                stab_to_data, pairs, ["2TICK", "4TICK", "3TICK", "5TICK"],
+                            )
 
                         else:
                             _assign_orders(stab_to_data, [(q3, coords)], ["3.5TICK"])
-                            _assign_orders(stab_to_data, [(coords, q2), (coords, q4)], ["4TICK", "5TICK"])
+                            _assign_orders(
+                                stab_to_data, [(coords, q2), (coords, q4)], ["4TICK", "5TICK"],
+                            )
 
                 """
                 I HAVE NO CLUE WHY ONLY WEIGHT 3 instead of weight 4
@@ -532,7 +538,9 @@ def _populate_surface(
 
                             # Check for lower boundary condition and exclude the cx which gets replaced by CYX
                             lower_boundary = [i for i in range(4, distance * 2, 4)][-1]
-                            lower_coord = (distance * 2 + offset.real) + (lower_boundary + offset.imag) * 1j
+                            lower_coord = (distance * 2 + offset.real) + (
+                                lower_boundary + offset.imag
+                            ) * 1j
 
                             if coords != lower_coord:
                                 stab_to_data[coords, new_cord2] = "2TICK"
@@ -647,7 +655,10 @@ def populate_stab_to_data(patch: dict[Coord, Label], *args, **kwargs):
 
     # Detect xzzx-style by label names
     labels = set(patch.values())
-    if any(label in labels for label in ("STAB-Ver", "STAB-Hor", "STAB-BOUND-L-Hor", "STAB-BOUND-R-Hor")):
+    if any(
+        label in labels
+        for label in ("STAB-Ver", "STAB-Hor", "STAB-BOUND-L-Hor", "STAB-BOUND-R-Hor")
+    ):
         return _populate_xzzx(patch)
 
     # If explicit merging argument present, treat as lattice_surgery

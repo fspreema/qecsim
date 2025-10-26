@@ -14,7 +14,9 @@ Coord = complex
 __all__ = ["initial"]
 
 
-def initial(*, lct: Context, patches: dict[str, Patch], cfg: Config, noise: NoiseModel) -> CircuitResult:
+def initial(
+    *, lct: Context, patches: dict[str, Patch], cfg: Config, noise: NoiseModel,
+) -> CircuitResult:
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
@@ -106,7 +108,9 @@ def initial(*, lct: Context, patches: dict[str, Patch], cfg: Config, noise: Nois
         for index, q_index in enumerate(z_stab_index):
             current_tar = -1 * num_measurements_initial + index
             initial_circuit.append(
-                "DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0),
+                "DETECTOR",
+                [stim.target_rec(current_tar)],
+                (i2q[q_index].real, i2q[q_index].imag, 0),
             )
 
     elif init_state in {"+", "-"}:
@@ -115,7 +119,9 @@ def initial(*, lct: Context, patches: dict[str, Patch], cfg: Config, noise: Nois
         for index, q_index in enumerate(x_stab_index):
             current_tar = -1 * num_measurements_initial + index
             initial_circuit.append(
-                "DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0),
+                "DETECTOR",
+                [stim.target_rec(current_tar)],
+                (i2q[q_index].real, i2q[q_index].imag, 0),
             )
 
     return CircuitResult(circuit=initial_circuit)

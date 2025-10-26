@@ -90,7 +90,9 @@ def _noise_mode_creator(bias: list, after_c_custom_noise: float) -> list[list]:
         # Normalize Weights
         total = sum(after_c_p_xyz_multi_unnorm)
 
-        after_c_p_xyz_multi = [weights * (after_c_custom_noise / total) for weights in after_c_p_xyz_multi_unnorm]
+        after_c_p_xyz_multi = [
+            weights * (after_c_custom_noise / total) for weights in after_c_p_xyz_multi_unnorm
+        ]
 
     else:
         after_c_p_xyz = [0] * 3
@@ -138,10 +140,11 @@ def xzzx_code(
     ######################################
 
     if after_c_pauli_channel_prob > 3 / 4:
-        return ValueError("Prob too high for custom channel")
+        raise ValueError("Prob too high for custom channel")
 
     after_c_p_xyz, after_c_p_xyz_multi = _noise_mode_creator(
-        bias=noise_bias, after_c_custom_noise=after_c_pauli_channel_prob,
+        bias=noise_bias,
+        after_c_custom_noise=after_c_pauli_channel_prob,
     )
 
     ###############################################################
@@ -182,22 +185,33 @@ def xzzx_code(
 
     # Indexing Z and X Stabilizers
     stab_index_ver = [
-        q2i[q] for q, qtype in qubit_coords.items() if qtype in {"STAB-Ver", "STAB-BOUND-A-Ver", "STAB-BOUND-B-Ver"}
+        q2i[q]
+        for q, qtype in qubit_coords.items()
+        if qtype in {"STAB-Ver", "STAB-BOUND-A-Ver", "STAB-BOUND-B-Ver"}
     ]
     stab_index_hor = [
-        q2i[q] for q, qtype in qubit_coords.items() if qtype in {"STAB-Hor", "STAB-BOUND-L-Hor", "STAB-BOUND-R-Hor"}
+        q2i[q]
+        for q, qtype in qubit_coords.items()
+        if qtype in {"STAB-Hor", "STAB-BOUND-L-Hor", "STAB-BOUND-R-Hor"}
     ]
     stab_index = [
         q2i[q]
         for q, qtype in qubit_coords.items()
         if qtype
-        in {"STAB-Hor", "STAB-Ver", "STAB-BOUND-L-Hor", "STAB-BOUND-R-Hor", "STAB-BOUND-A-Ver", "STAB-BOUND-B-Ver"}
+        in {
+            "STAB-Hor",
+            "STAB-Ver",
+            "STAB-BOUND-L-Hor",
+            "STAB-BOUND-R-Hor",
+            "STAB-BOUND-A-Ver",
+            "STAB-BOUND-B-Ver",
+        }
     ]
 
     # Indexing Data-Qubits
-    data_z = [q2i[q] for q, qtype in qubit_coords.items() if qtype == "data_z"]
-    data_x = [q2i[q] for q, qtype in qubit_coords.items() if qtype == "data_x"]
-    data = [q2i[q] for q, qtype in qubit_coords.items() if qtype in {"data_x", "data_z"}]
+    data_z = [q2i[q] for q, qtype in qubit_coords.items() if qtype == "DATA_Z"]
+    data_x = [q2i[q] for q, qtype in qubit_coords.items() if qtype == "DATA_X"]
+    data = [q2i[q] for q, qtype in qubit_coords.items() if qtype in {"DATA_X", "DATA_Z"}]
 
     # ------------------------------------------------------
     # Creating list of Logical X/Z string and their indices
@@ -454,7 +468,9 @@ def xzzx_code(
             current_tar = index_pos[0] - len(stab_index)
             q_index = index_pos[1]
             initial_circuit.append(
-                "DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0),
+                "DETECTOR",
+                [stim.target_rec(current_tar)],
+                (i2q[q_index].real, i2q[q_index].imag, 0),
             )
 
     elif state_init in {"Hor"}:
@@ -463,7 +479,9 @@ def xzzx_code(
             current_tar = index_pos[0] - len(stab_index)
             q_index = index_pos[1]
             initial_circuit.append(
-                "DETECTOR", [stim.target_rec(current_tar)], (i2q[q_index].real, i2q[q_index].imag, 0),
+                "DETECTOR",
+                [stim.target_rec(current_tar)],
+                (i2q[q_index].real, i2q[q_index].imag, 0),
             )
 
     else:
@@ -752,7 +770,9 @@ def xzzx_code(
                 final_record = current_record + last_record
 
                 # Appending Detector
-                final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1))
+                final_circuit.append(
+                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
+                )
 
             elif qtype == "STAB-BOUND-A-Ver":
                 # Needed Data Qubits
@@ -764,7 +784,10 @@ def xzzx_code(
                 index_lower_left = q2i[lower_left]
 
                 # Defining the current record targets
-                current_record = [-index_to_rec_data[index_lower_right] - 1, -index_to_rec_data[index_lower_left] - 1]
+                current_record = [
+                    -index_to_rec_data[index_lower_right] - 1,
+                    -index_to_rec_data[index_lower_left] - 1,
+                ]
 
                 # Defining the last record targets (Normal Detectors from last round)
                 ancilla_index = q2i[q]
@@ -774,7 +797,9 @@ def xzzx_code(
                 final_record = current_record + last_record
 
                 # Appending Detector
-                final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1))
+                final_circuit.append(
+                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
+                )
 
             elif qtype == "STAB-BOUND-B-Ver":
                 # Needed Data Qubits
@@ -786,7 +811,10 @@ def xzzx_code(
                 index_upper_left = q2i[upper_left]
 
                 # Defining the current record targets
-                current_record = [-index_to_rec_data[index_upper_right] - 1, -index_to_rec_data[index_upper_left] - 1]
+                current_record = [
+                    -index_to_rec_data[index_upper_right] - 1,
+                    -index_to_rec_data[index_upper_left] - 1,
+                ]
 
                 # Defining the last record targets (Normal Detectors from last round)
                 ancilla_index = q2i[q]
@@ -796,7 +824,9 @@ def xzzx_code(
                 final_record = current_record + last_record
 
                 # Appending Detector
-                final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1))
+                final_circuit.append(
+                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
+                )
 
     elif state_init in {"Hor"}:
         for q, qtype in qubit_coords.items():
@@ -829,7 +859,9 @@ def xzzx_code(
                 final_record = current_record + last_record
 
                 # Appending Detector
-                final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1))
+                final_circuit.append(
+                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
+                )
 
             elif qtype == "STAB-BOUND-L-Hor":
                 # Needed Data Qubits
@@ -841,7 +873,10 @@ def xzzx_code(
                 index_lower_right = q2i[lower_right]
 
                 # Defining the current record targets
-                current_record = [-index_to_rec_data[index_upper_right] - 1, -index_to_rec_data[index_lower_right] - 1]
+                current_record = [
+                    -index_to_rec_data[index_upper_right] - 1,
+                    -index_to_rec_data[index_lower_right] - 1,
+                ]
 
                 # Defining the last record targets (Normal Detectors from last round)
                 ancilla_index = q2i[q]
@@ -851,7 +886,9 @@ def xzzx_code(
                 final_record = current_record + last_record
 
                 # Appending Detector
-                final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1))
+                final_circuit.append(
+                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
+                )
 
             elif qtype == "STAB-BOUND-R-Hor":
                 # Needed Data Qubits
@@ -863,7 +900,10 @@ def xzzx_code(
                 index_lower_left = q2i[lower_left]
 
                 # Defining the current record targets
-                current_record = [-index_to_rec_data[index_upper_left] - 1, -index_to_rec_data[index_lower_left] - 1]
+                current_record = [
+                    -index_to_rec_data[index_upper_left] - 1,
+                    -index_to_rec_data[index_lower_left] - 1,
+                ]
 
                 # Defining the last record targets (Normal Detectors from last round)
                 ancilla_index = q2i[q]
@@ -873,7 +913,9 @@ def xzzx_code(
                 final_record = current_record + last_record
 
                 # Appending Detector
-                final_circuit.append("DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1))
+                final_circuit.append(
+                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
+                )
 
     ########################################################
     # 7) Defining logical Operators (Final Measurement-Round)
@@ -892,7 +934,9 @@ def xzzx_code(
             if index in log_ver:
                 tar_rec.append(rec_pos)
 
-        final_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data_z + data_x) + k) for k in tar_rec], 0)
+        final_circuit.append(
+            "OBSERVABLE_INCLUDE", [stim.target_rec(-len(data_z + data_x) + k) for k in tar_rec], 0,
+        )
 
     elif state_init in {"Hor"}:
         # Control stabilized by x logical
@@ -907,7 +951,9 @@ def xzzx_code(
             if index in log_hor:
                 tar_rec.append(rec_pos)
 
-        final_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(-len(data_z + data_x) + k) for k in tar_rec], 0)
+        final_circuit.append(
+            "OBSERVABLE_INCLUDE", [stim.target_rec(-len(data_z + data_x) + k) for k in tar_rec], 0,
+        )
 
     ################################
     # 8) Adding all circuits together

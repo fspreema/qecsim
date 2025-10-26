@@ -56,7 +56,11 @@ def merge(
 
     # helper to filter the big dict
     def get_view(region):
-        return {pair: order for pair, order in stab_to_data.items() if pair[0] in region or pair[1] in region}
+        return {
+            pair: order
+            for pair, order in stab_to_data.items()
+            if pair[0] in region or pair[1] in region
+        }
 
     stab_to_data_target = get_view(target_set)
     stab_to_data_control = get_view(control_set)
@@ -78,10 +82,18 @@ def merge(
     merge_init_circuit = stim.Circuit()
 
     # Indexing of the additional Stabilizers included in the merging/splitting process
-    z_stab_index_surgery = [q2i[q] for q, qtype in qubit_coords_surgery.items() if qtype == "Z-STAB-SURGERY-M"]
-    z_stab_boundary_l_surgery = [q2i[q] for q, qtype in qubit_coords_surgery.items() if qtype == "Z-STAB-SURGERY-L"]
-    x_stab_index_surgery = [q2i[q] for q, qtype in qubit_coords_surgery.items() if qtype == "X-STAB-SURGERY-M"]
-    x_stab_boundary_b_surgery = [q2i[q] for q, qtype in qubit_coords_surgery.items() if qtype == "X-STAB-SURGERY-B"]
+    z_stab_index_surgery = [
+        q2i[q] for q, qtype in qubit_coords_surgery.items() if qtype == "Z-STAB-SURGERY-M"
+    ]
+    z_stab_boundary_l_surgery = [
+        q2i[q] for q, qtype in qubit_coords_surgery.items() if qtype == "Z-STAB-SURGERY-L"
+    ]
+    x_stab_index_surgery = [
+        q2i[q] for q, qtype in qubit_coords_surgery.items() if qtype == "X-STAB-SURGERY-M"
+    ]
+    x_stab_boundary_b_surgery = [
+        q2i[q] for q, qtype in qubit_coords_surgery.items() if qtype == "X-STAB-SURGERY-B"
+    ]
 
     """
     We now redefine the CX implementation which now does Control + Ancilla or Target + Ancilla as one lattice!
@@ -104,7 +116,7 @@ def merge(
         z_stab_index_untouched_circ = z_stab_index_control
 
     else:
-        return ValueError("No valid merging Type in Function selected!")
+        raise ValueError("No valid merging Type in Function selected!")
 
     ############################
     # CX-GATES-ANCILLA-&-CONTROL
@@ -155,13 +167,23 @@ def merge(
             if coords not in combined_x_stab_merging_lattices:
                 combined_x_stab_merging_lattices.append(coords)
 
-        for coords in z_stab_index_ancilla + z_stab_index_control + z_stab_boundary_l_surgery + z_stab_index_surgery:
+        for coords in (
+            z_stab_index_ancilla
+            + z_stab_index_control
+            + z_stab_boundary_l_surgery
+            + z_stab_index_surgery
+        ):
             if coords not in combined_z_stab_merging_lattices:
                 combined_z_stab_merging_lattices.append(coords)
 
     elif merging_type == "AT":
         # Adding h gate for X stabilizers only on merging lattices -> Filtering out double coords in big lattice
-        for coords in x_stab_index_ancilla + x_stab_index_target + x_stab_boundary_b_surgery + x_stab_index_surgery:
+        for coords in (
+            x_stab_index_ancilla
+            + x_stab_index_target
+            + x_stab_boundary_b_surgery
+            + x_stab_index_surgery
+        ):
             if coords not in combined_x_stab_merging_lattices:
                 combined_x_stab_merging_lattices.append(coords)
 
@@ -175,7 +197,9 @@ def merge(
 
     # -------Adding-After-Clifford-Depol.------------
     if noise.after_c_depol_prob > 0:
-        merge_init_circuit.append("DEPOLARIZE1", combined_x_stab_merging_lattices, noise.after_c_depol_prob)
+        merge_init_circuit.append(
+            "DEPOLARIZE1", combined_x_stab_merging_lattices, noise.after_c_depol_prob,
+        )
     # -----------------------------------------------
 
     merge_init_circuit.append("TICK")
@@ -183,18 +207,26 @@ def merge(
     # -------Adding measurement Flip Prob.--------------
     if noise.before_m_flip_prob > 0:
         merge_init_circuit.append(
-            "X_ERROR", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices, noise.before_m_flip_prob,
+            "X_ERROR",
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+            noise.before_m_flip_prob,
         )
     # --------------------------------------------------
 
-    merge_init_circuit.append("M", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+    merge_init_circuit.append(
+        "M", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+    )
     merge_init_circuit.append("TICK")
-    merge_init_circuit.append("R", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+    merge_init_circuit.append(
+        "R", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+    )
 
     # -------Adding-After-Reset-Flip-Prob.------------
     if noise.after_r_flip > 0:
         merge_init_circuit.append(
-            "X_ERROR", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices, noise.after_r_flip,
+            "X_ERROR",
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+            noise.after_r_flip,
         )
     # ------------------------------------------------
 
@@ -210,7 +242,9 @@ def merge(
     pos_to_index_ancilla_z_merge: list = []
 
     if merging_type == "AC":
-        for pos, index in enumerate(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices):
+        for pos, index in enumerate(
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        ):
             if index in x_stab_index_ancilla:
                 if index not in x_stab_boundary_b_index_ancilla:
                     pos_to_index_ancilla_x_merge.append([pos, index])
@@ -219,7 +253,9 @@ def merge(
                 pos_to_index_ancilla_z_merge.append([pos, index])
 
     elif merging_type == "AT":
-        for pos, index in enumerate(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices):
+        for pos, index in enumerate(
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        ):
             if index in z_stab_index_ancilla:
                 if index not in z_stab_boundary_r_index_ancilla:
                     pos_to_index_ancilla_z_merge.append([pos, index])
@@ -245,7 +281,9 @@ def merge(
     pos_to_index_target_z: list = []
 
     # All Stabilizers from the Target and Control Lattice
-    control_target_stabs = x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
+    control_target_stabs = (
+        x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
+    )
 
     for pos, index in enumerate(control_target_stabs):
         if index in x_stab_index_control:
@@ -270,7 +308,9 @@ def merge(
 
     # X-Stabs
     for index_pos_merge in pos_to_index_ancilla_x_merge:
-        current_tar = index_pos_merge[0] - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+        current_tar = index_pos_merge[0] - len(
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        )
         q_index = index_pos_merge[1]
         for index_pos in pos_to_index_ancilla_x:
             if q_index == index_pos[1]:
@@ -288,7 +328,9 @@ def merge(
 
     # Z-Stabs
     for index_pos_merge in pos_to_index_ancilla_z_merge:
-        current_tar = index_pos_merge[0] - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+        current_tar = index_pos_merge[0] - len(
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        )
         q_index = index_pos_merge[1]
         for index_pos in pos_to_index_ancilla_z:
             if q_index == index_pos[1]:
@@ -310,7 +352,9 @@ def merge(
 
     if merging_type == "AC":
         # Determining Position in the measurement Run of only the current merging Lattice (Shared Stabilizers excluded)
-        for pos, index in enumerate(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices):
+        for pos, index in enumerate(
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        ):
             if index in x_stab_index_control:
                 # Exclude Shared Ancillas i.e. below stabilizers from Ancilla
                 if index not in x_stab_boundary_b_index_ancilla:
@@ -321,7 +365,9 @@ def merge(
 
         # Z-Stabs
         for index_pos_merge in pos_to_index_z_merging_lattice:
-            current_tar = index_pos_merge[0] - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+            current_tar = index_pos_merge[0] - len(
+                combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+            )
             q_index = index_pos_merge[1]
             for index_pos in pos_to_index_control_z:
                 if q_index == index_pos[1]:
@@ -338,7 +384,9 @@ def merge(
 
         # X-Stabs
         for index_pos_merge in pos_to_index_x_merging_lattice:
-            current_tar = index_pos_merge[0] - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+            current_tar = index_pos_merge[0] - len(
+                combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+            )
             q_index = index_pos_merge[1]
             for index_pos in pos_to_index_control_x:
                 if q_index == index_pos[1]:
@@ -355,7 +403,9 @@ def merge(
 
     elif merging_type == "AT":
         # Determining Position in the measurement Run of only the current merging Lattice (Shared Stabilizers excluded)
-        for pos, index in enumerate(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices):
+        for pos, index in enumerate(
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        ):
             if index in z_stab_index_target:
                 # Exclude Shared Ancillas i.e. right stabilizers from Ancilla
                 if index not in z_stab_boundary_r_index_ancilla:
@@ -366,7 +416,9 @@ def merge(
 
         # Z-Stabs
         for index_pos_merge in pos_to_index_z_merging_lattice:
-            current_tar = index_pos_merge[0] - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+            current_tar = index_pos_merge[0] - len(
+                combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+            )
             q_index = index_pos_merge[1]
             for index_pos in pos_to_index_target_z:
                 if q_index == index_pos[1]:
@@ -383,7 +435,9 @@ def merge(
 
         # X-Stabs
         for index_pos_merge in pos_to_index_x_merging_lattice:
-            current_tar = index_pos_merge[0] - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+            current_tar = index_pos_merge[0] - len(
+                combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+            )
             q_index = index_pos_merge[1]
             for index_pos in pos_to_index_target_x:
                 if q_index == index_pos[1]:
@@ -415,7 +469,9 @@ def merge(
 
     if merging_type == "AC":
         # Shared X-Stabilizers
-        for pos, index in enumerate(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices):
+        for pos, index in enumerate(
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        ):
             if index in x_stab_index_control:
                 # Include Shared Ancillas i.e. below stabilizers from Ancilla
                 if index in x_stab_boundary_b_index_ancilla:
@@ -423,7 +479,9 @@ def merge(
 
         # Adding the needed Detectors
         for index_pos_merge in pos_to_index_shared_stabs:
-            current_tar = index_pos_merge[0] - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+            current_tar = index_pos_merge[0] - len(
+                combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+            )
             q_index = index_pos_merge[1]
             for index_pos_a in pos_to_index_ancilla_x:
                 if q_index == index_pos_a[1]:
@@ -437,7 +495,10 @@ def merge(
                         if q_index == index_pos_c[1]:
                             previous_target_control = (
                                 index_pos_c[0]
-                                - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+                                - len(
+                                    combined_z_stab_merging_lattices
+                                    + combined_x_stab_merging_lattices,
+                                )
                                 - len(control_target_stabs)
                             )
                             merge_init_circuit.append(
@@ -453,7 +514,9 @@ def merge(
     elif merging_type == "AT":
         # Shared Z-Stabilizer
 
-        for pos, index in enumerate(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices):
+        for pos, index in enumerate(
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        ):
             if index in z_stab_index_target:
                 # Include Shared Ancillas i.e. below stabilizers from Ancilla
                 if index in z_stab_boundary_r_index_ancilla:
@@ -461,7 +524,9 @@ def merge(
 
         # Adding the needed Detectors
         for index_pos_merge in pos_to_index_shared_stabs:
-            current_tar = index_pos_merge[0] - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+            current_tar = index_pos_merge[0] - len(
+                combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+            )
             q_index = index_pos_merge[1]
             for index_pos_a in pos_to_index_ancilla_z:
                 if q_index == index_pos_a[1]:
@@ -475,7 +540,10 @@ def merge(
                         if q_index == index_pos_c[1]:
                             previous_target_target = (
                                 index_pos_c[0]
-                                - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+                                - len(
+                                    combined_z_stab_merging_lattices
+                                    + combined_x_stab_merging_lattices,
+                                )
                                 - len(control_target_stabs)
                             )
                             merge_init_circuit.append(
@@ -499,7 +567,9 @@ def merge(
 
         # -------Adding-After-Clifford-Depol.------------
         if noise.after_c_depol_prob > 0:
-            merge_init_circuit.append("DEPOLARIZE1", x_stab_boundary_b_index_ancilla, noise.after_c_depol_prob)
+            merge_init_circuit.append(
+                "DEPOLARIZE1", x_stab_boundary_b_index_ancilla, noise.after_c_depol_prob,
+            )
         # -----------------------------------------------
 
         merge_init_circuit.append("TICK")
@@ -513,7 +583,9 @@ def merge(
     )
 
     # All Stabilizers from the Target and Control Lattice
-    control_target_stabs = x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
+    control_target_stabs = (
+        x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
+    )
 
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     merge_init_circuit.append("TICK")
@@ -521,7 +593,9 @@ def merge(
 
     # -------Adding-After-Clifford-Depol.------------
     if noise.after_c_depol_prob > 0:
-        merge_init_circuit.append("DEPOLARIZE1", x_stab_index_untouched_circ, noise.after_c_depol_prob)
+        merge_init_circuit.append(
+            "DEPOLARIZE1", x_stab_index_untouched_circ, noise.after_c_depol_prob,
+        )
     # -----------------------------------------------
 
     merge_init_circuit.append("TICK")
@@ -529,7 +603,9 @@ def merge(
     # -------Adding measurement Flip Prob.--------------
     if noise.before_m_flip_prob > 0:
         merge_init_circuit.append(
-            "X_ERROR", x_stab_index_untouched_circ + z_stab_index_untouched_circ, noise.before_m_flip_prob,
+            "X_ERROR",
+            x_stab_index_untouched_circ + z_stab_index_untouched_circ,
+            noise.before_m_flip_prob,
         )
     # --------------------------------------------------
 
@@ -540,13 +616,15 @@ def merge(
     # -------Adding-After-Reset-Flip-Prob.------------
     if noise.after_r_flip > 0:
         merge_init_circuit.append(
-            "X_ERROR", x_stab_index_untouched_circ + z_stab_index_untouched_circ, noise.after_r_flip,
+            "X_ERROR",
+            x_stab_index_untouched_circ + z_stab_index_untouched_circ,
+            noise.after_r_flip,
         )
     # ------------------------------------------------
 
     if merging_type == "AC":
-    # Determining Position in the measurement Run of only the excluded Lattice
-    # (Excluded from merge -> Normal stabilizer measurement)
+        # Determining Position in the measurement Run of only the excluded Lattice
+        # (Excluded from merge -> Normal stabilizer measurement)
         pos_to_index_x_excluded_lattice: list = []
         pos_to_index_z_excluded_lattice: list = []
 
@@ -594,8 +672,8 @@ def merge(
                     )
 
     elif merging_type == "AT":
-    # Determining Position in the measurement Run of only the excluded Lattice
-    # (Excluded from merge -> Normal stabilizer measurement)
+        # Determining Position in the measurement Run of only the excluded Lattice
+        # (Excluded from merge -> Normal stabilizer measurement)
         pos_to_index_x_excluded_lattice: list = []
         pos_to_index_z_excluded_lattice: list = []
 
@@ -673,7 +751,9 @@ def merge(
 
     # -------Adding-After-Clifford-Depol.------------
     if noise.after_c_depol_prob > 0:
-        merge_round_circuit.append("DEPOLARIZE1", combined_x_stab_merging_lattices, noise.after_c_depol_prob)
+        merge_round_circuit.append(
+            "DEPOLARIZE1", combined_x_stab_merging_lattices, noise.after_c_depol_prob,
+        )
     # -----------------------------------------------
 
     merge_round_circuit.append("TICK")
@@ -681,18 +761,26 @@ def merge(
     # -------Adding measurement Flip Prob.--------------
     if noise.before_m_flip_prob > 0:
         merge_round_circuit.append(
-            "X_ERROR", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices, noise.before_m_flip_prob,
+            "X_ERROR",
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+            noise.before_m_flip_prob,
         )
     # --------------------------------------------------
 
-    merge_round_circuit.append("M", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+    merge_round_circuit.append(
+        "M", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+    )
     merge_round_circuit.append("TICK")
-    merge_round_circuit.append("R", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+    merge_round_circuit.append(
+        "R", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+    )
 
     # -------Adding-After-Reset-Flip-Prob.------------
     if noise.after_r_flip > 0:
         merge_round_circuit.append(
-            "X_ERROR", combined_z_stab_merging_lattices + combined_x_stab_merging_lattices, noise.after_r_flip,
+            "X_ERROR",
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+            noise.after_r_flip,
         )
     # ------------------------------------------------
 
@@ -704,7 +792,9 @@ def merge(
 
     # Adding the needed Detectors for Ancilla (X & Z-Stabs)
     for index_pos_merge in pos_to_index_ancilla_x_merge:
-        current_tar = index_pos_merge[0] - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+        current_tar = index_pos_merge[0] - len(
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        )
         previous_target = (
             index_pos_merge[0]
             - 2 * len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
@@ -718,7 +808,9 @@ def merge(
         )
 
     for index_pos_merge in pos_to_index_ancilla_z_merge:
-        current_tar = index_pos_merge[0] - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+        current_tar = index_pos_merge[0] - len(
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        )
         previous_target = (
             index_pos_merge[0]
             - 2 * len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
@@ -735,7 +827,9 @@ def merge(
 
     # Z-Stabs
     for index_pos_merge in pos_to_index_z_merging_lattice:
-        current_tar = index_pos_merge[0] - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+        current_tar = index_pos_merge[0] - len(
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        )
         previous_target = (
             index_pos_merge[0]
             - 2 * len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
@@ -750,7 +844,9 @@ def merge(
 
     # X-Stabs
     for index_pos_merge in pos_to_index_x_merging_lattice:
-        current_tar = index_pos_merge[0] - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+        current_tar = index_pos_merge[0] - len(
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        )
         previous_target = (
             index_pos_merge[0]
             - 2 * len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
@@ -765,7 +861,9 @@ def merge(
 
     # Adding the Ancialla & current merging Lattice shared Detectors
     for index_pos_merge in pos_to_index_shared_stabs:
-        current_tar = index_pos_merge[0] - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+        current_tar = index_pos_merge[0] - len(
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        )
         previous_target = (
             index_pos_merge[0]
             - 2 * len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
@@ -786,24 +884,32 @@ def merge(
     first_mm_pos: list = []
 
     if merging_type == "AC":
-        for pos, index in enumerate(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices):
+        for pos, index in enumerate(
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        ):
             if index in (z_stab_index_surgery + z_stab_boundary_l_surgery):
                 pos_to_index_newly_gen_stabs.append([pos, index])
 
     elif merging_type == "AT":
-        for pos, index in enumerate(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices):
+        for pos, index in enumerate(
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        ):
             if index in (x_stab_index_surgery + x_stab_boundary_b_surgery):
                 pos_to_index_newly_gen_stabs.append([pos, index])
 
     # Adding the needed Detectors (Newly Z/X generated Stabs)
     for index_pos_merge in pos_to_index_newly_gen_stabs:
-        current_tar = index_pos_merge[0] - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
+        current_tar = index_pos_merge[0] - len(
+            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
+        )
         previous_target = (
             index_pos_merge[0]
             - 2 * len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
             - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ)
         )
-        first_mm_pos.append(previous_target - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ))
+        first_mm_pos.append(
+            previous_target - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ),
+        )
         q_index = index_pos_merge[1]
         merge_round_circuit.append(
             "DETECTOR",
@@ -824,7 +930,9 @@ def merge(
 
         # -------Adding-After-Clifford-Depol.------------
         if noise.after_c_depol_prob > 0:
-            merge_round_circuit.append("DEPOLARIZE1", x_stab_boundary_b_index_ancilla, noise.after_c_depol_prob)
+            merge_round_circuit.append(
+                "DEPOLARIZE1", x_stab_boundary_b_index_ancilla, noise.after_c_depol_prob,
+            )
         # -----------------------------------------------
 
         merge_round_circuit.append("TICK")
@@ -838,7 +946,9 @@ def merge(
     )
 
     # All Stabilizers from the Target and Control Lattice
-    control_target_stabs = x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
+    control_target_stabs = (
+        x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
+    )
 
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     merge_round_circuit.append("TICK")
@@ -846,7 +956,9 @@ def merge(
 
     # -------Adding-After-Clifford-Depol.------------
     if noise.after_c_depol_prob > 0:
-        merge_round_circuit.append("DEPOLARIZE1", x_stab_index_untouched_circ, noise.after_c_depol_prob)
+        merge_round_circuit.append(
+            "DEPOLARIZE1", x_stab_index_untouched_circ, noise.after_c_depol_prob,
+        )
     # -----------------------------------------------
 
     merge_round_circuit.append("TICK")
@@ -854,7 +966,9 @@ def merge(
     # -------Adding measurement Flip Prob.--------------
     if noise.before_m_flip_prob > 0:
         merge_round_circuit.append(
-            "X_ERROR", x_stab_index_untouched_circ + z_stab_index_untouched_circ, noise.before_m_flip_prob,
+            "X_ERROR",
+            x_stab_index_untouched_circ + z_stab_index_untouched_circ,
+            noise.before_m_flip_prob,
         )
     # --------------------------------------------------
 
@@ -865,7 +979,9 @@ def merge(
     # -------Adding-After-Reset-Flip-Prob.------------
     if noise.after_r_flip > 0:
         merge_round_circuit.append(
-            "X_ERROR", x_stab_index_untouched_circ + z_stab_index_untouched_circ, noise.after_r_flip,
+            "X_ERROR",
+            x_stab_index_untouched_circ + z_stab_index_untouched_circ,
+            noise.after_r_flip,
         )
     # ------------------------------------------------
 
@@ -873,7 +989,9 @@ def merge(
     if merging_type == "AC":
         # Z-Stabs
         for index_pos_merge in pos_to_index_z_excluded_lattice:
-            current_tar = index_pos_merge[0] - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ)
+            current_tar = index_pos_merge[0] - len(
+                x_stab_index_untouched_circ + z_stab_index_untouched_circ,
+            )
             previous_target = (
                 index_pos_merge[0]
                 - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
@@ -888,7 +1006,9 @@ def merge(
 
         # X-Stabs
         for index_pos_merge in pos_to_index_x_excluded_lattice:
-            current_tar = index_pos_merge[0] - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ)
+            current_tar = index_pos_merge[0] - len(
+                x_stab_index_untouched_circ + z_stab_index_untouched_circ,
+            )
             previous_target = (
                 index_pos_merge[0]
                 - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
@@ -904,7 +1024,9 @@ def merge(
     elif merging_type == "AT":
         # Z-Stabs
         for index_pos_merge in pos_to_index_z_excluded_lattice:
-            current_tar = index_pos_merge[0] - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ)
+            current_tar = index_pos_merge[0] - len(
+                x_stab_index_untouched_circ + z_stab_index_untouched_circ,
+            )
             previous_target = (
                 index_pos_merge[0]
                 - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
@@ -919,7 +1041,9 @@ def merge(
 
         # X-Stabs
         for index_pos_merge in pos_to_index_x_excluded_lattice:
-            current_tar = index_pos_merge[0] - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ)
+            current_tar = index_pos_merge[0] - len(
+                x_stab_index_untouched_circ + z_stab_index_untouched_circ,
+            )
             previous_target = (
                 index_pos_merge[0]
                 - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)

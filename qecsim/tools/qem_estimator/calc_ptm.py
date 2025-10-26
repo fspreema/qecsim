@@ -5,7 +5,9 @@ import stim
 __all__ = ["calc_ptm"]
 
 
-def _define_off_diag_log_rec(samples_from_sampler: np.ndarray, curr_shot: int, rec_pos: list[int]) -> np.ndarray:
+def _define_off_diag_log_rec(
+    samples_from_sampler: np.ndarray, curr_shot: int, rec_pos: list[int]
+) -> np.ndarray:
     """
     Returns per shot full logical measurement by xoring the needed measurements
     -> All emasurements provided by samples_from_sampler
@@ -26,14 +28,17 @@ def _define_off_diag_log_rec(samples_from_sampler: np.ndarray, curr_shot: int, r
     return final_meas
 
 
-def _xor_meas_and_decoder(decoder_prediction: np.ndarray, logical_state_meas: list, curr_shot: int) -> int:
+def _xor_meas_and_decoder(
+    decoder_prediction: np.ndarray, logical_state_meas: list, curr_shot: int
+) -> int:
     """
     Returns the final measurement for the current shot
     -> XOR logical measurement with the decoder prediction iof the observable was flipped
     -> i.e. correct measured observable through decoder prediction
     """
 
-    final_log_meas = 1 - 2 * (decoder_prediction[curr_shot, 0].astype(np.int8) ^ np.int8(logical_state_meas[curr_shot]))
+    final_log_meas = 1 - 2 * (decoder_prediction[curr_shot, 0].astype(np.int8) ^
+    np.int8(logical_state_meas[curr_shot]))
     return final_log_meas
 
 
@@ -132,12 +137,15 @@ def calc_ptm(
     sampler_pi_y = circuit_pi_y.compile_detector_sampler()
     dets_pi_y, obs_pi_y = sampler_pi_y.sample(samples, separate_observables=True)
 
-    # Determine current noisy Operator states (i.e. xor obs from det sample with noiseless Measurement outcome)
+    # Determine current noisy Operator states (i.e. xor obs from det sample with noiseless
+    # Measurement outcome)
     """
     THIS IS TOO MUCH WORK AND CAN BE SIMPLIFIED
-    -> Just return freom each circuit the log rec tragets not only for the non determinstic emasurements
+    -> Just return freom each circuit the log rec tragets not only for the non determinstic
+    emasurements
     -> Do analogue method than for the off diagonals
-    -> This works but is more complicated and results in two methods beeing used in one function which can be mitigated
+    -> This works but is more complicated and results in two methods beeing used in one function
+    which can be mitigated
     """
 
     noisy_meas_0_z = []
