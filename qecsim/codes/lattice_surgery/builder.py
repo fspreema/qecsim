@@ -1,5 +1,7 @@
 import stim
+from tqecd import annotate_detectors_automatically
 
+from qecsim.codes.lattice_surgery.logical_strings import get_logical_strings
 from qecsim.core.data_models import (
     ConfigLatticeSurgery as Config,
     LatticeContext,
@@ -167,6 +169,7 @@ def surgery_circuit(
 
     cfg = Config(
         distance=distance,
+        flow_observable=flow_observable,
         target_state_init=target_state_init,
         control_state_init=control_state_init,
     )
@@ -288,10 +291,20 @@ def surgery_circuit(
     #################################
 
     if target_state_init in {"Y+", "Y-"} or control_state_init in {"Y+", "Y-"}:
-        reset_circ, y_circ = reset(lct=lct, patches=patches, cfg=cfg)
+        reset_circ, y_circ = reset(
+            lct=lct,
+            patches=patches,
+            cfg=cfg,
+            noise=noise,
+        )
 
     else:
-        reset_circ = reset(lct=lct, patches=patches, cfg=cfg)
+        reset_circ = reset(
+            lct=lct,
+            patches=patches,
+            cfg=cfg,
+            noise=noise,
+        )
 
     ###################################
     # 5. Building Initilization Circuit
@@ -301,34 +314,77 @@ def surgery_circuit(
         # Adding y basis initilization circuit before normal initilization
         flow_circuit = stim.Circuit()
         flow_circuit += y_circ
-        flow_circuit += initial(lct=lct, patches=patches, cfg=cfg, noise=noise)
+
+        flow_circuit += initial(
+            lct=lct,
+            patches=patches,
+            cfg=cfg,
+            noise=noise,
+        )
 
     else:
-        flow_circuit = initial(lct=lct, patches=patches, cfg=cfg, noise=noise)
+        flow_circuit = stim.Circuit()
+
+        flow_circuit += initial(
+            lct=lct,
+            patches=patches,
+            cfg=cfg,
+            noise=noise,
+        )
 
     #############################################
     # 6. Building Merging Ancilla Control Circuit
     #############################################
 
-    merged_circuit_ac = merge(lct=lct, patches=patches, cfg=cfg, merging_type="AC", noise=noise)
+    """
+    Depending on the proposed flows either standard XX or ZZ parity measurements
+    are used, or new YY measurements which need additional s gates
+    -> Therefore different merging or splitting procedures for certain flows
+    """
+
+    merged_circuit_ac = merge(
+        lct=lct,
+        patches=patches,
+        cfg=cfg,
+        merging_type="AC",
+        noise=noise,
+    )
 
     ###############################################
     # 5. Building Splitting Ancilla Control Circuit
     ###############################################
 
-    split_circuit_ac = split(lct=lct, patches=patches, cfg=cfg, split_type="AC", noise=noise)
+    split_circuit_ac = split(
+        lct=lct,
+        patches=patches,
+        cfg=cfg,
+        split_type="AC",
+        noise=noise,
+    )
 
     ############################################
     # 6. Building Merging Ancilla Target Circuit
     ############################################
 
-    merged_circuit_at = merge(lct=lct, patches=patches, cfg=cfg, merging_type="AT", noise=noise)
+    merged_circuit_at = merge(
+        lct=lct,
+        patches=patches,
+        cfg=cfg,
+        merging_type="AT",
+        noise=noise,
+    )
 
     ##############################################
     # 7. Building splitting Ancilla Target Circuit
     ##############################################
 
-    split_circuit_at = split(lct=lct, patches=patches, cfg=cfg, split_type="AT", noise=noise)
+    split_circuit_at = split(
+        lct=lct,
+        patches=patches,
+        cfg=cfg,
+        split_type="AT",
+        noise=noise,
+    )
 
     ################################################################################
     # 8. Creating Clipped Circuit (Without State intilization and final measurement)
@@ -367,6 +423,20 @@ def surgery_circuit(
 
     for real in range(1, distance * 2, 2):
         a_log_z.append(q2i[real + 1j])
+
+    # Y logical components (using shared helper for correctness)
+    log_strings = get_logical_strings(q2i, distance)
+    # Shifted variants for Y-including flows (changes c_x at x=2d-1, t_z at y=2d-1)
+    log_strings_shift = get_logical_strings(
+        q2i,
+        distance,
+        shift_cx_for_y=True,
+        shift_tz_for_y=True,
+        shift_tx_for_y=True,
+        shift_cz_for_y=True,
+    )
+    c_y = log_strings["c_y"]  # dict with keys: z_string, y_corner, x_string
+    t_y = log_strings["t_y"]
 
     ##################################
     # 10. Building logical Observables
@@ -511,12 +581,109 @@ def surgery_circuit(
         else:
             raise ValueError("Wrong control basis for selected flow")
 
+    # -----------------------Y-Included-measurements----------------
+
+    # As the y observable is initlizized inside the circuit we do not propose a flow with Y
+    # -> So YZ -> XY is proposed as Z -> XY as Y is created iniside the circuit
+    # by the y basis initilization procedure
+
+    elif flow_observable == "YZ -> XY":
+        # Left: control Y, target Z; Right: control X, target Y
+        if control_state_init in {"Y+", "Y-"} and target_state_init in {"Z0", "Z1"}:
+            left_terms = [f"Z{i}" for i in log_strings_shift["t_z"]]
+            right_terms = (
+                [f"X{i}" for i in log_strings_shift["c_x"]]
+                + [f"Z{i}" for i in t_y["z_string"]]
+                + [f"Y{i}" for i in t_y["y_corner"]]
+                + [f"X{i}" for i in t_y["x_string"]]
+            )
+            result = f"{'*'.join(left_terms)} -> {'*'.join(right_terms)}"
+
+            (included_measurements,) = flow_circuit.solve_flow_measurements([stim.Flow(result)])
+
+        else:
+            raise ValueError("Invalid basis for selected flow: YZ -> XY")
+
+    elif flow_observable == "YI -> YX":
+        # Left: control Y, target I; Right: control Y, target X
+        if control_state_init in {"Y+", "Y-"} and target_state_init in {"Z0", "Z1", "X+", "X-"}:
+            right_terms = (
+                [f"X{i}" for i in log_strings_shift["t_x"]]
+                + [f"Z{i}" for i in c_y["z_string"]]
+                + [f"Y{i}" for i in c_y["y_corner"]]
+                + [f"X{i}" for i in c_y["x_string"]]
+            )
+            result = f"{1} -> {'*'.join(right_terms)}"
+
+            (included_measurements,) = flow_circuit.solve_flow_measurements([stim.Flow(result)])
+        else:
+            raise ValueError("Invalid basis for selected flow: YI -> YX")
+
+    elif flow_observable == "YX -> YI":
+        # Left: control Y, target X; Right: control Y, target I
+        if control_state_init in {"Y+", "Y-"} and target_state_init in {"X+", "X-"}:
+            left_terms = [f"X{i}" for i in log_strings_shift["t_x"]]
+            right_terms = (
+                [f"Z{i}" for i in c_y["z_string"]]
+                + [f"Y{i}" for i in c_y["y_corner"]]
+                + [f"X{i}" for i in c_y["x_string"]]
+            )
+            result = f"{'*'.join(left_terms)} -> {'*'.join(right_terms)}"
+
+            (included_measurements,) = flow_circuit.solve_flow_measurements([stim.Flow(result)])
+        else:
+            raise ValueError("Invalid basis for selected flow: YX -> YI")
+
+    elif flow_observable == "YY -> XZ":
+        # Left: control Y, target Y; Right: control X, target Z
+        if control_state_init in {"Y+", "Y-"} and target_state_init in {"Y+", "Y-"}:
+            right_terms = [f"X{i}" for i in log_strings_shift["c_x"]] + [
+                f"Z{i}" for i in log_strings_shift["t_z"]
+            ]
+            result = f"{1} -> {'*'.join(right_terms)}"
+
+            (included_measurements,) = flow_circuit.solve_flow_measurements([stim.Flow(result)])
+        else:
+            raise ValueError("Invalid basis for selected flow: YY -> XZ")
+
+    elif flow_observable == "IY -> ZY":
+        # Left: control I, target Y; Right: control Z, target Y
+        if target_state_init in {"Y+", "Y-"}:
+            right_terms = (
+                [f"Z{i}" for i in log_strings_shift["c_z"]]
+                + [f"Z{i}" for i in t_y["z_string"]]
+                + [f"Y{i}" for i in t_y["y_corner"]]
+                + [f"X{i}" for i in t_y["x_string"]]
+            )
+            result = f"{1} -> {'*'.join(right_terms)}"
+
+            (included_measurements,) = flow_circuit.solve_flow_measurements([stim.Flow(result)])
+        else:
+            raise ValueError("Invalid basis for selected flow: IY -> ZY")
+
+    elif flow_observable == "XY -> YZ":
+        # Left: control X, target Y; Right: control Y, target Z
+        if control_state_init in {"X+", "X-"} and target_state_init in {"Y+", "Y-"}:
+            left_terms = [f"X{i}" for i in log_strings_shift["c_x"]]
+
+            right_terms = (
+                [f"Z{i}" for i in c_y["z_string"]]
+                + [f"Y{i}" for i in c_y["y_corner"]]
+                + [f"X{i}" for i in c_y["x_string"]]
+                + [f"Z{i}" for i in log_strings_shift["t_z"]]
+            )
+            result = f"{'*'.join(left_terms)} -> {'*'.join(right_terms)}"
+
+            (included_measurements,) = flow_circuit.solve_flow_measurements([stim.Flow(result)])
+        else:
+            raise ValueError("Invalid basis for selected flow: XY -> YZ")
+
     else:
         raise ValueError("Invalid Flow selected")
 
-    ###############################
-    # 11. Adding State initiliztion
-    ###############################
+    #################################
+    # 11. Adding State initialization
+    #################################
 
     final_measurement = final_m(
         lct=lct,
@@ -546,5 +713,6 @@ def surgery_circuit(
     ##########################
 
     reset_circ += final_measurement
+    # reset_circ += annotate_detectors_automatically(reset_circ)
 
     return reset_circ

@@ -23,7 +23,14 @@ def merge(
     cfg: Config,
     merging_type: str,
     noise: NoiseModel,
+    modified_measurement: str = "",
 ) -> stim.Circuit:
+    """
+    modified_measurement: str
+    -> Indicates if XX/ZZ measurements get modified to YY YX ZY etc. joint Measurements
+    -> Dependent on the flow selected
+    """
+
     #################################################
     # Exporting all necessary values from Dataclasses
     #################################################
@@ -37,7 +44,7 @@ def merge(
     # -Retrieving Global Infomration
     distance = cfg.distance
     q2i = lct.q2i
-    i2q = lct.i2q
+    flow_observable = cfg.flow_observable
 
     rounds = distance
 
@@ -47,6 +54,7 @@ def merge(
     stab_to_data_surgery_at = lct.stab_to_data_surgery_at
 
     # -Retrieving Lattice Coords
+    qubit_coords_ancilla = ancilla_patch.coords
     qubit_coords_control = control_patch.coords
     qubit_coords_target = target_patch.coords
     qubit_coords_surgery = surgery_patch.coords
@@ -69,11 +77,15 @@ def merge(
     x_stab_index_ancilla = ancilla_patch.x_stab
     z_stab_index_ancilla = ancilla_patch.z_stab
     x_stab_boundary_b_index_ancilla = ancilla_patch.x_bdy_b
-    z_stab_boundary_r_index_ancilla = ancilla_patch.z_bdy_r
     x_stab_index_control = control_patch.x_stab
     z_stab_index_control = control_patch.z_stab
     x_stab_index_target = target_patch.x_stab
     z_stab_index_target = target_patch.z_stab
+
+    # All Stabilizers from the Target and Control Lattice
+    control_target_stabs = (
+        x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
+    )
 
     ################################
     # Define initial merging Circuit
@@ -143,6 +155,15 @@ def merge(
             if coords not in combined_x_stab:
                 combined_x_stab.append(coords)
 
+    # Adding reset from initial round and from AC split round
+    merge_init_circuit.append("TICK")
+    merge_init_circuit.append("R", control_target_stabs)
+
+    # -------Adding-After-Reset-Flip-Prob.------------
+    if noise.after_r_flip > 0:
+        merge_init_circuit.append("X_ERROR", control_target_stabs, noise.after_r_flip)
+    # ------------------------------------------------
+
     merge_init_circuit.append("TICK")
     merge_init_circuit.append("H", combined_x_stab)
 
@@ -153,14 +174,17 @@ def merge(
 
     merge_init_circuit.append("TICK")
 
-    # 2) CX Operations
-
-    joined_dict = stab_to_data_curr_merg | stab_to_data_untouched_circ
-
-    cx_builder(q2i=q2i, stab_to_data=joined_dict, circuit=merge_init_circuit, noise=noise)
-
     combined_x_stab_merging_lattices: list = []
     combined_z_stab_merging_lattices: list = []
+
+    if modified_measurement in ["YY", "YX", "ZY", "YX", "YZ"]:
+        # Finding index for data qubits if they are included in merging region
+        data_qubits_merge_region_ancilla: list = []
+        data_qubits_merge_region_lattice: list = []
+
+        # Adding operator for implementing into the CX Builder
+        dict_operators_before: dict = {}
+        dict_operators_after: dict = {}
 
     if merging_type == "AC":
         # Adding h gate for X stabilizers only on merging lattices
@@ -178,6 +202,18 @@ def merge(
             if coords not in combined_z_stab_merging_lattices:
                 combined_z_stab_merging_lattices.append(coords)
 
+        # Finding data qubits in merging region
+        if modified_measurement in ["YY", "YX", "ZY", "YX", "YZ"]:
+            for q_coord, q_type in qubit_coords_control.items():
+                if q_type == "DATA" and q_coord.imag == distance * 2 + 1:
+                    # Adding to index list
+                    data_qubits_merge_region_lattice.append(q2i[q_coord])
+
+            for q_coord, q_type in qubit_coords_ancilla.items():
+                if q_type == "DATA" and q_coord.imag == distance * 2 - 1:
+                    # Adding to index list
+                    data_qubits_merge_region_ancilla.append(q2i[q_coord])
+
     elif merging_type == "AT":
         # Adding h gate for X stabilizers only on merging lattices
         # -> Filtering out double coords in big lattice
@@ -194,8 +230,67 @@ def merge(
             if coords not in combined_z_stab_merging_lattices:
                 combined_z_stab_merging_lattices.append(coords)
 
+        # Finding data qubits in merging region
+        if modified_measurement in ["YY", "YX", "ZY", "YX", "YZ"]:
+            for q_coord, q_type in qubit_coords_target.items():
+                if q_type == "DATA" and q_coord.real == distance * 2 + 1:
+                    data_qubits_merge_region_lattice.append(q2i[q_coord])
+
+            for q_coord, q_type in qubit_coords_ancilla.items():
+                if q_type == "DATA" and q_coord.real == distance * 2 - 1:
+                    data_qubits_merge_region_ancilla.append(q2i[q_coord])
+
+    if modified_measurement == "YY":
+        # Adding H gate if ZZ measurement
+        if merging_type == "AT":
+            # Add all operators at once for each order (before and after)
+            # Using surgery orders (1S-CX, 2S-CX, 3S-CX, 4S-CX) for merge boundary operations
+
+            # Sort operations by flows:
+            if flow_observable == "YZ -> XY":
+                dict_operators_before["1S-CX"] = [("S", data_qubits_merge_region_lattice)]
+                dict_operators_after["4S-CX"] = [("S_DAG", data_qubits_merge_region_lattice)]
+
+        elif merging_type == "AC":
+            # Add collected operators to dict_operators under the proper keys
+            # Using surgery orders (1S-CX, 2S-CX, 3S-CX, 4S-CX) for merge boundary operations
+
+            # Sort operations by flows:
+            if flow_observable == "YZ -> XY":
+                # Store as list of tuples to preserve order: [(op1, indices), (op2, indices), ...]
+                dict_operators_before["1S-CX"] = [
+                    ("H", data_qubits_merge_region_lattice),
+                    ("S_DAG", data_qubits_merge_region_lattice),
+                ]
+                dict_operators_after["4S-CX"] = [
+                    ("S", data_qubits_merge_region_lattice),
+                    ("H", data_qubits_merge_region_lattice),
+                ]
+
+    # CX Operations -> If Y measurement H or S corrective gates need to be applied
+    joined_dict = stab_to_data_curr_merg | stab_to_data_untouched_circ
+
+    if modified_measurement != "":
+        cx_builder(
+            q2i=q2i,
+            stab_to_data=joined_dict,
+            circuit=merge_init_circuit,
+            orders=("1-CX", "2-CX", "3-CX", "4-CX", "1S-CX", "2S-CX", "3S-CX", "4S-CX"),
+            noise=noise,
+            add_operator_before=dict_operators_before,
+            add_operator_after=dict_operators_after,
+        )
+
+    else:
+        cx_builder(
+            q2i=q2i,
+            stab_to_data=joined_dict,
+            circuit=merge_init_circuit,
+            orders=("1-CX", "2-CX", "3-CX", "4-CX", "1S-CX", "2S-CX", "3S-CX", "4S-CX"),
+            noise=noise,
+        )
+
     # Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement):
-    merge_init_circuit.append("TICK")
     merge_init_circuit.append("H", combined_x_stab_merging_lattices)
 
     # -------Adding-After-Clifford-Depol.------------
@@ -239,335 +334,9 @@ def merge(
 
     merge_init_circuit.append("TICK")
 
-    ##########################################################################################
-    # Adding Detectors
-    # -> Firstly Stabilizers which measurement is already known i.e. outside of merging region
-    ##########################################################################################
-
-    # Determining Position in the measurement Run of only the Ancilla
-    # (Shared Stabilizers excluded i.e. shared boundary stabs)
-    pos_to_index_ancilla_x_merge: list = []
-    pos_to_index_ancilla_z_merge: list = []
-
-    if merging_type == "AC":
-        for pos, index in enumerate(
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-        ):
-            if index in x_stab_index_ancilla:
-                if index not in x_stab_boundary_b_index_ancilla:
-                    pos_to_index_ancilla_x_merge.append([pos, index])
-
-            elif index in z_stab_index_ancilla:
-                pos_to_index_ancilla_z_merge.append([pos, index])
-
-    elif merging_type == "AT":
-        for pos, index in enumerate(
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-        ):
-            if index in z_stab_index_ancilla:
-                if index not in z_stab_boundary_r_index_ancilla:
-                    pos_to_index_ancilla_z_merge.append([pos, index])
-
-            elif index in x_stab_index_ancilla:
-                pos_to_index_ancilla_x_merge.append([pos, index])
-
-    # Determining Position in the measurement Run of only the Ancilla
-    pos_to_index_ancilla_x: list = []
-    pos_to_index_ancilla_z: list = []
-
-    for pos, index in enumerate(x_stab_index_ancilla + z_stab_index_ancilla):
-        if index in x_stab_index_ancilla:
-            pos_to_index_ancilla_x.append([pos, index])
-
-        elif index in z_stab_index_ancilla:
-            pos_to_index_ancilla_z.append([pos, index])
-
-    # Determining Postion in the measurement Run of Target & Control
-    pos_to_index_control_x: list = []
-    pos_to_index_control_z: list = []
-    pos_to_index_target_x: list = []
-    pos_to_index_target_z: list = []
-
-    # All Stabilizers from the Target and Control Lattice
-    control_target_stabs = (
-        x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
-    )
-
-    for pos, index in enumerate(control_target_stabs):
-        if index in x_stab_index_control:
-            pos_to_index_control_x.append([pos, index])
-
-        elif index in z_stab_index_control:
-            pos_to_index_control_z.append([pos, index])
-
-        elif index in x_stab_index_target:
-            pos_to_index_target_x.append([pos, index])
-
-        elif index in z_stab_index_target:
-            pos_to_index_target_z.append([pos, index])
-
-    # Shifting Coords for valid time-dim.
-    merge_init_circuit.append("SHIFT_COORDS", arg=(0, 0, 1))
-
-    # Adding the needed Detectors
-    """
-    Adding x & z stabs in the ancillary lattice
-    """
-
-    # X-Stabs
-    for index_pos_merge in pos_to_index_ancilla_x_merge:
-        current_tar = index_pos_merge[0] - len(
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-        )
-        q_index = index_pos_merge[1]
-        for index_pos in pos_to_index_ancilla_x:
-            if q_index == index_pos[1]:
-                previous_target = (
-                    index_pos[0]
-                    - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-                    - len(control_target_stabs)
-                    - len(x_stab_index_ancilla + z_stab_index_ancilla)
-                )
-                merge_init_circuit.append(
-                    "DETECTOR",
-                    [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-                    (i2q[q_index].real, i2q[q_index].imag, 0),
-                )
-
-    # Z-Stabs
-    for index_pos_merge in pos_to_index_ancilla_z_merge:
-        current_tar = index_pos_merge[0] - len(
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-        )
-        q_index = index_pos_merge[1]
-        for index_pos in pos_to_index_ancilla_z:
-            if q_index == index_pos[1]:
-                previous_target = (
-                    index_pos[0]
-                    - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-                    - len(control_target_stabs)
-                    - len(x_stab_index_ancilla + z_stab_index_ancilla)
-                )
-                merge_init_circuit.append(
-                    "DETECTOR",
-                    [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-                    (i2q[q_index].real, i2q[q_index].imag, 0),
-                )
-
-    # Adding the needed Detectors dependent of logical state of the lattice
-    # and the current lattice in merging
-    pos_to_index_x_merging_lattice: list = []
-    pos_to_index_z_merging_lattice: list = []
-
-    if merging_type == "AC":
-        # Determining Position in the measurement Run of only the current merging Lattice
-        # (Shared Stabilizers excluded)
-        for pos, index in enumerate(
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-        ):
-            if index in x_stab_index_control:
-                # Exclude Shared Ancillas i.e. below stabilizers from Ancilla
-                if index not in x_stab_boundary_b_index_ancilla:
-                    pos_to_index_x_merging_lattice.append([pos, index])
-
-            elif index in z_stab_index_control:
-                pos_to_index_z_merging_lattice.append([pos, index])
-
-        # Z-Stabs
-        for index_pos_merge in pos_to_index_z_merging_lattice:
-            current_tar = index_pos_merge[0] - len(
-                combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-            )
-            q_index = index_pos_merge[1]
-            for index_pos in pos_to_index_control_z:
-                if q_index == index_pos[1]:
-                    previous_target = (
-                        index_pos[0]
-                        - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-                        - len(control_target_stabs)
-                    )
-                    merge_init_circuit.append(
-                        "DETECTOR",
-                        [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-                        (i2q[q_index].real, i2q[q_index].imag, 0),
-                    )
-
-        # X-Stabs
-        for index_pos_merge in pos_to_index_x_merging_lattice:
-            current_tar = index_pos_merge[0] - len(
-                combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-            )
-            q_index = index_pos_merge[1]
-            for index_pos in pos_to_index_control_x:
-                if q_index == index_pos[1]:
-                    previous_target = (
-                        index_pos[0]
-                        - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-                        - len(control_target_stabs)
-                    )
-                    merge_init_circuit.append(
-                        "DETECTOR",
-                        [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-                        (i2q[q_index].real, i2q[q_index].imag, 0),
-                    )
-
-    elif merging_type == "AT":
-        # Determining Position in the measurement Run of only the current merging Lattice
-        # (Shared Stabilizers excluded)
-        for pos, index in enumerate(
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-        ):
-            if index in z_stab_index_target:
-                # Exclude Shared Ancillas i.e. right stabilizers from Ancilla
-                if index not in z_stab_boundary_r_index_ancilla:
-                    pos_to_index_z_merging_lattice.append([pos, index])
-
-            elif index in x_stab_index_target:
-                pos_to_index_x_merging_lattice.append([pos, index])
-
-        # Z-Stabs
-        for index_pos_merge in pos_to_index_z_merging_lattice:
-            current_tar = index_pos_merge[0] - len(
-                combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-            )
-            q_index = index_pos_merge[1]
-            for index_pos in pos_to_index_target_z:
-                if q_index == index_pos[1]:
-                    previous_target = (
-                        index_pos[0]
-                        - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-                        - len(control_target_stabs)
-                    )
-                    merge_init_circuit.append(
-                        "DETECTOR",
-                        [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-                        (i2q[q_index].real, i2q[q_index].imag, 0),
-                    )
-
-        # X-Stabs
-        for index_pos_merge in pos_to_index_x_merging_lattice:
-            current_tar = index_pos_merge[0] - len(
-                combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-            )
-            q_index = index_pos_merge[1]
-            for index_pos in pos_to_index_target_x:
-                if q_index == index_pos[1]:
-                    previous_target = (
-                        index_pos[0]
-                        - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-                        - len(control_target_stabs)
-                    )
-                    merge_init_circuit.append(
-                        "DETECTOR",
-                        [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-                        (i2q[q_index].real, i2q[q_index].imag, 0),
-                    )
-    """
-     We now initialize the stabilizers newly introduced through the merging; one has to
-     distinguish two types:
-
-     1) Boundary stabilizers -> Newly formed weight-4 X stabilizers take measurement
-        records of both old boundary weight-2 stabilizers of control and ancilla.
-        
-     2) No record history -> Newly formed weight-4 Z stabilizers have no old record
-        history and therefore have a non-deterministic outcome.
-    """
-    ###########################
-    # Adding shared Stabilizers
-    ###########################
-
-    pos_to_index_shared_stabs: list = []
-
-    if merging_type == "AC":
-        # Shared X-Stabilizers
-        for pos, index in enumerate(
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-        ):
-            if index in x_stab_index_control:
-                # Include Shared Ancillas i.e. below stabilizers from Ancilla
-                if index in x_stab_boundary_b_index_ancilla:
-                    pos_to_index_shared_stabs.append([pos, index])
-
-        # Adding the needed Detectors
-        for index_pos_merge in pos_to_index_shared_stabs:
-            current_tar = index_pos_merge[0] - len(
-                combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-            )
-            q_index = index_pos_merge[1]
-            for index_pos_a in pos_to_index_ancilla_x:
-                if q_index == index_pos_a[1]:
-                    previous_target_ancilla = (
-                        index_pos_a[0]
-                        - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-                        - len(control_target_stabs)
-                        - len(x_stab_index_ancilla + z_stab_index_ancilla)
-                    )
-                    for index_pos_c in pos_to_index_control_x:
-                        if q_index == index_pos_c[1]:
-                            previous_target_control = (
-                                index_pos_c[0]
-                                - len(
-                                    combined_z_stab_merging_lattices
-                                    + combined_x_stab_merging_lattices,
-                                )
-                                - len(control_target_stabs)
-                            )
-                            merge_init_circuit.append(
-                                "DETECTOR",
-                                [
-                                    stim.target_rec(current_tar),
-                                    stim.target_rec(previous_target_ancilla),
-                                    stim.target_rec(previous_target_control),
-                                ],
-                                (i2q[q_index].real, i2q[q_index].imag, 0),
-                            )
-
-    elif merging_type == "AT":
-        # Shared Z-Stabilizer
-
-        for pos, index in enumerate(
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-        ):
-            if index in z_stab_index_target:
-                # Include Shared Ancillas i.e. below stabilizers from Ancilla
-                if index in z_stab_boundary_r_index_ancilla:
-                    pos_to_index_shared_stabs.append([pos, index])
-
-        # Adding the needed Detectors
-        for index_pos_merge in pos_to_index_shared_stabs:
-            current_tar = index_pos_merge[0] - len(
-                combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-            )
-            q_index = index_pos_merge[1]
-            for index_pos_a in pos_to_index_ancilla_z:
-                if q_index == index_pos_a[1]:
-                    previous_target_ancilla = (
-                        index_pos_a[0]
-                        - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-                        - len(control_target_stabs)
-                        - len(x_stab_index_ancilla + z_stab_index_ancilla)
-                    )
-                    for index_pos_c in pos_to_index_target_z:
-                        if q_index == index_pos_c[1]:
-                            previous_target_target = (
-                                index_pos_c[0]
-                                - len(
-                                    combined_z_stab_merging_lattices
-                                    + combined_x_stab_merging_lattices,
-                                )
-                                - len(control_target_stabs)
-                            )
-                            merge_init_circuit.append(
-                                "DETECTOR",
-                                [
-                                    stim.target_rec(current_tar),
-                                    stim.target_rec(previous_target_ancilla),
-                                    stim.target_rec(previous_target_target),
-                                ],
-                                (i2q[q_index].real, i2q[q_index].imag, 0),
-                            )
-
-    # Continue CX-Implementation for unotuched lattice (As AC/AT-Lattice already has a full run)
+    #########################################
+    # Continue CX-Implementation for untouched lattice (As AC/AT-Lattice already has a full run)
+    #########################################
 
     """
     Adding needed H-Gates for X-Stabs which are shared between merged lattice and untouched lattice
@@ -595,13 +364,7 @@ def merge(
         noise=noise,
     )
 
-    # All Stabilizers from the Target and Control Lattice
-    control_target_stabs = (
-        x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
-    )
-
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
-    merge_init_circuit.append("TICK")
     merge_init_circuit.append("H", x_stab_index_untouched_circ)
 
     # -------Adding-After-Clifford-Depol.------------
@@ -625,125 +388,30 @@ def merge(
     # --------------------------------------------------
 
     merge_init_circuit.append("M", x_stab_index_untouched_circ + z_stab_index_untouched_circ)
-    merge_init_circuit.append("TICK")
-    merge_init_circuit.append("R", x_stab_index_untouched_circ + z_stab_index_untouched_circ)
 
-    # -------Adding-After-Reset-Flip-Prob.------------
-    if noise.after_r_flip > 0:
-        merge_init_circuit.append(
-            "X_ERROR",
-            x_stab_index_untouched_circ + z_stab_index_untouched_circ,
-            noise.after_r_flip,
-        )
-    # ------------------------------------------------
-
-    if merging_type == "AC":
-        # Determining Position in the measurement Run of only the excluded Lattice
-        # (Excluded from merge -> Normal stabilizer measurement)
-        pos_to_index_x_excluded_lattice: list = []
-        pos_to_index_z_excluded_lattice: list = []
-
-        for pos, index in enumerate(x_stab_index_target + z_stab_index_target):
-            if index in x_stab_index_target:
-                pos_to_index_x_excluded_lattice.append([pos, index])
-
-            elif index in z_stab_index_target:
-                pos_to_index_z_excluded_lattice.append([pos, index])
-
-        # Z-Stabs
-        for index_pos_merge in pos_to_index_z_excluded_lattice:
-            current_tar = index_pos_merge[0] - len(x_stab_index_target + z_stab_index_target)
-            q_index = index_pos_merge[1]
-            for index_pos in pos_to_index_target_z:
-                if q_index == index_pos[1]:
-                    previous_target = (
-                        index_pos[0]
-                        - len(x_stab_index_target + z_stab_index_target)
-                        - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-                        - len(control_target_stabs)
-                    )
-                    merge_init_circuit.append(
-                        "DETECTOR",
-                        [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-                        (i2q[q_index].real, i2q[q_index].imag, 0),
-                    )
-
-        # X-Stabs
-        for index_pos_merge in pos_to_index_x_excluded_lattice:
-            current_tar = index_pos_merge[0] - len(x_stab_index_target + z_stab_index_target)
-            q_index = index_pos_merge[1]
-            for index_pos in pos_to_index_target_x:
-                if q_index == index_pos[1]:
-                    previous_target = (
-                        index_pos[0]
-                        - len(x_stab_index_target + z_stab_index_target)
-                        - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-                        - len(control_target_stabs)
-                    )
-                    merge_init_circuit.append(
-                        "DETECTOR",
-                        [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-                        (i2q[q_index].real, i2q[q_index].imag, 0),
-                    )
-
-    elif merging_type == "AT":
-        # Determining Position in the measurement Run of only the excluded Lattice
-        # (Excluded from merge -> Normal stabilizer measurement)
-        pos_to_index_x_excluded_lattice: list = []
-        pos_to_index_z_excluded_lattice: list = []
-
-        for pos, index in enumerate(x_stab_index_control + z_stab_index_control):
-            if index in x_stab_index_control:
-                pos_to_index_x_excluded_lattice.append([pos, index])
-
-            elif index in z_stab_index_control:
-                pos_to_index_z_excluded_lattice.append([pos, index])
-
-        # Z-Stabs
-        for index_pos_merge in pos_to_index_z_excluded_lattice:
-            current_tar = index_pos_merge[0] - len(x_stab_index_control + z_stab_index_control)
-            q_index = index_pos_merge[1]
-            for index_pos in pos_to_index_control_z:
-                if q_index == index_pos[1]:
-                    previous_target = (
-                        index_pos[0]
-                        - len(x_stab_index_control + z_stab_index_control)
-                        - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-                        - len(control_target_stabs)
-                    )
-                    merge_init_circuit.append(
-                        "DETECTOR",
-                        [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-                        (i2q[q_index].real, i2q[q_index].imag, 0),
-                    )
-
-        # X-Stabs
-        for index_pos_merge in pos_to_index_x_excluded_lattice:
-            current_tar = index_pos_merge[0] - len(x_stab_index_control + z_stab_index_control)
-            q_index = index_pos_merge[1]
-            for index_pos in pos_to_index_control_x:
-                if q_index == index_pos[1]:
-                    previous_target = (
-                        index_pos[0]
-                        - len(x_stab_index_control + z_stab_index_control)
-                        - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-                        - len(control_target_stabs)
-                    )
-                    merge_init_circuit.append(
-                        "DETECTOR",
-                        [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-                        (i2q[q_index].real, i2q[q_index].imag, 0),
-                    )
-
-    #########################################
+    ########################
     # Merging-Repeat-Circuit
-    #########################################
+    ########################
 
     # Defining Repeat Circuit
     merge_round_circuit = stim.Circuit()
 
     # Adding repeat circuit with all stabilizers defined
     merge_round_circuit.append("SHIFT_COORDS", arg=(0, 0, 1))
+
+    # Adding reset from initial round
+    merge_round_circuit.append("TICK")
+    merge_round_circuit.append("R", x_stab_index_untouched_circ + z_stab_index_untouched_circ)
+
+    # -------Adding-After-Reset-Flip-Prob.------------
+    if noise.after_r_flip > 0:
+        merge_round_circuit.append(
+            "X_ERROR",
+            x_stab_index_untouched_circ + z_stab_index_untouched_circ,
+            noise.after_r_flip,
+        )
+    # ------------------------------------------------
+
     merge_round_circuit.append("TICK")
     merge_round_circuit.append("H", combined_x_stab)
 
@@ -754,14 +422,19 @@ def merge(
 
     merge_round_circuit.append("TICK")
 
-    #################
+    ###############
     # CX Operations
-    #################
+    ###############
 
-    cx_builder(q2i=q2i, stab_to_data=joined_dict, circuit=merge_round_circuit, noise=noise)
+    cx_builder(
+        q2i=q2i,
+        stab_to_data=joined_dict,
+        circuit=merge_round_circuit,
+        orders=("1-CX", "2-CX", "3-CX", "4-CX", "1S-CX", "2S-CX", "3S-CX", "4S-CX"),
+        noise=noise,
+    )
 
     # Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement):
-    merge_round_circuit.append("TICK")
     merge_round_circuit.append("H", combined_x_stab_merging_lattices)
 
     # -------Adding-After-Clifford-Depol.------------
@@ -805,138 +478,6 @@ def merge(
 
     merge_round_circuit.append("TICK")
 
-    ##########################################################################################
-    # Adding Detectors
-    # -> Firstly Stabilizers which measurement is already known i.e. outside of merging region
-    ##########################################################################################
-
-    # Adding the needed Detectors for Ancilla (X & Z-Stabs)
-    for index_pos_merge in pos_to_index_ancilla_x_merge:
-        current_tar = index_pos_merge[0] - len(
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-        )
-        previous_target = (
-            index_pos_merge[0]
-            - 2 * len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-            - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ)
-        )
-        q_index = index_pos_merge[1]
-        merge_round_circuit.append(
-            "DETECTOR",
-            [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-            (i2q[q_index].real, i2q[q_index].imag, 0),
-        )
-
-    for index_pos_merge in pos_to_index_ancilla_z_merge:
-        current_tar = index_pos_merge[0] - len(
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-        )
-        previous_target = (
-            index_pos_merge[0]
-            - 2 * len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-            - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ)
-        )
-        q_index = index_pos_merge[1]
-        merge_round_circuit.append(
-            "DETECTOR",
-            [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-            (i2q[q_index].real, i2q[q_index].imag, 0),
-        )
-
-    # Adding the needed Detectors for the merged lattice(Target or Control)
-
-    # Z-Stabs
-    for index_pos_merge in pos_to_index_z_merging_lattice:
-        current_tar = index_pos_merge[0] - len(
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-        )
-        previous_target = (
-            index_pos_merge[0]
-            - 2 * len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-            - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ)
-        )
-        q_index = index_pos_merge[1]
-        merge_round_circuit.append(
-            "DETECTOR",
-            [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-            (i2q[q_index].real, i2q[q_index].imag, 0),
-        )
-
-    # X-Stabs
-    for index_pos_merge in pos_to_index_x_merging_lattice:
-        current_tar = index_pos_merge[0] - len(
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-        )
-        previous_target = (
-            index_pos_merge[0]
-            - 2 * len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-            - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ)
-        )
-        q_index = index_pos_merge[1]
-        merge_round_circuit.append(
-            "DETECTOR",
-            [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-            (i2q[q_index].real, i2q[q_index].imag, 0),
-        )
-
-    # Adding the Ancialla & current merging Lattice shared Detectors
-    for index_pos_merge in pos_to_index_shared_stabs:
-        current_tar = index_pos_merge[0] - len(
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-        )
-        previous_target = (
-            index_pos_merge[0]
-            - 2 * len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-            - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ)
-        )
-        q_index = index_pos_merge[1]
-        merge_round_circuit.append(
-            "DETECTOR",
-            [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-            (i2q[q_index].real, i2q[q_index].imag, 0),
-        )
-
-    #############################################################################
-    # Adding newly generated Stabilizers -> non det. measurements from prev round
-    #############################################################################
-
-    pos_to_index_newly_gen_stabs: list = []
-    first_mm_pos: list = []
-
-    if merging_type == "AC":
-        for pos, index in enumerate(
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-        ):
-            if index in (z_stab_index_surgery + z_stab_boundary_l_surgery):
-                pos_to_index_newly_gen_stabs.append([pos, index])
-
-    elif merging_type == "AT":
-        for pos, index in enumerate(
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-        ):
-            if index in (x_stab_index_surgery + x_stab_boundary_b_surgery):
-                pos_to_index_newly_gen_stabs.append([pos, index])
-
-    # Adding the needed Detectors (Newly Z/X generated Stabs)
-    for index_pos_merge in pos_to_index_newly_gen_stabs:
-        current_tar = index_pos_merge[0] - len(
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-        )
-        previous_target = (
-            index_pos_merge[0]
-            - 2 * len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-            - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ)
-        )
-        first_mm_pos.append(
-            previous_target - len(x_stab_index_untouched_circ + z_stab_index_untouched_circ),
-        )
-        q_index = index_pos_merge[1]
-        merge_round_circuit.append(
-            "DETECTOR",
-            [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-            (i2q[q_index].real, i2q[q_index].imag, 0),
-        )
-
     ############################################################################################
     # Continue CX-Implementation for untouched lattice (As AC/AT-Lattice already has a full run)
     ############################################################################################
@@ -967,13 +508,7 @@ def merge(
         noise=noise,
     )
 
-    # All Stabilizers from the Target and Control Lattice
-    control_target_stabs = (
-        x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
-    )
-
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
-    merge_round_circuit.append("TICK")
     merge_round_circuit.append("H", x_stab_index_untouched_circ)
 
     # -------Adding-After-Clifford-Depol.------------
@@ -997,88 +532,6 @@ def merge(
     # --------------------------------------------------
 
     merge_round_circuit.append("M", x_stab_index_untouched_circ + z_stab_index_untouched_circ)
-    merge_round_circuit.append("TICK")
-    merge_round_circuit.append("R", x_stab_index_untouched_circ + z_stab_index_untouched_circ)
-
-    # -------Adding-After-Reset-Flip-Prob.------------
-    if noise.after_r_flip > 0:
-        merge_round_circuit.append(
-            "X_ERROR",
-            x_stab_index_untouched_circ + z_stab_index_untouched_circ,
-            noise.after_r_flip,
-        )
-    # ------------------------------------------------
-
-    # Adding the needed Detectors for the untouched lattice
-    if merging_type == "AC":
-        # Z-Stabs
-        for index_pos_merge in pos_to_index_z_excluded_lattice:
-            current_tar = index_pos_merge[0] - len(
-                x_stab_index_untouched_circ + z_stab_index_untouched_circ,
-            )
-            previous_target = (
-                index_pos_merge[0]
-                - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-                - 2 * len(x_stab_index_untouched_circ + z_stab_index_untouched_circ)
-            )
-            q_index = index_pos_merge[1]
-            merge_round_circuit.append(
-                "DETECTOR",
-                [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-                (i2q[q_index].real, i2q[q_index].imag, 0),
-            )
-
-        # X-Stabs
-        for index_pos_merge in pos_to_index_x_excluded_lattice:
-            current_tar = index_pos_merge[0] - len(
-                x_stab_index_untouched_circ + z_stab_index_untouched_circ,
-            )
-            previous_target = (
-                index_pos_merge[0]
-                - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-                - 2 * len(x_stab_index_untouched_circ + z_stab_index_untouched_circ)
-            )
-            q_index = index_pos_merge[1]
-            merge_round_circuit.append(
-                "DETECTOR",
-                [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-                (i2q[q_index].real, i2q[q_index].imag, 0),
-            )
-
-    elif merging_type == "AT":
-        # Z-Stabs
-        for index_pos_merge in pos_to_index_z_excluded_lattice:
-            current_tar = index_pos_merge[0] - len(
-                x_stab_index_untouched_circ + z_stab_index_untouched_circ,
-            )
-            previous_target = (
-                index_pos_merge[0]
-                - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-                - 2 * len(x_stab_index_untouched_circ + z_stab_index_untouched_circ)
-            )
-            q_index = index_pos_merge[1]
-            merge_round_circuit.append(
-                "DETECTOR",
-                [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-                (i2q[q_index].real, i2q[q_index].imag, 0),
-            )
-
-        # X-Stabs
-        for index_pos_merge in pos_to_index_x_excluded_lattice:
-            current_tar = index_pos_merge[0] - len(
-                x_stab_index_untouched_circ + z_stab_index_untouched_circ,
-            )
-            previous_target = (
-                index_pos_merge[0]
-                - len(combined_z_stab_merging_lattices + combined_x_stab_merging_lattices)
-                - 2 * len(x_stab_index_untouched_circ + z_stab_index_untouched_circ)
-            )
-            q_index = index_pos_merge[1]
-            merge_round_circuit.append(
-                "DETECTOR",
-                [stim.target_rec(current_tar), stim.target_rec(previous_target)],
-                (i2q[q_index].real, i2q[q_index].imag, 0),
-            )
 
     #####################################################
     # Adding Circuits & Receving the MXX/MZZ Measurements

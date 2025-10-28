@@ -116,35 +116,65 @@ def _populate_lattice_surgery(
                         new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
                         new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
                         new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
+
                         stab_to_data[(new_cord1, coords)] = "1-CX"
                         stab_to_data[(new_cord2, coords)] = "2-CX"
                         stab_to_data[(new_cord3, coords)] = "3-CX"
                         stab_to_data[(new_cord4, coords)] = "4-CX"
-                    elif string in {"Z-STAB", "Z-STAB-SURGERY-M"}:
+
+                    elif string == "Z-STAB-SURGERY-M":
+                        # Use surgery orders for non deterministic stabilizers
                         new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                         new_cord3 = (coords.real - 1) + (coords.imag - 1) * 1j
                         new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
+
+                        stab_to_data[(coords, new_cord1)] = "1S-CX"
+                        stab_to_data[(coords, new_cord2)] = "2S-CX"
+                        stab_to_data[(coords, new_cord3)] = "3S-CX"
+                        stab_to_data[(coords, new_cord4)] = "4S-CX"
+
+                    elif string == "Z-STAB":
+                        new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
+                        new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
+                        new_cord3 = (coords.real - 1) + (coords.imag - 1) * 1j
+                        new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
+
                         stab_to_data[(coords, new_cord1)] = "1-CX"
                         stab_to_data[(coords, new_cord2)] = "2-CX"
                         stab_to_data[(coords, new_cord3)] = "3-CX"
                         stab_to_data[(coords, new_cord4)] = "4-CX"
             elif merging_type == "AT":
                 for coords, string in patch.items():
-                    if string in {"X-STAB", "X-STAB-SURGERY-M"}:
+                    if string == "X-STAB-SURGERY-M":
+                        # Use surgery orders for non deterministic stabilizers
                         new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
                         new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
                         new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
+
+                        stab_to_data[(new_cord1, coords)] = "1S-CX"
+                        stab_to_data[(new_cord2, coords)] = "2S-CX"
+                        stab_to_data[(new_cord3, coords)] = "3S-CX"
+                        stab_to_data[(new_cord4, coords)] = "4S-CX"
+
+                    elif string == "X-STAB":
+                        new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
+                        new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
+                        new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
+                        new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
+
                         stab_to_data[(new_cord1, coords)] = "1-CX"
                         stab_to_data[(new_cord2, coords)] = "2-CX"
                         stab_to_data[(new_cord3, coords)] = "3-CX"
                         stab_to_data[(new_cord4, coords)] = "4-CX"
+
                     elif string in {"Z-STAB", "Z-STAB-BOUND-L-T"}:
                         new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
                         new_cord3 = (coords.real - 1) + (coords.imag - 1) * 1j
                         new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
+
                         stab_to_data[(coords, new_cord1)] = "1-CX"
                         stab_to_data[(coords, new_cord2)] = "2-CX"
                         stab_to_data[(coords, new_cord3)] = "3-CX"
@@ -232,15 +262,25 @@ def _populate_lattice_surgery(
         else:
             if merging_type == "AC":
                 for coords, string in patch.items():
-                    if string in {"Z-STAB-BOUND-L-A", "Z-STAB-BOUND-L-C", "Z-STAB-SURGERY-L"}:
+                    if string == "Z-STAB-SURGERY-L":
+                        # Use surgery orders for non deterministic stabilizers
                         new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
+
+                        stab_to_data[(coords, new_cord1)] = "1S-CX"
+                        stab_to_data[(coords, new_cord2)] = "2S-CX"
+
+                    elif string in {"Z-STAB-BOUND-L-A", "Z-STAB-BOUND-L-C"}:
+                        new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
+                        new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
+
                         stab_to_data[(coords, new_cord1)] = "1-CX"
                         stab_to_data[(coords, new_cord2)] = "2-CX"
 
                     elif string in {"Z-STAB-BOUND-R-A", "Z-STAB-BOUND-R-C"}:
                         new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
+
                         stab_to_data[(coords, new_cord1)] = "3-CX"
                         stab_to_data[(coords, new_cord2)] = "4-CX"
 
@@ -253,6 +293,7 @@ def _populate_lattice_surgery(
                     elif string == "X-STAB-BOUND-B-C":
                         new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
+
                         stab_to_data[(new_cord1, coords)] = "2-CX"
                         stab_to_data[(new_cord2, coords)] = "1-CX"
 
@@ -261,12 +302,14 @@ def _populate_lattice_surgery(
                     if string == "Z-STAB-BOUND-L-A":
                         new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
+
                         stab_to_data[(coords, new_cord1)] = "1-CX"
                         stab_to_data[(coords, new_cord2)] = "2-CX"
 
                     elif string == "Z-STAB-BOUND-R-T":
                         new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
+
                         stab_to_data[(coords, new_cord1)] = "3-CX"
                         stab_to_data[(coords, new_cord2)] = "4-CX"
 
@@ -276,9 +319,18 @@ def _populate_lattice_surgery(
                         stab_to_data[(new_cord1, coords)] = "4-CX"
                         stab_to_data[(new_cord2, coords)] = "3-CX"
 
-                    elif string in {"X-STAB-BOUND-B-A", "X-STAB-BOUND-B-T", "X-STAB-SURGERY-B"}:
+                    elif string == "X-STAB-SURGERY-B":
+                        # Use surgery orders for non deterministic stabilizers
                         new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
                         new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
+
+                        stab_to_data[(new_cord1, coords)] = "2S-CX"
+                        stab_to_data[(new_cord2, coords)] = "1S-CX"
+
+                    elif string in {"X-STAB-BOUND-B-A", "X-STAB-BOUND-B-T"}:
+                        new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
+                        new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
+
                         stab_to_data[(new_cord1, coords)] = "2-CX"
                         stab_to_data[(new_cord2, coords)] = "1-CX"
 
@@ -684,7 +736,11 @@ def populate_stab_to_data(patch: dict[Coord, Label], *args, **kwargs):
         merging = kwargs.get("merging", merging)
         merging_type = kwargs.get("merging_type", kwargs.get("merging_type", merging_type))
 
-        return _populate_lattice_surgery(patch, merging=bool(merging), merging_type=merging_type)
+        return _populate_lattice_surgery(
+            patch,
+            merging=bool(merging),
+            merging_type=merging_type,
+        )
 
     # Otherwise treat as surface/rotated code
     # Map surface kwargs with defaults matching original signature

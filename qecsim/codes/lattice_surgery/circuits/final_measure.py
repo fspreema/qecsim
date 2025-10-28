@@ -1,5 +1,6 @@
 import stim
 
+from qecsim.codes.lattice_surgery.logical_strings import get_logical_strings
 from qecsim.core.data_models import (
     ConfigLatticeSurgery as Config,
     LatticeContext,
@@ -23,7 +24,6 @@ def final_m(
     #################################################
 
     # -Loading in Patches
-    ancilla_patch = patches["ancilla"]
     target_patch = patches["target"]
     control_patch = patches["control"]
 
@@ -33,20 +33,20 @@ def final_m(
     control_state_init = cfg.control_state_init
     target_state_init = cfg.target_state_init
 
-    # -Retrieving Lattice Coords
-    qubit_coords_control = control_patch.coords
-    qubit_coords_target = target_patch.coords
-
     # -Retrieving Data Coords
-    data_ancilla = ancilla_patch.data
     data_control = control_patch.data
     data_target = target_patch.data
 
-    # -Retrieving Index from Stabilizers of the Lattices
-    x_stab_index_control = control_patch.x_stab
-    z_stab_index_control = control_patch.z_stab
-    x_stab_index_target = target_patch.x_stab
-    z_stab_index_target = target_patch.z_stab
+    # -Get all logical operator strings
+    log_strings_shift = get_logical_strings(
+        q2i,
+        distance,
+        shift_cx_for_y=True,
+        shift_tz_for_y=True,
+        shift_tx_for_y=True,
+        shift_cz_for_y=True,
+    )
+    log_strings = get_logical_strings(q2i, distance)
 
     ##############################
     # Initlize Measurement Circuit
@@ -60,477 +60,37 @@ def final_m(
 
     measure_circuit.append("TICK")
 
-    if control_state_init in {"X+", "X-"}:
-        # -------Adding measurement Flip Prob.--------------
-        if before_m_flip_prob > 0:
-            measure_circuit.append("X_ERROR", data_control, before_m_flip_prob)
-        # --------------------------------------------------
-        measure_circuit.append("MX", data_control)
+    if control_state_init in {"Y+", "Y-"} or target_state_init in {"Y+", "Y-"}:
+        # Y-including flows are handled per-flow below (measure only logical strings)
+        pass
+    else:
+        if control_state_init in {"X+", "X-"}:
+            # -------Adding measurement Flip Prob.--------------
+            if before_m_flip_prob > 0:
+                measure_circuit.append("X_ERROR", data_control, before_m_flip_prob)
+            # --------------------------------------------------
+            measure_circuit.append("MX", data_control)
 
-    elif control_state_init in {"Z0", "Z1"}:
-        # -------Adding measurement Flip Prob.--------------
-        if before_m_flip_prob > 0:
-            measure_circuit.append("X_ERROR", data_control, before_m_flip_prob)
-        # --------------------------------------------------
-        measure_circuit.append("MZ", data_control)
-
-    if target_state_init in {"X+", "X-"}:
-        # -------Adding measurement Flip Prob.--------------
-        if before_m_flip_prob > 0:
-            measure_circuit.append("X_ERROR", data_target, before_m_flip_prob)
-        # --------------------------------------------------
-        measure_circuit.append("MX", data_target)
-
-    elif target_state_init in {"Z0", "Z1"}:
-        # -------Adding measurement Flip Prob.--------------
-        if before_m_flip_prob > 0:
-            measure_circuit.append("X_ERROR", data_target, before_m_flip_prob)
-        # --------------------------------------------------
-        measure_circuit.append("MZ", data_target)
-
-    ########################
-    # Adding final Detectors
-    ########################
-
-    # -> Defining Data to measurement indexing
-    control_target_stabs = (
-        x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
-    )
-
-    index_to_rec_data: dict[int, int] = {
-        q: i for i, q in enumerate(reversed(data_control + data_target))
-    }
-    index_to_rec_ancilla: dict[int, int] = {
-        q: i for i, q in enumerate(reversed(control_target_stabs))
-    }
-
-    # Target
-    for q, qtype in qubit_coords_target.items():
-        if target_state_init in {"Z0", "Z1"}:
-            if qtype == "Z-STAB":
-                # Needed Data Qubits
-                upper_left = (q.real - 1) + (q.imag - 1) * 1j
-                upper_right = q.real + 1 + (q.imag - 1) * 1j
-                lower_left = q.real - 1 + (q.imag + 1) * 1j
-                lower_right = q.real + 1 + (q.imag + 1) * 1j
-
-                # Finding the Correct Data Index
-                index_upper_left = q2i[upper_left]
-                index_upper_right = q2i[upper_right]
-                index_lower_left = q2i[lower_left]
-                index_lower_right = q2i[lower_right]
-
-                # Defining the current record targets
-                current_record = [
-                    -index_to_rec_data[index_upper_left] - 1,
-                    -index_to_rec_data[index_upper_right] - 1,
-                    -index_to_rec_data[index_lower_left] - 1,
-                    -index_to_rec_data[index_lower_right] - 1,
-                ]
-
-                # Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [
-                    -index_to_rec_ancilla[ancilla_index]
-                    - 1
-                    - len(data_control)
-                    - len(data_target)
-                    - len(data_ancilla),
-                ]
-
-                # Combining the record targets
-                final_record = current_record + last_record
-
-                # Appending Detector
-                measure_circuit.append(
-                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
-                )
-
-            elif qtype == "Z-STAB-BOUND-L-T":
-                # Needed Data Qubits
-                upper_right = q.real + 1 + (q.imag - 1) * 1j
-                lower_right = q.real + 1 + (q.imag + 1) * 1j
-
-                # Finding the Correct Data Index
-                index_upper_right = q2i[upper_right]
-                index_lower_right = q2i[lower_right]
-
-                # Defining the current record targets
-                current_record = [
-                    -index_to_rec_data[index_upper_right] - 1,
-                    -index_to_rec_data[index_lower_right] - 1,
-                ]
-
-                # Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [
-                    -index_to_rec_ancilla[ancilla_index]
-                    - 1
-                    - len(data_control)
-                    - len(data_target)
-                    - len(data_ancilla),
-                ]
-
-                # Combining the record targets
-                final_record = current_record + last_record
-
-                # Appending Detector
-                measure_circuit.append(
-                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
-                )
-
-            elif qtype == "Z-STAB-BOUND-R-T":
-                # Needed Data Qubits
-                upper_left = (q.real - 1) + (q.imag - 1) * 1j
-                lower_left = q.real - 1 + (q.imag + 1) * 1j
-
-                # Finding the Correct Data Index
-                index_upper_left = q2i[upper_left]
-                index_lower_left = q2i[lower_left]
-
-                # Defining the current record targets
-                current_record = [
-                    -index_to_rec_data[index_upper_left] - 1,
-                    -index_to_rec_data[index_lower_left] - 1,
-                ]
-
-                # Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [
-                    -index_to_rec_ancilla[ancilla_index]
-                    - 1
-                    - len(data_control)
-                    - len(data_target)
-                    - len(data_ancilla),
-                ]
-
-                # Combining the record targets
-                final_record = current_record + last_record
-
-                # Appending Detector
-                measure_circuit.append(
-                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
-                )
+        elif control_state_init in {"Z0", "Z1"}:
+            # -------Adding measurement Flip Prob.--------------
+            if before_m_flip_prob > 0:
+                measure_circuit.append("X_ERROR", data_control, before_m_flip_prob)
+            # --------------------------------------------------
+            measure_circuit.append("MZ", data_control)
 
         if target_state_init in {"X+", "X-"}:
-            if qtype == "X-STAB":
-                # Needed Data Qubits
-                upper_left = (q.real - 1) + (q.imag - 1) * 1j
-                upper_right = q.real + 1 + (q.imag - 1) * 1j
-                lower_left = q.real - 1 + (q.imag + 1) * 1j
-                lower_right = q.real + 1 + (q.imag + 1) * 1j
+            # -------Adding measurement Flip Prob.--------------
+            if before_m_flip_prob > 0:
+                measure_circuit.append("X_ERROR", data_target, before_m_flip_prob)
+            # --------------------------------------------------
+            measure_circuit.append("MX", data_target)
 
-                # Finding the Correct Data Index
-                index_upper_left = q2i[upper_left]
-                index_upper_right = q2i[upper_right]
-                index_lower_left = q2i[lower_left]
-                index_lower_right = q2i[lower_right]
-
-                # Defining the current record targets
-                current_record = [
-                    -index_to_rec_data[index_upper_left] - 1,
-                    -index_to_rec_data[index_upper_right] - 1,
-                    -index_to_rec_data[index_lower_left] - 1,
-                    -index_to_rec_data[index_lower_right] - 1,
-                ]
-
-                # Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [
-                    -index_to_rec_ancilla[ancilla_index]
-                    - 1
-                    - len(data_control)
-                    - len(data_target)
-                    - len(data_ancilla),
-                ]
-
-                # Combining the record targets
-                final_record = current_record + last_record
-
-                # Appending Detector
-                measure_circuit.append(
-                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
-                )
-
-            elif qtype == "X-STAB-BOUND-A-T":
-                # Needed Data Qubits
-                lower_right = q.real + 1 + (q.imag + 1) * 1j
-                lower_left = q.real - 1 + (q.imag + 1) * 1j
-
-                # Finding the Correct Data Index
-                index_lower_right = q2i[lower_right]
-                index_lower_left = q2i[lower_left]
-
-                # Defining the current record targets
-                current_record = [
-                    -index_to_rec_data[index_lower_right] - 1,
-                    -index_to_rec_data[index_lower_left] - 1,
-                ]
-
-                # Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [
-                    -index_to_rec_ancilla[ancilla_index]
-                    - 1
-                    - len(data_control)
-                    - len(data_target)
-                    - len(data_ancilla),
-                ]
-
-                # Combining the record targets
-                final_record = current_record + last_record
-
-                # Appending Detector
-                measure_circuit.append(
-                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
-                )
-
-            elif qtype == "X-STAB-BOUND-B-T":
-                # Needed Data Qubits
-                upper_right = (q.real + 1) + (q.imag - 1) * 1j
-                upper_left = q.real - 1 + (q.imag - 1) * 1j
-
-                # Finding the Correct Data Index
-                index_upper_right = q2i[upper_right]
-                index_upper_left = q2i[upper_left]
-
-                # Defining the current record targets
-                current_record = [
-                    -index_to_rec_data[index_upper_right] - 1,
-                    -index_to_rec_data[index_upper_left] - 1,
-                ]
-
-                # Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [
-                    -index_to_rec_ancilla[ancilla_index]
-                    - 1
-                    - len(data_control)
-                    - len(data_target)
-                    - len(data_ancilla),
-                ]
-
-                # Combining the record targets
-                final_record = current_record + last_record
-
-                # Appending Detector
-                measure_circuit.append(
-                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
-                )
-
-    # Control
-    for q, qtype in qubit_coords_control.items():
-        if control_state_init in {"Z0", "Z1"}:
-            if qtype == "Z-STAB":
-                # Needed Data Qubits
-                upper_left = (q.real - 1) + (q.imag - 1) * 1j
-                upper_right = q.real + 1 + (q.imag - 1) * 1j
-                lower_left = q.real - 1 + (q.imag + 1) * 1j
-                lower_right = q.real + 1 + (q.imag + 1) * 1j
-
-                # Finding the Correct Data Index
-                index_upper_left = q2i[upper_left]
-                index_upper_right = q2i[upper_right]
-                index_lower_left = q2i[lower_left]
-                index_lower_right = q2i[lower_right]
-
-                # Defining the current record targets
-                current_record = [
-                    -index_to_rec_data[index_upper_left] - 1,
-                    -index_to_rec_data[index_upper_right] - 1,
-                    -index_to_rec_data[index_lower_left] - 1,
-                    -index_to_rec_data[index_lower_right] - 1,
-                ]
-
-                # Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [
-                    -index_to_rec_ancilla[ancilla_index]
-                    - 1
-                    - len(data_control)
-                    - len(data_target)
-                    - len(data_ancilla),
-                ]
-
-                # Combining the record targets
-                final_record = current_record + last_record
-
-                # Appending Detector
-                measure_circuit.append(
-                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
-                )
-
-            elif qtype == "Z-STAB-BOUND-L-C":
-                # Needed Data Qubits
-                upper_right = q.real + 1 + (q.imag - 1) * 1j
-                lower_right = q.real + 1 + (q.imag + 1) * 1j
-
-                # Finding the Correct Data Index
-                index_upper_right = q2i[upper_right]
-                index_lower_right = q2i[lower_right]
-
-                # Defining the current record targets
-                current_record = [
-                    -index_to_rec_data[index_upper_right] - 1,
-                    -index_to_rec_data[index_lower_right] - 1,
-                ]
-
-                # Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [
-                    -index_to_rec_ancilla[ancilla_index]
-                    - 1
-                    - len(data_control)
-                    - len(data_target)
-                    - len(data_ancilla),
-                ]
-
-                # Combining the record targets
-                final_record = current_record + last_record
-
-                # Appending Detector
-                measure_circuit.append(
-                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
-                )
-
-            elif qtype == "Z-STAB-BOUND-R-C":
-                # Needed Data Qubits
-                upper_left = (q.real - 1) + (q.imag - 1) * 1j
-                lower_left = q.real - 1 + (q.imag + 1) * 1j
-
-                # Finding the Correct Data Index
-                index_upper_left = q2i[upper_left]
-                index_lower_left = q2i[lower_left]
-
-                # Defining the current record targets
-                current_record = [
-                    -index_to_rec_data[index_upper_left] - 1,
-                    -index_to_rec_data[index_lower_left] - 1,
-                ]
-
-                # Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [
-                    -index_to_rec_ancilla[ancilla_index]
-                    - 1
-                    - len(data_control)
-                    - len(data_target)
-                    - len(data_ancilla),
-                ]
-
-                # Combining the record targets
-                final_record = current_record + last_record
-
-                # Appending Detector
-                measure_circuit.append(
-                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
-                )
-
-        if control_state_init in {"X+", "X-"}:
-            if qtype == "X-STAB":
-                # Needed Data Qubits
-                upper_left = (q.real - 1) + (q.imag - 1) * 1j
-                upper_right = q.real + 1 + (q.imag - 1) * 1j
-                lower_left = q.real - 1 + (q.imag + 1) * 1j
-                lower_right = q.real + 1 + (q.imag + 1) * 1j
-
-                # Finding the Correct Data Index
-                index_upper_left = q2i[upper_left]
-                index_upper_right = q2i[upper_right]
-                index_lower_left = q2i[lower_left]
-                index_lower_right = q2i[lower_right]
-
-                # Defining the current record targets
-                current_record = [
-                    -index_to_rec_data[index_upper_left] - 1,
-                    -index_to_rec_data[index_upper_right] - 1,
-                    -index_to_rec_data[index_lower_left] - 1,
-                    -index_to_rec_data[index_lower_right] - 1,
-                ]
-
-                # Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [
-                    -index_to_rec_ancilla[ancilla_index]
-                    - 1
-                    - len(data_control)
-                    - len(data_target)
-                    - len(data_ancilla),
-                ]
-
-                # Combining the record targets
-                final_record = current_record + last_record
-
-                # Appending Detector
-                measure_circuit.append(
-                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
-                )
-
-            elif qtype == "X-STAB-BOUND-A-C":
-                # Needed Data Qubits
-                lower_right = q.real + 1 + (q.imag + 1) * 1j
-                lower_left = q.real - 1 + (q.imag + 1) * 1j
-
-                # Finding the Correct Data Index
-                index_lower_right = q2i[lower_right]
-                index_lower_left = q2i[lower_left]
-
-                # Defining the current record targets
-                current_record = [
-                    -index_to_rec_data[index_lower_right] - 1,
-                    -index_to_rec_data[index_lower_left] - 1,
-                ]
-
-                # Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [
-                    -index_to_rec_ancilla[ancilla_index]
-                    - 1
-                    - len(data_control)
-                    - len(data_target)
-                    - len(data_ancilla),
-                ]
-
-                # Combining the record targets
-                final_record = current_record + last_record
-
-                # Appending Detector
-                measure_circuit.append(
-                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
-                )
-
-            elif qtype == "X-STAB-BOUND-B-C":
-                # Needed Data Qubits
-                upper_right = (q.real + 1) + (q.imag - 1) * 1j
-                upper_left = q.real - 1 + (q.imag - 1) * 1j
-
-                # Finding the Correct Data Index
-                index_upper_right = q2i[upper_right]
-                index_upper_left = q2i[upper_left]
-
-                # Defining the current record targets
-                current_record = [
-                    -index_to_rec_data[index_upper_right] - 1,
-                    -index_to_rec_data[index_upper_left] - 1,
-                ]
-
-                # Defining the last record targets (Normal Detectors from last round)
-                ancilla_index = q2i[q]
-                last_record = [
-                    -index_to_rec_ancilla[ancilla_index]
-                    - 1
-                    - len(data_control)
-                    - len(data_target)
-                    - len(data_ancilla),
-                ]
-
-                # Combining the record targets
-                final_record = current_record + last_record
-
-                # Appending Detector
-                measure_circuit.append(
-                    "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
-                )
+        elif target_state_init in {"Z0", "Z1"}:
+            # -------Adding measurement Flip Prob.--------------
+            if before_m_flip_prob > 0:
+                measure_circuit.append("X_ERROR", data_target, before_m_flip_prob)
+            # --------------------------------------------------
+            measure_circuit.append("MZ", data_target)
 
     ##############################
     # Defining Logical Observables
@@ -542,13 +102,7 @@ def final_m(
         if control_state_init in {"X+", "X-"}:
             if target_state_init in {"X+", "X-"}:
                 # Control stabilized by x logical
-                log_x_ct = []
-
-                for imag in range(((distance * 2) + 1), (distance * 4), 2):
-                    log_x_ct.append(q2i[1 + imag * 1j])
-
-                for imag in range(1, (distance * 2), 2):
-                    log_x_ct.append(q2i[((distance * 2) + 1) + imag * 1j])
+                log_x_ct = log_strings["c_x"] + log_strings["t_x"]
 
                 tar_rec = []
 
@@ -566,10 +120,7 @@ def final_m(
         if control_state_init in {"X+", "X-"}:
             if target_state_init in {"X+", "X-"}:
                 # Control stabilized by x logical
-                log_x_c = []
-
-                for imag in range(((distance * 2) + 1), (distance * 4), 2):
-                    log_x_c.append(q2i[1 + imag * 1j])
+                log_x_c = log_strings["c_x"]
 
                 tar_rec = []
 
@@ -587,10 +138,7 @@ def final_m(
         if control_state_init in {"X+", "X-", "Z0", "Z1"}:
             if target_state_init in {"X+", "X-"}:
                 # Control stabilized by x logical
-                log_x_t = []
-
-                for imag in range(1, (distance * 2), 2):
-                    log_x_t.append(q2i[((distance * 2) + 1) + imag * 1j])
+                log_x_t = log_strings["t_x"]
 
                 tar_rec = []
 
@@ -610,13 +158,7 @@ def final_m(
         if control_state_init in {"Z0", "Z1"}:
             if target_state_init in {"Z0", "Z1"}:
                 # Control stabilized by x logical
-                log_z_ct = []
-
-                for real in range(1, (distance * 2), 2):
-                    log_z_ct.append(q2i[real + ((distance * 2) + 1) * 1j])
-
-                for real in range(((distance * 2) + 1), (distance * 4), 2):
-                    log_z_ct.append(q2i[real + 1j])
+                log_z_ct = log_strings["c_z"] + log_strings["t_z"]
 
                 tar_rec = []
 
@@ -634,10 +176,7 @@ def final_m(
         if control_state_init in {"Z0", "Z1"}:
             if target_state_init in {"Z0", "Z1"}:
                 # Control stabilized by x logical
-                log_z_t = []
-
-                for real in range(((distance * 2) + 1), (distance * 4), 2):
-                    log_z_t.append(q2i[real + 1j])
+                log_z_t = log_strings["t_z"]
 
                 tar_rec = []
 
@@ -655,10 +194,7 @@ def final_m(
         if control_state_init in {"Z0", "Z1"}:
             if target_state_init in {"Z0", "Z1", "X+", "X-"}:
                 # Control stabilized by x logical
-                log_z_c = []
-
-                for real in range(1, (distance * 2), 2):
-                    log_z_c.append(q2i[real + ((distance * 2) + 1) * 1j])
+                log_z_c = log_strings["c_z"]
 
                 tar_rec = []
 
@@ -677,15 +213,8 @@ def final_m(
     elif flow == "ZX -> ZX":
         if control_state_init in {"Z0", "Z1"}:
             if target_state_init in {"X+", "X-"}:
-                # Control stabilized by x logical
-                combined_log_xz = []
-
-                for real in range(1, (distance * 2), 2):
-                    combined_log_xz.append(q2i[real + ((distance * 2) + 1) * 1j])
-
-                # Target stabilized by z logical
-                for imag in range(1, (distance * 2), 2):
-                    combined_log_xz.append(q2i[((distance * 2) + 1) + imag * 1j])
+                # Control stabilized by z logical, Target stabilized by x logical
+                combined_log_xz = log_strings["c_z"] + log_strings["t_x"]
 
                 tar_rec = []
 
@@ -698,5 +227,155 @@ def final_m(
                     [stim.target_rec(-len(data_control + data_target) + k) for k in tar_rec],
                     0,
                 )
+
+    # -----------------------Y-Included-measurements----------------
+
+    elif flow == "YZ -> XY":
+        # RHS: control X, target Y
+        k_count = 0
+
+        # Control X logical -> measure MX on c_x indices
+        c_x = log_strings_shift["c_x"]
+        measure_circuit.append("MX", c_x)
+        k_count += len(c_x)
+
+        # Target Y logical -> measure MZ on z_string, MY on corner, MX on x_string
+        t_y = log_strings["t_y"]
+        measure_circuit.append("MZ", t_y["z_string"])
+        k_count += len(t_y["z_string"])
+
+        measure_circuit.append("MY", t_y["y_corner"])
+        k_count += len(t_y["y_corner"])
+
+        measure_circuit.append("MX", t_y["x_string"])
+        k_count += len(t_y["x_string"])
+
+        # Include last k_count measurements as the observable
+        measure_circuit.append(
+            "OBSERVABLE_INCLUDE",
+            [stim.target_rec(-i) for i in range(1, k_count + 1)],
+            0,
+        )
+
+    elif flow == "YI -> YX":
+        # RHS: control Y, target X
+        k_count = 0
+
+        # Control Y logical
+        c_y = log_strings["c_y"]
+        measure_circuit.append("MZ", c_y["z_string"])
+        k_count += len(c_y["z_string"])
+
+        measure_circuit.append("MY", c_y["y_corner"])
+        k_count += len(c_y["y_corner"])
+
+        measure_circuit.append("MX", c_y["x_string"])
+        k_count += len(c_y["x_string"])
+
+        # Target X logical
+        t_x = log_strings["t_x"]
+        if before_m_flip_prob > 0:
+            measure_circuit.append("X_ERROR", t_x, before_m_flip_prob)
+        measure_circuit.append("MX", t_x)
+        k_count += len(t_x)
+
+        measure_circuit.append(
+            "OBSERVABLE_INCLUDE",
+            [stim.target_rec(-i) for i in range(1, k_count + 1)],
+            0,
+        )
+
+    elif flow == "YX -> YI":
+        # RHS: control Y, target I (no target logical measurement)
+        k_count = 0
+
+        # Control Y logical
+        c_y = log_strings["c_y"]
+        measure_circuit.append("MZ", c_y["z_string"])
+        k_count += len(c_y["z_string"])
+
+        measure_circuit.append("MY", c_y["y_corner"])
+        k_count += len(c_y["y_corner"])
+
+        measure_circuit.append("MX", c_y["x_string"])
+        k_count += len(c_y["x_string"])
+
+        measure_circuit.append(
+            "OBSERVABLE_INCLUDE",
+            [stim.target_rec(-i) for i in range(1, k_count + 1)],
+            0,
+        )
+
+    elif flow == "YY -> XZ":
+        # RHS: control X, target Z
+        k_count = 0
+
+        # Control X logical
+        c_x = log_strings["c_x"]
+        measure_circuit.append("MX", c_x)
+        k_count += len(c_x)
+
+        # Target Z logical
+        t_z = log_strings["t_z"]
+        measure_circuit.append("MZ", t_z)
+        k_count += len(t_z)
+
+        measure_circuit.append(
+            "OBSERVABLE_INCLUDE",
+            [stim.target_rec(-i) for i in range(1, k_count + 1)],
+            0,
+        )
+
+    elif flow == "IY -> ZY":
+        # RHS: control Z, target Y
+        k_count = 0
+
+        # Control Z logical
+        c_z = log_strings["c_z"]
+        measure_circuit.append("MZ", c_z)
+        k_count += len(c_z)
+
+        # Target Y logical
+        t_y = log_strings["t_y"]
+        measure_circuit.append("MZ", t_y["z_string"])
+        k_count += len(t_y["z_string"])
+
+        measure_circuit.append("MY", t_y["y_corner"])
+        k_count += len(t_y["y_corner"])
+
+        measure_circuit.append("MX", t_y["x_string"])
+        k_count += len(t_y["x_string"])
+
+        measure_circuit.append(
+            "OBSERVABLE_INCLUDE",
+            [stim.target_rec(-i) for i in range(1, k_count + 1)],
+            0,
+        )
+
+    elif flow == "XY -> YZ":
+        # RHS: control Y, target Z
+        k_count = 0
+
+        # Control Y logical
+        c_y = log_strings["c_y"]
+        measure_circuit.append("MZ", c_y["z_string"])
+        k_count += len(c_y["z_string"])
+
+        measure_circuit.append("MY", c_y["y_corner"])
+        k_count += len(c_y["y_corner"])
+
+        measure_circuit.append("MX", c_y["x_string"])
+        k_count += len(c_y["x_string"])
+
+        # Target Z logical
+        t_z = log_strings["t_z"]
+        measure_circuit.append("MZ", t_z)
+        k_count += len(t_z)
+
+        measure_circuit.append(
+            "OBSERVABLE_INCLUDE",
+            [stim.target_rec(-i) for i in range(1, k_count + 1)],
+            0,
+        )
 
     return measure_circuit
