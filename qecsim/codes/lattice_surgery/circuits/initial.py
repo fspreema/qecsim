@@ -110,28 +110,27 @@ def initial(
             combined_x_stab.append(coords)
 
     initial_circuit.append("H", combined_x_stab)
-
     initial_circuit.append("TICK")
 
-    ####################################################
-    # CX Operations
-    ####################################################
-
-    cx_builder(q2i=q2i, stab_to_data=stab_to_data, circuit=initial_circuit, noise=noise)
+    # CX Operations for Ancilla qubits
+    cx_builder(
+        q2i=q2i,
+        stab_to_data=stab_to_data,
+        circuit=initial_circuit,
+    )
 
     # Retreive Boundary + Normal Stabilizers Ancilla
     # (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!)
     initial_circuit.append("H", x_stab_index_ancilla)
-
     initial_circuit.append("TICK")
 
     initial_circuit.append("M", x_stab_index_ancilla + z_stab_index_ancilla)
     initial_circuit.append("TICK")
+
     initial_circuit.append("R", x_stab_index_ancilla + z_stab_index_ancilla)
-
     initial_circuit.append("TICK")
-    initial_circuit.append("H", x_stab_boundary_b_index_ancilla)
 
+    initial_circuit.append("H", x_stab_boundary_b_index_ancilla)
     initial_circuit.append("TICK")
 
     # Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
@@ -140,12 +139,10 @@ def initial(
         stab_to_data=stab_to_data,
         circuit=initial_circuit,
         orders=("5-CX", "6-CX"),
-        noise=noise,
     )
 
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     initial_circuit.append("H", x_stab_index_control + x_stab_index_target)
-
     initial_circuit.append("TICK")
 
     initial_circuit.append("M", control_target_stabs)
@@ -165,25 +162,25 @@ def initial(
 
     initial_repeat_circuit.append("TICK")
 
-    ####################################################
-    # CX Operations
-    ####################################################
-
-    cx_builder(q2i=q2i, stab_to_data=stab_to_data, circuit=initial_repeat_circuit, noise=noise)
+    # CX Operations for Ancilla qubits
+    cx_builder(
+        q2i=q2i,
+        stab_to_data=stab_to_data,
+        circuit=initial_repeat_circuit,
+    )
 
     # Retreive Boundary + Normal Stabilizers Ancilla
-    # (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!)
+    # I.e. Basis change and measurement of ancilla
     initial_repeat_circuit.append("H", x_stab_index_ancilla)
-
     initial_repeat_circuit.append("TICK")
 
     initial_repeat_circuit.append("M", x_stab_index_ancilla + z_stab_index_ancilla)
     initial_repeat_circuit.append("TICK")
+
     initial_repeat_circuit.append("R", x_stab_index_ancilla + z_stab_index_ancilla)
-
     initial_repeat_circuit.append("TICK")
-    initial_repeat_circuit.append("H", x_stab_boundary_b_index_ancilla)
 
+    initial_repeat_circuit.append("H", x_stab_boundary_b_index_ancilla)
     initial_repeat_circuit.append("TICK")
 
     # Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
@@ -192,12 +189,10 @@ def initial(
         stab_to_data=stab_to_data,
         circuit=initial_repeat_circuit,
         orders=("5-CX", "6-CX"),
-        noise=noise,
     )
 
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     initial_repeat_circuit.append("H", x_stab_index_control + x_stab_index_target)
-
     initial_repeat_circuit.append("TICK")
 
     initial_repeat_circuit.append("M", control_target_stabs)

@@ -1,7 +1,7 @@
 import stim
 
 from qecsim.codes.lattice_surgery.logical_strings import get_logical_strings
-from qecsim.core.circuit_utils import normalize_ticks
+from qecsim.core.add_noise import CircuitNoise
 from qecsim.core.data_models import (
     ConfigLatticeSurgery as Config,
     LatticeContext,
@@ -711,7 +711,27 @@ def surgery_circuit(
 
     ##########################################
     # Adding noise depending on noise selected
-    ###########################################
+    ##########################################
+
+    # 1) Circuit Noise Model
+    if (
+        noise.before_m_flip_prob > 0.0
+        or noise.after_r_flip > 0.0
+        or noise.after_c_depol_prob > 0.0
+        or noise.before_round_depol > 0.0
+    ):
+        # Create noise dict
+        noise_dict = {
+            "before_round_depol": noise.before_round_depol,
+            "before_m_flip_prob": noise.before_m_flip_prob,
+            "after_r_flip": noise.after_r_flip,
+            "after_c_depol_prob": noise.after_c_depol_prob,
+        }
+
+        circuit_noise_builder = CircuitNoise(circuit=reset_circ, noise=noise_dict)
+
+        # Building final circuit with noise
+        return_circuit = circuit_noise_builder.apply()
 
     # Normalize to avoid double TICKs after composing subcircuits
-    return normalize_ticks(reset_circ)
+    return return_circuit

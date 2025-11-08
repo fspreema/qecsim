@@ -264,22 +264,20 @@ def merge(
     )
 
     # Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement):
+    # I.e. return to Z-Basis where needed and Measure
     merge_init_circuit.append("H", combined_x_stab_merging_lattices)
-
     merge_init_circuit.append("TICK")
 
     merge_init_circuit.append(
         "M",
         combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
     )
-
     merge_init_circuit.append("TICK")
 
     merge_init_circuit.append(
         "R",
         combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
     )
-
     merge_init_circuit.append("TICK")
 
     #########################################
@@ -315,7 +313,7 @@ def merge(
     # Defining Repeat Circuit
     merge_round_circuit = stim.Circuit()
 
-    # Adding reset from initial round
+    # Reinitializing Stabilizers and add basis change where needed
     merge_round_circuit.append("TICK")
     merge_round_circuit.append("R", x_stab_index_untouched_circ + z_stab_index_untouched_circ)
 
@@ -324,10 +322,7 @@ def merge(
 
     merge_round_circuit.append("TICK")
 
-    ###############
-    # CX Operations
-    ###############
-
+    # CX Operations for Ancilla qubits
     cx_builder(
         q2i=q2i,
         stab_to_data=joined_dict,
@@ -335,8 +330,8 @@ def merge(
     )
 
     # Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement):
+    # I.e. return to Z-Basis where needed and Measure
     merge_round_circuit.append("H", combined_x_stab_merging_lattices)
-
     merge_round_circuit.append("TICK")
 
     merge_round_circuit.append(
@@ -344,11 +339,11 @@ def merge(
         combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
     )
     merge_round_circuit.append("TICK")
+
     merge_round_circuit.append(
         "R",
         combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
     )
-
     merge_round_circuit.append("TICK")
 
     ############################################################################################
@@ -373,6 +368,7 @@ def merge(
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     merge_round_circuit.append("H", x_stab_index_untouched_circ)
     merge_round_circuit.append("TICK")
+
     merge_round_circuit.append("M", x_stab_index_untouched_circ + z_stab_index_untouched_circ)
 
     #####################################################

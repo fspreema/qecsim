@@ -385,7 +385,6 @@ def reset(
             build_y_circ += y_initial(
                 lct=lct_y_control,
                 patch=patches_control["patch"],
-                noise=noise,
                 offset=offset_control,
             ).circuit
 
@@ -402,7 +401,6 @@ def reset(
                 patch=patches_control["patch"],
                 offset=offset_control,
                 cfg=cfg_y_control,
-                noise=noise,
             ).circuit
 
             build_y_circ += rep_circ_control
@@ -460,7 +458,6 @@ def reset(
             build_y_circ += y_initial(
                 lct=lct_y_target,
                 patch=patches_target["patch"],
-                noise=noise,
                 offset=offset_target,
             ).circuit
 
@@ -477,7 +474,6 @@ def reset(
                 patch=patches_target["patch"],
                 offset=offset_target,
                 cfg=cfg_y_target,
-                noise=noise,
             ).circuit
 
             build_y_circ += rep_circ_target
@@ -551,7 +547,6 @@ def reset(
             build_y_circ += y_initial(
                 lct=lct_y,
                 patch=patches["patch"],
-                noise=noise,
                 offset=curr_offset,
             ).circuit
 
@@ -568,7 +563,6 @@ def reset(
                 patch=patches["patch"],
                 offset=curr_offset,
                 cfg=cfg_y,
-                noise=noise,
             ).circuit
 
             build_y_circ += rep_circ

@@ -92,9 +92,9 @@ def split(
         q2i[q] for q, qtype in qubit_coords_surgery.items() if qtype == "X-STAB-SURGERY-B"
     ]
 
-    ##############################
+    ###################
     # Pre Round resets
-    ##############################
+    ###################
 
     # Adding resets from merge ac & at
     split_init_circuit.append("TICK")
@@ -107,15 +107,10 @@ def split(
             combined_x_stab.append(coords)
 
     split_init_circuit.append("TICK")
-
     split_init_circuit.append("H", combined_x_stab)
 
-    ####################################################
-    # CX Operations
-    ####################################################
-
+    # CX Operations for Ancilla
     split_init_circuit.append("TICK")
-
     cx_builder(
         q2i=q2i,
         stab_to_data=stab_to_data,
@@ -123,18 +118,17 @@ def split(
     )
 
     # Retreive Boundary + Normal Stabilizers Ancilla
-    # (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!)
+    # I.e. Basis switch and measurement of ancillas
     split_init_circuit.append("H", x_stab_index_ancilla)
-
     split_init_circuit.append("TICK")
 
     split_init_circuit.append("M", x_stab_index_ancilla + z_stab_index_ancilla)
     split_init_circuit.append("TICK")
+
     split_init_circuit.append("R", x_stab_index_ancilla + z_stab_index_ancilla)
-
     split_init_circuit.append("TICK")
-    split_init_circuit.append("H", x_stab_boundary_b_index_ancilla)
 
+    split_init_circuit.append("H", x_stab_boundary_b_index_ancilla)
     split_init_circuit.append("TICK")
 
     # Determining Position in the measurement Run of only the Ancilla
@@ -177,7 +171,6 @@ def split(
 
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     split_init_circuit.append("H", x_stab_index_control + x_stab_index_target)
-
     split_init_circuit.append("TICK")
 
     split_init_circuit.append("M", control_target_stabs)
@@ -188,7 +181,7 @@ def split(
 
     split_repeat_circuit = stim.Circuit()
 
-    # Adding Reset operations from previous round
+    # Reset Ancilla and prepare measurement basis
     split_repeat_circuit.append("TICK")
     split_repeat_circuit.append("R", control_target_stabs)
 
@@ -197,10 +190,7 @@ def split(
 
     split_repeat_circuit.append("TICK")
 
-    ####################################################
-    # CX Operations
-    ####################################################
-
+    # CX Operations for Ancilla
     cx_builder(
         q2i=q2i,
         stab_to_data=stab_to_data,
@@ -208,22 +198,22 @@ def split(
     )
 
     # Retreive Boundary + Normal Stabilizers Ancilla:
+    # I.e. Basis switch and measurement of ancillas
     split_repeat_circuit.append("H", x_stab_index_ancilla)
-
     split_repeat_circuit.append("TICK")
 
     split_repeat_circuit.append("M", x_stab_index_ancilla + z_stab_index_ancilla)
     split_repeat_circuit.append("TICK")
+
     split_repeat_circuit.append("R", x_stab_index_ancilla + z_stab_index_ancilla)
-
     split_repeat_circuit.append("TICK")
+
     split_repeat_circuit.append("H", x_stab_boundary_b_index_ancilla)
-
     split_repeat_circuit.append("TICK")
 
-    ####################################################
+    ####################################
     # Implementing Detectors for Ancilla
-    ####################################################
+    ####################################
 
     # Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
     cx_builder(
@@ -240,7 +230,6 @@ def split(
 
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     split_repeat_circuit.append("H", x_stab_index_control + x_stab_index_target)
-
     split_repeat_circuit.append("TICK")
 
     split_repeat_circuit.append("M", control_target_stabs)
@@ -254,7 +243,7 @@ def split(
 
     split_final_circuit = stim.Circuit()
 
-    # Adding Reset operations from previous round
+    # Adding Reset and basis preparation for ancilla
     split_final_circuit.append("TICK")
     split_final_circuit.append("R", control_target_stabs)
 
@@ -263,10 +252,7 @@ def split(
 
     split_final_circuit.append("TICK")
 
-    ####################################################
-    # CX Operations
-    ####################################################
-
+    # CX Operations for Ancilla
     cx_builder(
         q2i=q2i,
         stab_to_data=stab_to_data,
@@ -274,17 +260,17 @@ def split(
     )
 
     # Retreive Boundary + Normal Stabilizers Ancilla:
+    # I.e. Basis switch and measurement of ancillas
     split_final_circuit.append("H", x_stab_index_ancilla)
-
     split_final_circuit.append("TICK")
 
     split_final_circuit.append("M", x_stab_index_ancilla + z_stab_index_ancilla)
     split_final_circuit.append("TICK")
+
     split_final_circuit.append("R", x_stab_index_ancilla + z_stab_index_ancilla)
-
     split_final_circuit.append("TICK")
-    split_final_circuit.append("H", x_stab_boundary_b_index_ancilla)
 
+    split_final_circuit.append("H", x_stab_boundary_b_index_ancilla)
     split_final_circuit.append("TICK")
 
     # -------------------------------------------------------------------------------
@@ -385,7 +371,6 @@ def split(
 
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     split_final_circuit.append("H", x_stab_index_control + x_stab_index_target)
-
     split_final_circuit.append("TICK")
 
     split_final_circuit.append("M", control_target_stabs)

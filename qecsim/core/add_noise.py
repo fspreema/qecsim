@@ -21,7 +21,15 @@ class CircuitNoise:
     def __init__(self, circuit: stim.Circuit, noise: dict):
         self.circuit = circuit
         self.noise = noise
-        self.noise_before_operators: list[str] = ["H", "CX", "S", "S_DAG", "CZ"]
+        self.noise_before_operators: list[str] = [
+            "H",
+            "CX",
+            "S",
+            "S_DAG",
+            "CZ",
+            "XCY",
+            "SQRT_X_DAG",
+        ]
         self.measurement_noise_operators: list[str] = ["M", "MX", "MY"]
         self.reset_noise_operators: list[str] = ["R", "RX", "RY", "RZ"]
 
@@ -40,14 +48,34 @@ class CircuitNoise:
                     # Check if Dict has a non zero value
                     if self.noise.get("after_c_depol_prob", 0) > 0:
                         # Adding Depolarize Noise after Clifford
-                        if instructions.name in {"CX", "CZ"}:
-                            # Multi-qubit gate
-                            qubits = [targets.value for targets in instructions.targets_copy()]
-                            noisy_circuit.append(
-                                "DEPOLARIZE2",
-                                qubits,
-                                self.noise.get("after_c_depol_prob", 0),
-                            )
+                        if instructions.name in {"CX", "CZ", "XCY"}:
+                            # Check if Multi-Qubit gate has record targets
+                            # -> Skip complelty as this needs to be handled as single qubit gate
+                            if any(
+                                target.is_measurement_record_target
+                                for target in instructions.targets_copy()
+                            ):
+                                # Single qubit Depolarize for rec dependent targets
+                                qubits = [
+                                    targets.value
+                                    for targets in instructions.targets_copy()
+                                    if targets.is_qubit_target
+                                ]
+
+                                noisy_circuit.append(
+                                    "DEPOLARIZE1",
+                                    qubits,
+                                    self.noise.get("after_c_depol_prob", 0),
+                                )
+
+                            else:
+                                # Multi-qubit gate
+                                qubits = [targets.value for targets in instructions.targets_copy()]
+                                noisy_circuit.append(
+                                    "DEPOLARIZE2",
+                                    qubits,
+                                    self.noise.get("after_c_depol_prob", 0),
+                                )
 
                         else:
                             # Single qubit gate
@@ -118,14 +146,36 @@ class CircuitNoise:
                         # Check if Dict has a non zero value
                         if self.noise.get("after_c_depol_prob", 0) > 0:
                             # Adding Depolarize Noise after Clifford
-                            if instructions.name in {"CX", "CZ"}:
-                                # Multi-qubit gate
-                                qubits = [targets.value for targets in instructions.targets_copy()]
-                                noisy_repeat.append(
-                                    "DEPOLARIZE2",
-                                    qubits,
-                                    self.noise.get("after_c_depol_prob", 0),
-                                )
+                            if instructions.name in {"CX", "CZ", "XCY"}:
+                                # Check if Multi-Qubit gate has record targets
+                                # -> Skip complelty as this needs to be handled as single qubit gate
+                                if any(
+                                    target.is_measurement_record_target
+                                    for target in instructions.targets_copy()
+                                ):
+                                    # Single qubit Depolarize for rec dependent targets
+                                    qubits = [
+                                        targets.value
+                                        for targets in instructions.targets_copy()
+                                        if targets.is_qubit_target
+                                    ]
+
+                                    noisy_circuit.append(
+                                        "DEPOLARIZE1",
+                                        qubits,
+                                        self.noise.get("after_c_depol_prob", 0),
+                                    )
+
+                                else:
+                                    # Multi-qubit gate
+                                    qubits = [
+                                        targets.value for targets in instructions.targets_copy()
+                                    ]
+                                    noisy_repeat.append(
+                                        "DEPOLARIZE2",
+                                        qubits,
+                                        self.noise.get("after_c_depol_prob", 0),
+                                    )
 
                             else:
                                 # Single qubit gate

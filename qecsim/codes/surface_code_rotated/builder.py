@@ -1,6 +1,7 @@
 import stim
 from tqecd import annotate_detectors_automatically
 
+from qecsim.core.add_noise import CircuitNoise
 from qecsim.core.data_models import (
     CircuitResult,
     ConfigSurface as Config,
@@ -480,6 +481,32 @@ def rotated_surface_code(
 
             final_measurement.obs_indices = obs_index
 
+    ###############################
+    # Adding Noise to final Circuit
+    ###############################
+
+    if (
+        noise.before_m_flip_prob > 0.0
+        or noise.after_r_flip > 0.0
+        or noise.after_c_depol_prob > 0.0
+        or noise.before_round_depol > 0.0
+    ):
+        # Create noise dict
+        noise_dict = {
+            "before_round_depol": noise.before_round_depol,
+            "before_m_flip_prob": noise.before_m_flip_prob,
+            "after_r_flip": noise.after_r_flip,
+            "after_c_depol_prob": noise.after_c_depol_prob,
+        }
+
+        circuit_noise_builder = CircuitNoise(circuit=state_init_circuit.circuit, noise=noise_dict)
+
+        # Building final circuit with noise
+        return_circuit = circuit_noise_builder.apply()
+
+    else:
+        return_circuit = state_init_circuit.circuit
+
     ############################################################
     # Return Circuit and measurement rec postitions for logicals
     ############################################################
@@ -492,24 +519,20 @@ def rotated_surface_code(
 
     if state_init in {"+i", "-i"}:
         if final_measurement.obs_indices is not None:
-            annotate_circuit = state_init_circuit.circuit
-
             # Add all Detectors with package
-            circ_with_dets = annotate_detectors_automatically(annotate_circuit)
+            circ_with_dets = annotate_detectors_automatically(return_circuit)
 
             return circ_with_dets, final_measurement.obs_indices
 
         else:
-            annotate_circuit = state_init_circuit.circuit
-
             # Add all Detectors with package
-            circ_with_dets = annotate_detectors_automatically(annotate_circuit)
+            circ_with_dets = annotate_detectors_automatically(return_circuit)
 
             return circ_with_dets
 
     else:
         if final_measurement.obs_indices is not None:
-            return state_init_circuit.circuit, final_measurement.obs_indices
+            return return_circuit, final_measurement.obs_indices
 
         else:
-            return state_init_circuit.circuit
+            return return_circuit
