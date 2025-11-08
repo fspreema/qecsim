@@ -61,50 +61,30 @@ def h_switched_circ_init(
     # 1) Reset/ Basis
     switched_init_circ.append("H", x_stab_index)
 
-    # -------Adding-After-Clifford-Depol.------------
-
-    if noise.after_c_depol_prob > 0:
-        switched_init_circ.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
-
-    # -------Continue-Circuit------------
-
     switched_init_circ.append("TICK")
 
     # 2) CX Operations
 
-    cx_builder(q2i=q2i, stab_to_data=stab_to_data, circuit=switched_init_circ, noise=noise)
+    cx_builder(
+        q2i=q2i,
+        stab_to_data=stab_to_data,
+        circuit=switched_init_circ,
+    )
 
     # 3) Basis/ Measurement
     switched_init_circ.append("H", x_stab_index)
 
-    # -------Adding-After-Clifford-Depol.------------
-
-    if noise.after_c_depol_prob > 0:
-        switched_init_circ.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
-
-    # -------Continue-Circuit------------
-
     switched_init_circ.append("TICK")
-
-    # -------Adding-Before-Measurement-Flip-Prob.-------
-
-    if noise.before_m_flip_prob > 0:
-        switched_init_circ.append("X_ERROR", x_stab_index + z_stab_index, noise.before_m_flip_prob)
-
-    # -------Continue-Circuit----------
 
     """
     Due to the fact that x and z indicies are flipped, measurement order is changed!
     """
 
-    switched_init_circ.append("MR", x_stab_index + z_stab_index)
+    switched_init_circ.append("M", x_stab_index + z_stab_index)
 
-    # -------Adding-After-Reset-Flip-Prob.------------
+    switched_init_circ.append("TICK")
 
-    if noise.after_r_flip > 0:
-        switched_init_circ.append("X_ERROR", x_stab_index + z_stab_index, noise.after_r_flip)
-
-    # -------Continue-Circuit------------
+    switched_init_circ.append("R", x_stab_index + z_stab_index)
 
     # -> Shifting Coords in Time-Dimension to have 3D timelike Detector graph (Needed for decoding)
     switched_init_circ.append("SHIFT_COORDS", arg=(0, 0, 1))

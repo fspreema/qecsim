@@ -6,7 +6,6 @@ from qecsim.core.cx_builder import cx_builder
 from qecsim.core.data_models import (
     ConfigLatticeSurgery as Config,
     LatticeContext,
-    NoiseModel,
     PatchAncilla,
     PatchControl,
     PatchSurgery,
@@ -22,7 +21,6 @@ def merge(
     patches: Mapping[str, PatchAncilla | PatchControl | PatchTarget | PatchSurgery],
     cfg: Config,
     merging_type: str,
-    noise: NoiseModel,
 ) -> stim.Circuit:
     """
     modified_measurement: str
@@ -158,18 +156,8 @@ def merge(
     merge_init_circuit.append("TICK")
     merge_init_circuit.append("R", control_target_stabs)
 
-    # -------Adding-After-Reset-Flip-Prob.------------
-    if noise.after_r_flip > 0:
-        merge_init_circuit.append("X_ERROR", control_target_stabs, noise.after_r_flip)
-    # ------------------------------------------------
-
     merge_init_circuit.append("TICK")
     merge_init_circuit.append("H", combined_x_stab)
-
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        merge_init_circuit.append("DEPOLARIZE1", combined_x_stab, noise.after_c_depol_prob)
-    # -----------------------------------------------
 
     merge_init_circuit.append("TICK")
 
@@ -264,15 +252,13 @@ def merge(
                 ("H", data_qubits_merge_region_lattice),
             ]
 
-    # CX Operations -> If Y measurement H or S corrective gates need to be applied
+    # CX Operations
     joined_dict = stab_to_data_curr_merg | stab_to_data_untouched_circ
 
     cx_builder(
         q2i=q2i,
         stab_to_data=joined_dict,
         circuit=merge_init_circuit,
-        orders=("1-CX", "2-CX", "3-CX", "4-CX", "1S-CX", "2S-CX", "3S-CX", "4S-CX"),
-        noise=noise,
         add_operator_before=dict_operators_before if flow_observable in [] else None,
         add_operator_after=dict_operators_after if flow_observable in [] else None,
     )
@@ -280,44 +266,19 @@ def merge(
     # Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement):
     merge_init_circuit.append("H", combined_x_stab_merging_lattices)
 
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        merge_init_circuit.append(
-            "DEPOLARIZE1",
-            combined_x_stab_merging_lattices,
-            noise.after_c_depol_prob,
-        )
-    # -----------------------------------------------
-
     merge_init_circuit.append("TICK")
-
-    # -------Adding measurement Flip Prob.--------------
-    if noise.before_m_flip_prob > 0:
-        merge_init_circuit.append(
-            "X_ERROR",
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-            noise.before_m_flip_prob,
-        )
-    # --------------------------------------------------
 
     merge_init_circuit.append(
         "M",
         combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
     )
+
     merge_init_circuit.append("TICK")
+
     merge_init_circuit.append(
         "R",
         combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
     )
-
-    # -------Adding-After-Reset-Flip-Prob.------------
-    if noise.after_r_flip > 0:
-        merge_init_circuit.append(
-            "X_ERROR",
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-            noise.after_r_flip,
-        )
-    # ------------------------------------------------
 
     merge_init_circuit.append("TICK")
 
@@ -332,15 +293,6 @@ def merge(
     if merging_type == "AT":
         merge_init_circuit.append("H", x_stab_boundary_b_index_ancilla)
 
-        # -------Adding-After-Clifford-Depol.------------
-        if noise.after_c_depol_prob > 0:
-            merge_init_circuit.append(
-                "DEPOLARIZE1",
-                x_stab_boundary_b_index_ancilla,
-                noise.after_c_depol_prob,
-            )
-        # -----------------------------------------------
-
         merge_init_circuit.append("TICK")
 
     cx_builder(
@@ -348,31 +300,11 @@ def merge(
         stab_to_data=stab_to_data_untouched_circ,
         circuit=merge_init_circuit,
         orders=("5-CX", "6-CX"),
-        noise=noise,
     )
 
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     merge_init_circuit.append("H", x_stab_index_untouched_circ)
-
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        merge_init_circuit.append(
-            "DEPOLARIZE1",
-            x_stab_index_untouched_circ,
-            noise.after_c_depol_prob,
-        )
-    # -----------------------------------------------
-
     merge_init_circuit.append("TICK")
-
-    # -------Adding measurement Flip Prob.--------------
-    if noise.before_m_flip_prob > 0:
-        merge_init_circuit.append(
-            "X_ERROR",
-            x_stab_index_untouched_circ + z_stab_index_untouched_circ,
-            noise.before_m_flip_prob,
-        )
-    # --------------------------------------------------
 
     merge_init_circuit.append("M", x_stab_index_untouched_circ + z_stab_index_untouched_circ)
 
@@ -387,22 +319,8 @@ def merge(
     merge_round_circuit.append("TICK")
     merge_round_circuit.append("R", x_stab_index_untouched_circ + z_stab_index_untouched_circ)
 
-    # -------Adding-After-Reset-Flip-Prob.------------
-    if noise.after_r_flip > 0:
-        merge_round_circuit.append(
-            "X_ERROR",
-            x_stab_index_untouched_circ + z_stab_index_untouched_circ,
-            noise.after_r_flip,
-        )
-    # ------------------------------------------------
-
     merge_round_circuit.append("TICK")
     merge_round_circuit.append("H", combined_x_stab)
-
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        merge_round_circuit.append("DEPOLARIZE1", combined_x_stab, noise.after_c_depol_prob)
-    # -----------------------------------------------
 
     merge_round_circuit.append("TICK")
 
@@ -414,32 +332,12 @@ def merge(
         q2i=q2i,
         stab_to_data=joined_dict,
         circuit=merge_round_circuit,
-        orders=("1-CX", "2-CX", "3-CX", "4-CX", "1S-CX", "2S-CX", "3S-CX", "4S-CX"),
-        noise=noise,
     )
 
     # Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement):
     merge_round_circuit.append("H", combined_x_stab_merging_lattices)
 
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        merge_round_circuit.append(
-            "DEPOLARIZE1",
-            combined_x_stab_merging_lattices,
-            noise.after_c_depol_prob,
-        )
-    # -----------------------------------------------
-
     merge_round_circuit.append("TICK")
-
-    # -------Adding measurement Flip Prob.--------------
-    if noise.before_m_flip_prob > 0:
-        merge_round_circuit.append(
-            "X_ERROR",
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-            noise.before_m_flip_prob,
-        )
-    # --------------------------------------------------
 
     merge_round_circuit.append(
         "M",
@@ -450,15 +348,6 @@ def merge(
         "R",
         combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
     )
-
-    # -------Adding-After-Reset-Flip-Prob.------------
-    if noise.after_r_flip > 0:
-        merge_round_circuit.append(
-            "X_ERROR",
-            combined_z_stab_merging_lattices + combined_x_stab_merging_lattices,
-            noise.after_r_flip,
-        )
-    # ------------------------------------------------
 
     merge_round_circuit.append("TICK")
 
@@ -472,16 +361,6 @@ def merge(
 
     if merging_type == "AT":
         merge_round_circuit.append("H", x_stab_boundary_b_index_ancilla)
-
-        # -------Adding-After-Clifford-Depol.------------
-        if noise.after_c_depol_prob > 0:
-            merge_round_circuit.append(
-                "DEPOLARIZE1",
-                x_stab_boundary_b_index_ancilla,
-                noise.after_c_depol_prob,
-            )
-        # -----------------------------------------------
-
         merge_round_circuit.append("TICK")
 
     cx_builder(
@@ -489,32 +368,11 @@ def merge(
         stab_to_data=stab_to_data_untouched_circ,
         circuit=merge_round_circuit,
         orders=("5-CX", "6-CX"),
-        noise=noise,
     )
 
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     merge_round_circuit.append("H", x_stab_index_untouched_circ)
-
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        merge_round_circuit.append(
-            "DEPOLARIZE1",
-            x_stab_index_untouched_circ,
-            noise.after_c_depol_prob,
-        )
-    # -----------------------------------------------
-
     merge_round_circuit.append("TICK")
-
-    # -------Adding measurement Flip Prob.--------------
-    if noise.before_m_flip_prob > 0:
-        merge_round_circuit.append(
-            "X_ERROR",
-            x_stab_index_untouched_circ + z_stab_index_untouched_circ,
-            noise.before_m_flip_prob,
-        )
-    # --------------------------------------------------
-
     merge_round_circuit.append("M", x_stab_index_untouched_circ + z_stab_index_untouched_circ)
 
     #####################################################

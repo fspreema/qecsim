@@ -4,7 +4,6 @@ from qecsim.core.cx_builder import cx_builder
 from qecsim.core.data_models import (
     CircuitResult,
     Context,
-    NoiseModel,
     Patch,
 )
 
@@ -17,7 +16,6 @@ def y_initial(
     *,
     lct: Context,
     patch: dict[str, Patch],
-    noise: NoiseModel,
     offset: complex = 0 + 0j,
 ) -> CircuitResult:
     #################################################
@@ -45,7 +43,6 @@ def y_initial(
     ########################
 
     initial_circuit = stim.Circuit()
-
     initial_circuit.append("TICK")
 
     # 1) Reset/ Basis
@@ -53,27 +50,16 @@ def y_initial(
     initial_circuit.append("TICK")
 
     # 2) CX Operations
-
     cx_builder(
         q2i=q2i,
         stab_to_data=stab_to_data,
         circuit=initial_circuit,
         excluded_index=y_index,
-        noise=noise,
-        noise_overwrite=True,
     )
-
-    # -------Continue-Circuit------------
 
     # 3) Basis/ Measurement
     initial_circuit.append("H", x_stab_index)
-
-    # -------Continue-Circuit------------
-
     initial_circuit.append("TICK")
-
-    # -------Continue-Circuit------------
-
     initial_circuit.append("M", x_stab_index + z_stab_index)
 
     return CircuitResult(circuit=initial_circuit)

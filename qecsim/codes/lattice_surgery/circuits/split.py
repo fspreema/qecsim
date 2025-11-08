@@ -7,7 +7,6 @@ from qecsim.core.cx_builder import cx_builder
 from qecsim.core.data_models import (
     ConfigLatticeSurgery as Config,
     LatticeContext,
-    NoiseModel,
     PatchAncilla,
     PatchControl,
     PatchSurgery,
@@ -23,7 +22,6 @@ def split(
     patches: Mapping[str, PatchAncilla | PatchControl | PatchTarget | PatchSurgery],
     cfg: Config,
     split_type: str,
-    noise: NoiseModel,
 ) -> stim.Circuit:
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -112,63 +110,30 @@ def split(
 
     split_init_circuit.append("H", combined_x_stab)
 
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        split_init_circuit.append("DEPOLARIZE1", combined_x_stab, noise.after_c_depol_prob)
-    # -----------------------------------------------
-
     ####################################################
     # CX Operations
     ####################################################
 
     split_init_circuit.append("TICK")
 
-    cx_builder(q2i=q2i, stab_to_data=stab_to_data, circuit=split_init_circuit, noise=noise)
+    cx_builder(
+        q2i=q2i,
+        stab_to_data=stab_to_data,
+        circuit=split_init_circuit,
+    )
 
     # Retreive Boundary + Normal Stabilizers Ancilla
     # (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!)
     split_init_circuit.append("H", x_stab_index_ancilla)
 
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        split_init_circuit.append("DEPOLARIZE1", x_stab_index_ancilla, noise.after_c_depol_prob)
-    # -----------------------------------------------
-
     split_init_circuit.append("TICK")
-
-    # -------Adding measurement Flip Prob.--------------
-    if noise.before_m_flip_prob > 0:
-        split_init_circuit.append(
-            "X_ERROR",
-            x_stab_index_ancilla + z_stab_index_ancilla,
-            noise.before_m_flip_prob,
-        )
-    # --------------------------------------------------
 
     split_init_circuit.append("M", x_stab_index_ancilla + z_stab_index_ancilla)
     split_init_circuit.append("TICK")
     split_init_circuit.append("R", x_stab_index_ancilla + z_stab_index_ancilla)
 
-    # -------Adding-After-Reset-Flip-Prob.------------
-    if noise.after_r_flip > 0:
-        split_init_circuit.append(
-            "X_ERROR",
-            x_stab_index_ancilla + z_stab_index_ancilla,
-            noise.after_r_flip,
-        )
-    # ------------------------------------------------
-
     split_init_circuit.append("TICK")
     split_init_circuit.append("H", x_stab_boundary_b_index_ancilla)
-
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        split_init_circuit.append(
-            "DEPOLARIZE1",
-            x_stab_boundary_b_index_ancilla,
-            noise.after_c_depol_prob,
-        )
-    # -----------------------------------------------
 
     split_init_circuit.append("TICK")
 
@@ -203,7 +168,6 @@ def split(
         stab_to_data=stab_to_data,
         circuit=split_init_circuit,
         orders=("5-CX", "6-CX"),
-        noise=noise,
     )
 
     # All Stabilizers from the Target and Control Lattice
@@ -214,21 +178,7 @@ def split(
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     split_init_circuit.append("H", x_stab_index_control + x_stab_index_target)
 
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        split_init_circuit.append(
-            "DEPOLARIZE1",
-            x_stab_index_control + x_stab_index_target,
-            noise.after_c_depol_prob,
-        )
-    # -----------------------------------------------
-
     split_init_circuit.append("TICK")
-
-    # -------Adding measurement Flip Prob.--------------
-    if noise.before_m_flip_prob > 0:
-        split_init_circuit.append("X_ERROR", control_target_stabs, noise.before_m_flip_prob)
-    # --------------------------------------------------
 
     split_init_circuit.append("M", control_target_stabs)
 
@@ -242,18 +192,8 @@ def split(
     split_repeat_circuit.append("TICK")
     split_repeat_circuit.append("R", control_target_stabs)
 
-    # -------Adding-After-Reset-Flip-Prob.------------
-    if noise.after_r_flip > 0:
-        split_repeat_circuit.append("X_ERROR", control_target_stabs, noise.after_r_flip)
-    # ------------------------------------------------
-
     split_repeat_circuit.append("TICK")
     split_repeat_circuit.append("H", combined_x_stab)
-
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        split_repeat_circuit.append("DEPOLARIZE1", combined_x_stab, noise.after_c_depol_prob)
-    # -----------------------------------------------
 
     split_repeat_circuit.append("TICK")
 
@@ -261,51 +201,23 @@ def split(
     # CX Operations
     ####################################################
 
-    cx_builder(q2i=q2i, stab_to_data=stab_to_data, circuit=split_repeat_circuit, noise=noise)
+    cx_builder(
+        q2i=q2i,
+        stab_to_data=stab_to_data,
+        circuit=split_repeat_circuit,
+    )
 
     # Retreive Boundary + Normal Stabilizers Ancilla:
     split_repeat_circuit.append("H", x_stab_index_ancilla)
 
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        split_repeat_circuit.append("DEPOLARIZE1", x_stab_index_ancilla, noise.after_c_depol_prob)
-    # -----------------------------------------------
-
     split_repeat_circuit.append("TICK")
-
-    # -------Adding measurement Flip Prob.--------------
-    if noise.before_m_flip_prob > 0:
-        split_repeat_circuit.append(
-            "X_ERROR",
-            x_stab_index_ancilla + z_stab_index_ancilla,
-            noise.before_m_flip_prob,
-        )
-    # --------------------------------------------------
 
     split_repeat_circuit.append("M", x_stab_index_ancilla + z_stab_index_ancilla)
     split_repeat_circuit.append("TICK")
     split_repeat_circuit.append("R", x_stab_index_ancilla + z_stab_index_ancilla)
 
-    # -------Adding-After-Reset-Flip-Prob.------------
-    if noise.after_r_flip > 0:
-        split_repeat_circuit.append(
-            "X_ERROR",
-            x_stab_index_ancilla + z_stab_index_ancilla,
-            noise.after_r_flip,
-        )
-    # ------------------------------------------------
-
     split_repeat_circuit.append("TICK")
     split_repeat_circuit.append("H", x_stab_boundary_b_index_ancilla)
-
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        split_repeat_circuit.append(
-            "DEPOLARIZE1",
-            x_stab_boundary_b_index_ancilla,
-            noise.after_c_depol_prob,
-        )
-    # -----------------------------------------------
 
     split_repeat_circuit.append("TICK")
 
@@ -319,7 +231,6 @@ def split(
         stab_to_data=stab_to_data,
         circuit=split_repeat_circuit,
         orders=("5-CX", "6-CX"),
-        noise=noise,
     )
 
     # All Stabilizers from the Target and Control Lattice
@@ -330,21 +241,7 @@ def split(
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     split_repeat_circuit.append("H", x_stab_index_control + x_stab_index_target)
 
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        split_repeat_circuit.append(
-            "DEPOLARIZE1",
-            x_stab_index_control + x_stab_index_target,
-            noise.after_c_depol_prob,
-        )
-    # -----------------------------------------------
-
     split_repeat_circuit.append("TICK")
-
-    # -------Adding measurement Flip Prob.--------------
-    if noise.before_m_flip_prob > 0:
-        split_repeat_circuit.append("X_ERROR", control_target_stabs, noise.before_m_flip_prob)
-    # --------------------------------------------------
 
     split_repeat_circuit.append("M", control_target_stabs)
 
@@ -361,18 +258,8 @@ def split(
     split_final_circuit.append("TICK")
     split_final_circuit.append("R", control_target_stabs)
 
-    # -------Adding-After-Reset-Flip-Prob.------------
-    if noise.after_r_flip > 0:
-        split_final_circuit.append("X_ERROR", control_target_stabs, noise.after_r_flip)
-    # ------------------------------------------------
-
     split_final_circuit.append("TICK")
     split_final_circuit.append("H", combined_x_stab)
-
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        split_final_circuit.append("DEPOLARIZE1", combined_x_stab, noise.after_c_depol_prob)
-    # -----------------------------------------------
 
     split_final_circuit.append("TICK")
 
@@ -384,52 +271,19 @@ def split(
         q2i=q2i,
         stab_to_data=stab_to_data,
         circuit=split_final_circuit,
-        noise=noise,
     )
 
     # Retreive Boundary + Normal Stabilizers Ancilla:
     split_final_circuit.append("H", x_stab_index_ancilla)
 
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        split_final_circuit.append("DEPOLARIZE1", x_stab_index_ancilla, noise.after_c_depol_prob)
-    # -----------------------------------------------
-
     split_final_circuit.append("TICK")
-
-    # -------Adding measurement Flip Prob.--------------
-    if noise.before_m_flip_prob > 0:
-        split_final_circuit.append(
-            "X_ERROR",
-            x_stab_index_ancilla + z_stab_index_ancilla,
-            noise.before_m_flip_prob,
-        )
-    # --------------------------------------------------
 
     split_final_circuit.append("M", x_stab_index_ancilla + z_stab_index_ancilla)
     split_final_circuit.append("TICK")
     split_final_circuit.append("R", x_stab_index_ancilla + z_stab_index_ancilla)
 
-    # -------Adding-After-Reset-Flip-Prob.------------
-    if noise.after_r_flip > 0:
-        split_final_circuit.append(
-            "X_ERROR",
-            x_stab_index_ancilla + z_stab_index_ancilla,
-            noise.after_r_flip,
-        )
-    # ------------------------------------------------
-
     split_final_circuit.append("TICK")
     split_final_circuit.append("H", x_stab_boundary_b_index_ancilla)
-
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        split_final_circuit.append(
-            "DEPOLARIZE1",
-            x_stab_boundary_b_index_ancilla,
-            noise.after_c_depol_prob,
-        )
-    # -----------------------------------------------
 
     split_final_circuit.append("TICK")
 
@@ -490,19 +344,11 @@ def split(
         for records in logical_obs_rec_tar:
             for data in c_log_obs_x_index:
                 split_final_circuit.append("CX", [stim.target_rec(records), data])
-                # -------Adding-After-Clifford-Depol.------------
-                if noise.after_c_depol_prob > 0:
-                    split_final_circuit.append("DEPOLARIZE1", data, noise.after_c_depol_prob)
-                # -----------------------------------------------
 
     elif split_type == "AT":
         for records in logical_obs_rec_tar:
             for data in t_log_obs_z_index:
                 split_final_circuit.append("CZ", [stim.target_rec(records), data])
-                # -------Adding-After-Clifford-Depol.------------
-                if noise.after_c_depol_prob > 0:
-                    split_final_circuit.append("DEPOLARIZE1", data, noise.after_c_depol_prob)
-                # -----------------------------------------------
 
         ###################################
         # Meassuring Ancilla in the Z Basis
@@ -510,12 +356,6 @@ def split(
 
         # Meassuring Data
         split_final_circuit.append("TICK")
-
-        # -------Adding measurement Flip Prob.--------------
-        if noise.before_m_flip_prob > 0:
-            split_final_circuit.append("X_ERROR", data_ancilla, noise.before_m_flip_prob)
-        # --------------------------------------------------
-
         split_final_circuit.append("MZ", data_ancilla)
         split_final_circuit.append("TICK")
 
@@ -527,10 +367,6 @@ def split(
                         "CX",
                         [stim.target_rec(-len(data_ancilla) + rec_tar), data],
                     )
-                    # -------Adding-After-Clifford-Depol.------------
-                    if noise.after_c_depol_prob > 0:
-                        split_final_circuit.append("DEPOLARIZE1", data, noise.after_c_depol_prob)
-                    # -----------------------------------------------
 
     # Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
     split_final_circuit.append("TICK")
@@ -540,7 +376,6 @@ def split(
         stab_to_data=stab_to_data,
         circuit=split_final_circuit,
         orders=("5-CX", "6-CX"),
-        noise=noise,
     )
 
     # All Stabilizers from the Target and Control Lattice
@@ -551,21 +386,7 @@ def split(
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     split_final_circuit.append("H", x_stab_index_control + x_stab_index_target)
 
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        split_final_circuit.append(
-            "DEPOLARIZE1",
-            x_stab_index_control + x_stab_index_target,
-            noise.after_c_depol_prob,
-        )
-    # -----------------------------------------------
-
     split_final_circuit.append("TICK")
-
-    # -------Adding measurement Flip Prob.--------------
-    if noise.before_m_flip_prob > 0:
-        split_final_circuit.append("X_ERROR", control_target_stabs, noise.before_m_flip_prob)
-    # --------------------------------------------------
 
     split_final_circuit.append("M", control_target_stabs)
 

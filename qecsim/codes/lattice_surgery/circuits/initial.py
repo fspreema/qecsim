@@ -111,11 +111,6 @@ def initial(
 
     initial_circuit.append("H", combined_x_stab)
 
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        initial_circuit.append("DEPOLARIZE1", combined_x_stab, noise.after_c_depol_prob)
-    # -----------------------------------------------
-
     initial_circuit.append("TICK")
 
     ####################################################
@@ -128,46 +123,14 @@ def initial(
     # (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!)
     initial_circuit.append("H", x_stab_index_ancilla)
 
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        initial_circuit.append("DEPOLARIZE1", x_stab_index_ancilla, noise.after_c_depol_prob)
-    # -----------------------------------------------
-
     initial_circuit.append("TICK")
-
-    # -------Adding Measurement Flip--------------------
-    if noise.before_m_flip_prob > 0:
-        initial_circuit.append(
-            "X_ERROR",
-            x_stab_index_ancilla + z_stab_index_ancilla,
-            noise.before_m_flip_prob,
-        )
-    # --------------------------------------------------
 
     initial_circuit.append("M", x_stab_index_ancilla + z_stab_index_ancilla)
     initial_circuit.append("TICK")
     initial_circuit.append("R", x_stab_index_ancilla + z_stab_index_ancilla)
 
-    # -------Adding-After-Reset-Flip-Prob.------------
-    if noise.after_r_flip > 0:
-        initial_circuit.append(
-            "X_ERROR",
-            x_stab_index_ancilla + z_stab_index_ancilla,
-            noise.after_r_flip,
-        )
-    # ------------------------------------------------
-
     initial_circuit.append("TICK")
     initial_circuit.append("H", x_stab_boundary_b_index_ancilla)
-
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        initial_circuit.append(
-            "DEPOLARIZE1",
-            x_stab_boundary_b_index_ancilla,
-            noise.after_c_depol_prob,
-        )
-    # -----------------------------------------------
 
     initial_circuit.append("TICK")
 
@@ -183,21 +146,7 @@ def initial(
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     initial_circuit.append("H", x_stab_index_control + x_stab_index_target)
 
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        initial_circuit.append(
-            "DEPOLARIZE1",
-            x_stab_index_control + x_stab_index_target,
-            noise.after_c_depol_prob,
-        )
-    # -----------------------------------------------
-
     initial_circuit.append("TICK")
-
-    # -------Adding Measurement Flip--------------------
-    if noise.before_m_flip_prob > 0:
-        initial_circuit.append("X_ERROR", control_target_stabs, noise.before_m_flip_prob)
-    # --------------------------------------------------
 
     initial_circuit.append("M", control_target_stabs)
 
@@ -211,22 +160,8 @@ def initial(
     initial_repeat_circuit.append("TICK")
     initial_repeat_circuit.append("R", control_target_stabs)
 
-    # -------Adding-After-Reset-Flip-Prob.------------
-    if noise.after_r_flip > 0:
-        initial_repeat_circuit.append("X_ERROR", control_target_stabs, noise.after_r_flip)
-    # ------------------------------------------------
-
-    # -------Adding-After-Reset-Flip-Prob.------------
-    if noise.after_r_flip > 0:
-        initial_circuit.append("X_ERROR", control_target_stabs, noise.after_r_flip)
-    # ------------------------------------------------
     initial_repeat_circuit.append("TICK")
     initial_repeat_circuit.append("H", combined_x_stab)
-
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        initial_repeat_circuit.append("DEPOLARIZE1", combined_x_stab, noise.after_c_depol_prob)
-    # -----------------------------------------------
 
     initial_repeat_circuit.append("TICK")
 
@@ -240,46 +175,14 @@ def initial(
     # (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!)
     initial_repeat_circuit.append("H", x_stab_index_ancilla)
 
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        initial_repeat_circuit.append("DEPOLARIZE1", x_stab_index_ancilla, noise.after_c_depol_prob)
-    # -----------------------------------------------
-
     initial_repeat_circuit.append("TICK")
-
-    # -------Adding Measurement Flip--------------------
-    if noise.before_m_flip_prob > 0:
-        initial_repeat_circuit.append(
-            "X_ERROR",
-            x_stab_index_ancilla + z_stab_index_ancilla,
-            noise.before_m_flip_prob,
-        )
-    # --------------------------------------------------
 
     initial_repeat_circuit.append("M", x_stab_index_ancilla + z_stab_index_ancilla)
     initial_repeat_circuit.append("TICK")
     initial_repeat_circuit.append("R", x_stab_index_ancilla + z_stab_index_ancilla)
 
-    # -------Adding-After-Reset-Flip-Prob.------------
-    if noise.after_r_flip > 0:
-        initial_repeat_circuit.append(
-            "X_ERROR",
-            x_stab_index_ancilla + z_stab_index_ancilla,
-            noise.after_r_flip,
-        )
-    # ------------------------------------------------
-
     initial_repeat_circuit.append("TICK")
     initial_repeat_circuit.append("H", x_stab_boundary_b_index_ancilla)
-
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        initial_repeat_circuit.append(
-            "DEPOLARIZE1",
-            x_stab_boundary_b_index_ancilla,
-            noise.after_c_depol_prob,
-        )
-    # -----------------------------------------------
 
     initial_repeat_circuit.append("TICK")
 
@@ -295,21 +198,7 @@ def initial(
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     initial_repeat_circuit.append("H", x_stab_index_control + x_stab_index_target)
 
-    # -------Adding-After-Clifford-Depol.------------
-    if noise.after_c_depol_prob > 0:
-        initial_repeat_circuit.append(
-            "DEPOLARIZE1",
-            x_stab_index_control + x_stab_index_target,
-            noise.after_c_depol_prob,
-        )
-    # -----------------------------------------------
-
     initial_repeat_circuit.append("TICK")
-
-    # -------Adding Measurement Flip--------------------
-    if noise.before_m_flip_prob > 0:
-        initial_repeat_circuit.append("X_ERROR", control_target_stabs, noise.before_m_flip_prob)
-    # --------------------------------------------------
 
     initial_repeat_circuit.append("M", control_target_stabs)
 

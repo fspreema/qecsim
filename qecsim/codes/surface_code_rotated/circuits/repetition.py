@@ -52,14 +52,6 @@ def repetition_circ(
     round_circuit.append("R", x_stab_index + z_stab_index)
     round_circuit.append("TICK")
 
-    # -------Adding-After-Reset-Flip-Prob.------------
-
-    if noise.after_r_flip > 0:
-        round_circuit.append("X_ERROR", x_stab_index + z_stab_index, noise.after_r_flip)
-        round_circuit.append("TICK")
-
-    # -------Continue-Circuit------------
-
     # -------Adding-Before-Round-Depol.-Data------------
 
     if noise.before_round_depol > 0:
@@ -70,39 +62,22 @@ def repetition_circ(
     # 1) Reset/ Basis
     round_circuit.append("H", x_stab_index)
 
-    # -------Adding-After-Clifford-Depol.------------
-
-    if noise.after_c_depol_prob > 0:
-        round_circuit.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
-
-    # -------Continue-Circuit------------
-
     round_circuit.append("TICK")
 
     # 2) CX Operations
 
-    cx_builder(q2i=q2i, stab_to_data=stab_to_data, circuit=round_circuit, noise=noise)
+    cx_builder(
+        q2i=q2i,
+        stab_to_data=stab_to_data,
+        circuit=round_circuit,
+    )
 
     # -------Continue-Circuit------------
 
     # 3) Basis/ Measurement
     round_circuit.append("H", x_stab_index)
 
-    # -------Adding-After-Clifford-Depol.------------
-
-    if noise.after_c_depol_prob > 0:
-        round_circuit.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
-
-    # -------Continue-Circuit------------
-
     round_circuit.append("TICK")
-
-    # -------Adding-Before-Measurement-Flip-Prob.-------
-
-    if noise.before_m_flip_prob > 0:
-        round_circuit.append("X_ERROR", x_stab_index + z_stab_index, noise.before_m_flip_prob)
-
-    # -------Continue-Circuit----------
 
     round_circuit.append("M", x_stab_index + z_stab_index)
 

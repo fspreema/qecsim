@@ -11,7 +11,6 @@ from qecsim.core.data_models import (
     PatchSurgery,
     PatchTarget,
 )
-from qecsim.core.flow_builder import CircuitChunk, CompileChunk
 from qecsim.core.geometry import build_lattice
 from qecsim.core.stabilizers import populate_stab_to_data
 
@@ -348,7 +347,6 @@ def surgery_circuit(
         patches=patches,
         cfg=cfg,
         merging_type="AC",
-        noise=noise,
     )
 
     ###############################################
@@ -360,7 +358,6 @@ def surgery_circuit(
         patches=patches,
         cfg=cfg,
         split_type="AC",
-        noise=noise,
     )
 
     ############################################
@@ -372,7 +369,6 @@ def surgery_circuit(
         patches=patches,
         cfg=cfg,
         merging_type="AT",
-        noise=noise,
     )
 
     ##############################################
@@ -384,7 +380,6 @@ def surgery_circuit(
         patches=patches,
         cfg=cfg,
         split_type="AT",
-        noise=noise,
     )
 
     ################################################################################
@@ -691,7 +686,6 @@ def surgery_circuit(
         patches=patches,
         cfg=cfg,
         flow=flow_observable,
-        before_m_flip_prob=noise_measure_flip,
     )
 
     reset_circ += flow_circuit
@@ -714,6 +708,10 @@ def surgery_circuit(
     ##########################
 
     reset_circ += final_measurement
+
+    ##########################################
+    # Adding noise depending on noise selected
+    ###########################################
 
     # Normalize to avoid double TICKs after composing subcircuits
     return normalize_ticks(reset_circ)

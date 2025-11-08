@@ -17,7 +17,6 @@ def final_m(
     patches: dict[str, PatchAncilla, PatchControl, PatchTarget, PatchSurgery],
     cfg: Config,
     flow: str,
-    before_m_flip_prob: float,
 ) -> stim.Circuit:
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -65,31 +64,15 @@ def final_m(
         pass
     else:
         if control_state_init in {"X+", "X-"}:
-            # -------Adding measurement Flip Prob.--------------
-            if before_m_flip_prob > 0:
-                measure_circuit.append("X_ERROR", data_control, before_m_flip_prob)
-            # --------------------------------------------------
             measure_circuit.append("MX", data_control)
 
         elif control_state_init in {"Z0", "Z1"}:
-            # -------Adding measurement Flip Prob.--------------
-            if before_m_flip_prob > 0:
-                measure_circuit.append("X_ERROR", data_control, before_m_flip_prob)
-            # --------------------------------------------------
             measure_circuit.append("MZ", data_control)
 
         if target_state_init in {"X+", "X-"}:
-            # -------Adding measurement Flip Prob.--------------
-            if before_m_flip_prob > 0:
-                measure_circuit.append("X_ERROR", data_target, before_m_flip_prob)
-            # --------------------------------------------------
             measure_circuit.append("MX", data_target)
 
         elif target_state_init in {"Z0", "Z1"}:
-            # -------Adding measurement Flip Prob.--------------
-            if before_m_flip_prob > 0:
-                measure_circuit.append("X_ERROR", data_target, before_m_flip_prob)
-            # --------------------------------------------------
             measure_circuit.append("MZ", data_target)
 
     ##############################
@@ -274,8 +257,6 @@ def final_m(
 
         # Target X logical
         t_x = log_strings["t_x"]
-        if before_m_flip_prob > 0:
-            measure_circuit.append("X_ERROR", t_x, before_m_flip_prob)
         measure_circuit.append("MX", t_x)
         k_count += len(t_x)
 

@@ -99,65 +99,32 @@ def y_repetition_circ(
         before_round_circuit.append("Y", y_string)
         before_round_circuit.append("Z", z_string)
 
-    # -------Adding-After-Reset-Flip-Prob.------------
-
-    if noise.after_r_flip > 0 and memory_round:
-        before_round_circuit.append("X_ERROR", x_stab_index + z_stab_index, noise.after_r_flip)
-
     before_round_circuit.append("TICK")
     before_round_circuit.append("H", x_stab_index)
-
-    # -------Adding-After-Clifford-Depol.------------
-
-    if noise.after_c_depol_prob > 0 and memory_round:
-        before_round_circuit.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
-
-    # -------Continue-Circuit------------
-
     before_round_circuit.append("TICK")
 
     # 2) CX Operations
 
     if memory_round:
-        cx_builder(q2i=q2i, stab_to_data=stab_to_data, circuit=before_round_circuit, noise=noise)
+        cx_builder(
+            q2i=q2i,
+            stab_to_data=stab_to_data,
+            circuit=before_round_circuit,
+        )
     else:
         cx_builder(
             q2i=q2i,
             stab_to_data=stab_to_data,
             circuit=before_round_circuit,
             excluded_index=y_index,
-            noise=noise,
-            noise_overwrite=True,
         )
 
     # -------Continue-Circuit------------
 
     # 3) Basis/ Measurement
     before_round_circuit.append("H", x_stab_index)
-
-    # -------Adding-After-Clifford-Depol.------------
-
-    if noise.after_c_depol_prob > 0 and memory_round:
-        before_round_circuit.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
-
-    # -------Continue-Circuit------------
-
     before_round_circuit.append("TICK")
-
-    # -------Adding-Before-Measurement-Flip-Prob.-------
-
-    if noise.before_m_flip_prob > 0 and memory_round:
-        before_round_circuit.append(
-            "X_ERROR",
-            x_stab_index + z_stab_index,
-            noise.before_m_flip_prob,
-        )
-
-    # -------Continue-Circuit----------
-
     before_round_circuit.append("M", x_stab_index + z_stab_index)
-
-    # -------Continue-Circuit------------
 
     ###########################
     # Define Repetition Circuit
@@ -167,61 +134,33 @@ def y_repetition_circ(
     round_circuit.append("TICK")
     round_circuit.append("R", x_stab_index + z_stab_index)
 
-    # -------Adding-After-Reset-Flip-Prob.------------
-
-    if noise.after_r_flip > 0 and memory_round:
-        round_circuit.append("X_ERROR", x_stab_index + z_stab_index, noise.after_r_flip)
-
     round_circuit.append("TICK")
     round_circuit.append("H", x_stab_index)
-
-    # -------Adding-After-Clifford-Depol.------------
-
-    if noise.after_c_depol_prob > 0 and memory_round:
-        round_circuit.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
-
-    # -------Continue-Circuit------------
 
     round_circuit.append("TICK")
 
     # 2) CX Operations
 
     if memory_round:
-        cx_builder(q2i=q2i, stab_to_data=stab_to_data, circuit=round_circuit, noise=noise)
+        cx_builder(
+            q2i=q2i,
+            stab_to_data=stab_to_data,
+            circuit=round_circuit,
+        )
     else:
         cx_builder(
             q2i=q2i,
             stab_to_data=stab_to_data,
             circuit=round_circuit,
             excluded_index=y_index,
-            noise=noise,
-            noise_overwrite=True,
         )
 
     # -------Continue-Circuit------------
 
     # 3) Basis/ Measurement
     round_circuit.append("H", x_stab_index)
-
-    # -------Adding-After-Clifford-Depol.------------
-
-    if noise.after_c_depol_prob > 0 and memory_round:
-        round_circuit.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
-
-    # -------Continue-Circuit------------
-
     round_circuit.append("TICK")
-
-    # -------Adding-Before-Measurement-Flip-Prob.-------
-
-    if noise.before_m_flip_prob > 0 and memory_round:
-        round_circuit.append("X_ERROR", x_stab_index + z_stab_index, noise.before_m_flip_prob)
-
-    # -------Continue-Circuit----------
-
     round_circuit.append("M", x_stab_index + z_stab_index)
-
-    # -------Continue-Circuit------------
 
     # If FT round or Beggining Rounds
     if not memory_round:

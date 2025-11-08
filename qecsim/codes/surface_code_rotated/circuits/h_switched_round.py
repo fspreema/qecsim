@@ -5,7 +5,6 @@ from qecsim.core.data_models import (
     CircuitResult,
     ConfigSurface as Config,
     Context,
-    NoiseModel,
     Patch,
 )
 
@@ -13,7 +12,10 @@ __all__ = ["h_switched_circ"]
 
 
 def h_switched_circ(
-    *, lct: Context, patches: dict[str, Patch], cfg: Config, noise: NoiseModel,
+    *,
+    lct: Context,
+    patches: dict[str, Patch],
+    cfg: Config,
 ) -> CircuitResult:
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -28,9 +30,6 @@ def h_switched_circ(
     rounds = cfg.rounds
     stab_to_data = lct.stab_to_data_modified
 
-    # -Retrieving Data Coords
-    data = patch.data
-
     # -Retrieving Index from Stabilizers of the Lattices
     x_stab_index = patch.z_stab
     z_stab_index = patch.x_stab
@@ -43,58 +42,31 @@ def h_switched_circ(
 
     switched_round_circ = stim.Circuit()
 
-    # -------Adding-Before-Round-Depol.-Data------------
-
-    if noise.before_round_depol > 0:
-        switched_round_circ.append("DEPOLARIZE1", data, noise.before_round_depol)
-
-    # -------Continue-Circuit------------
-
     # 1) Reset/ Basis
     switched_round_circ.append("H", x_stab_index)
-
-    # -------Adding-After-Clifford-Depol.------------
-
-    if noise.after_c_depol_prob > 0:
-        switched_round_circ.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
-
-    # -------Continue-Circuit------------
 
     switched_round_circ.append("TICK")
 
     # 2) CX Operations
 
-    cx_builder(q2i=q2i, stab_to_data=stab_to_data, circuit=switched_round_circ, noise=noise)
+    cx_builder(
+        q2i=q2i,
+        stab_to_data=stab_to_data,
+        circuit=switched_round_circ,
+    )
 
     # -------Continue-Circuit------------
 
     # 3) Basis/ Measurement
     switched_round_circ.append("H", x_stab_index)
 
-    # -------Adding-After-Clifford-Depol.------------
+    switched_round_circ.append("TICK")
 
-    if noise.after_c_depol_prob > 0:
-        switched_round_circ.append("DEPOLARIZE1", x_stab_index, noise.after_c_depol_prob)
-
-    # -------Continue-Circuit------------
+    switched_round_circ.append("M", x_stab_index + z_stab_index)
 
     switched_round_circ.append("TICK")
 
-    # -------Adding-Before-Measurement-Flip-Prob.-------
-
-    if noise.before_m_flip_prob > 0:
-        switched_round_circ.append("X_ERROR", x_stab_index + z_stab_index, noise.before_m_flip_prob)
-
-    # -------Continue-Circuit----------
-
-    switched_round_circ.append("MR", x_stab_index + z_stab_index)
-
-    # -------Adding-After-Reset-Flip-Prob.------------
-
-    if noise.after_r_flip > 0:
-        switched_round_circ.append("X_ERROR", x_stab_index + z_stab_index, noise.after_r_flip)
-
-    # -------Continue-Circuit------------
+    switched_round_circ.append("R", x_stab_index + z_stab_index)
 
     # -> Shifting Coords in Time-Dimension to have 3D timelike Detector graph (Needed for decoding)
     switched_round_circ.append("SHIFT_COORDS", arg=(0, 0, 1))

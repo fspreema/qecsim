@@ -17,14 +17,15 @@ def get_logical_strings(
 
     Returns:
         Dictionary with keys:
-            - 'a_z': Ancilla Z-logical indices (horizontal string at y=1)
-            - 't_x': Target X-logical indices (vertical string at x=distance*2+1)
-            - 't_z': Target Z-logical indices (horizontal string at y=1, offset region)
-            - 't_y': Target Y-logical indices (Z-string + Y-corner + X-string)
-            - 'c_x': Control X-logical indices (vertical string at x=1, offset region)
-            - 'c_z': Control Z-logical indices (horizontal string at y=distance*2+1)
-            - 'c_y': Control Y-logical indices (Z-string + Y-corner + X-string)
+            - 'a_z': Ancilla Z-logical indices
+            - 't_x': Target X-logical indices
+            - 't_z': Target Z-logical indices
+            - 't_y': Target Y-logical indices
+            - 'c_x': Control X-logical indices
+            - 'c_z': Control Z-logical indices
+            - 'c_y': Control Y-logical indices
     """
+
     # Control Y logical observable components
     # Y is at bottom right corner of control region: (distance*2-1, distance*4-1)
     c_y_z_string = [q2i[real + (distance * 4 - 1) * 1j] for real in range(1, distance * 2 - 1, 2)]

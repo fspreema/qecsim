@@ -26,7 +26,6 @@ def final_m(
     lct: Context,
     patches: dict[str, Patch],
     cfg: Config,
-    noise: NoiseModel,
     is_flipped: bool,
 ) -> CircuitResult:
     #################################################
@@ -67,21 +66,7 @@ def final_m(
     final_circuit = stim.Circuit()
 
     final_circuit.append("R", x_stab_index + z_stab_index)
-
-    # -------Adding-After-Reset-Flip-Prob.------------
-
-    if noise.after_r_flip > 0:
-        final_circuit.append("X_ERROR", x_stab_index + z_stab_index, noise.after_r_flip)
-
-    # -------Continue-Circuit------------
-
     final_circuit.append("TICK")
-
-    # -------Adding-Before-Measurement-Flip-Prob.----------
-    if noise.before_m_flip_prob > 0:
-        final_circuit.append("X_ERROR", data, noise.before_m_flip_prob)
-
-    # -------Continue-Circuit----------
 
     ########################################################
     # Adding mutliple measurement rounds for fault tolerance

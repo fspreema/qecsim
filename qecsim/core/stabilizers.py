@@ -27,6 +27,11 @@ def _assign_orders(table: dict[Pair, str], pairs: list[Pair], orders: list[str])
         table[(a, b)] = order
 
 
+# ------------------------------
+# Internal population functions
+# ------------------------------
+
+
 def _populate_xzzx(patch: dict[Coord, Label]) -> dict[Pair, str]:
     """
     Populate schedule for XZZX-style stabilizers
@@ -592,82 +597,113 @@ def _populate_surface(
         Adds the 2-body CX Schedule for the *boundary* stabilizers
         """
 
-        # (boundary case reference removed; inlined logic below)
-
         if not is_flipped:
             if not y_basis:
                 for coords, qtype in patch.items():
+                    # Get neigbouring data coords
+                    q1 = _neighbours(coords, +1, -1)
+                    q2 = _neighbours(coords, -1, -1)
+                    q3 = _neighbours(coords, +1, +1)
+                    q4 = _neighbours(coords, -1, +1)
+
                     if qtype == "Z-STAB-BOUND-L":
-                        new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                        stab_to_data[coords, new_cord1] = "1-CX"
-                        stab_to_data[coords, new_cord2] = "2-CX"
+                        pairs = [(coords, q1), (coords, q3)]
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["1-CX", "2-CX"],
+                        )
 
                     elif qtype == "Z-STAB-BOUND-R":
-                        new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
-                        stab_to_data[coords, new_cord1] = "3-CX"
-                        stab_to_data[coords, new_cord2] = "4-CX"
+                        pairs = [(coords, q2), (coords, q4)]
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["3-CX", "4-CX"],
+                        )
 
                     elif qtype == "X-STAB-BOUND-U":
-                        new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                        new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                        stab_to_data[new_cord1, coords] = "4-CX"
-                        stab_to_data[new_cord2, coords] = "3-CX"
+                        pairs = [(q4, coords), (q3, coords)]
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["4-CX", "3-CX"],
+                        )
 
                     elif qtype == "X-STAB-BOUND-B":
-                        new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
-                        stab_to_data[new_cord1, coords] = "2-CX"
-                        stab_to_data[new_cord2, coords] = "1-CX"
+                        pairs = [(q2, coords), (q1, coords)]
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["2-CX", "1-CX"],
+                        )
 
             elif y_basis:
                 if not y_switch and not y_memory:
                     for coords, qtype in patch.items():
+                        # Get neigbouring data coords
+                        q1 = _neighbours(coords, +1, -1)
+                        q2 = _neighbours(coords, -1, -1)
+                        q3 = _neighbours(coords, +1, +1)
+                        q4 = _neighbours(coords, -1, +1)
+
                         if qtype == "Z-STAB-BOUND-L":
-                            new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                            stab_to_data[coords, new_cord1] = "4-CX"
-                            stab_to_data[coords, new_cord2] = "3-CX"
+                            pairs = [(coords, q1), (coords, q3)]
+                            _assign_orders(
+                                stab_to_data,
+                                pairs,
+                                ["4-CX", "3-CX"],
+                            )
 
                         elif qtype == "X-STAB-BOUND-R":
-                            new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
-                            stab_to_data[new_cord1, coords] = "3-CX"
-                            stab_to_data[new_cord2, coords] = "1-CX"
+                            pairs = [(q2, coords), (q4, coords)]
+                            _assign_orders(
+                                stab_to_data,
+                                pairs,
+                                ["3-CX", "1-CX"],
+                            )
 
                         elif qtype == "Z-STAB-BOUND-U":
-                            new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                            new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                            stab_to_data[coords, new_cord1] = "1-CX"
-                            stab_to_data[coords, new_cord2] = "3-CX"
+                            pairs = [(coords, q4), (coords, q3)]
+                            _assign_orders(
+                                stab_to_data,
+                                pairs,
+                                ["1-CX", "3-CX"],
+                            )
 
                         elif qtype == "X-STAB-BOUND-B":
-                            new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
-                            stab_to_data[new_cord1, coords] = "3-CX"
-                            stab_to_data[new_cord2, coords] = "4-CX"
+                            pairs = [(q2, coords), (q1, coords)]
+                            _assign_orders(
+                                stab_to_data,
+                                pairs,
+                                ["3-CX", "4-CX"],
+                            )
 
                 elif y_switch and not y_memory:
                     for coords, qtype in patch.items():
                         """
-                        As the H gates was applied we need to flip the corressponding 
+                        As the H gates was applied we need to flip the corressponding
                         stabilizer schedule
-                        
+
                         * ATTENTION *
                         -> ONLY FLIP THESE WHICH WHERE FLIPPED I.E. on only one diagonal half
                         -> Additional Boundary Stabs do CX both ways i.e. detecting z and x errors!
                         """
+                        # Get neigbouring data coords
+                        q1 = _neighbours(coords, +1, -1)
+                        q2 = _neighbours(coords, -1, -1)
+                        q3 = _neighbours(coords, +1, +1)
+                        q4 = _neighbours(coords, -1, +1)
+
                         if qtype == "Z-STAB-BOUND-L":
-                            new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                            stab_to_data[coords, new_cord1] = "2TICK"
-                            stab_to_data[coords, new_cord2] = "3TICK"
+                            pairs = [(coords, q1), (coords, q3)]
+                            _assign_orders(
+                                stab_to_data,
+                                pairs,
+                                ["2TICK", "3TICK"],
+                            )
 
                         elif qtype == "X-STAB-BOUND-R":
-                            new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
-
                             # Check for lower boundary condition and exclude
                             # the cx which gets replaced by CYX
                             lower_boundary = [i for i in range(4, distance * 2, 4)][-1]
@@ -676,100 +712,147 @@ def _populate_surface(
                             ) * 1j
 
                             if coords != lower_coord:
-                                stab_to_data[coords, new_cord2] = "2TICK"
-
-                            stab_to_data[coords, new_cord1] = "3TICK"
+                                pairs = [(coords, q2), (coords, q4)]
+                                _assign_orders(
+                                    stab_to_data,
+                                    pairs,
+                                    ["3TICK", "2TICK"],
+                                )
+                            else:
+                                pairs = [(coords, q2)]
+                                _assign_orders(
+                                    stab_to_data,
+                                    pairs,
+                                    ["3TICK"],
+                                )
 
                         elif qtype == "X-STAB-BOUND-R-H":
                             # H Boundary has mixed cx direction
-                            new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
-                            stab_to_data[coords, new_cord1] = "4TICK"
-                            stab_to_data[new_cord2, coords] = "2TICK"
-                            stab_to_data[coords, new_cord2] = "5TICK"
+                            pairs = [(coords, q2), (q4, coords), (coords, q4)]
+                            _assign_orders(
+                                stab_to_data,
+                                pairs,
+                                ["4TICK", "2TICK", "5TICK"],
+                            )
 
                         elif qtype == "Z-STAB-BOUND-U-H":
                             # H Boundary has mixed direction
-                            new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                            new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-
-                            if new_cord1 != 1 + 1j + offset:
-                                stab_to_data[coords, new_cord1] = "2TICK"
-
-                            stab_to_data[new_cord2, coords] = "4TICK"
-                            stab_to_data[new_cord1, coords] = "5TICK"
+                            if q4 != 1 + 1j + offset:
+                                pairs = [(coords, q4), (q3, coords), (q4, coords)]
+                                _assign_orders(
+                                    stab_to_data,
+                                    pairs,
+                                    ["2TICK", "4TICK", "5TICK"],
+                                )
+                            else:
+                                pairs = [(q3, coords), (q4, coords)]
+                                _assign_orders(
+                                    stab_to_data,
+                                    pairs,
+                                    ["4TICK", "5TICK"],
+                                )
 
                         elif qtype == "Z-STAB-BOUND-U":
-                            new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                            new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                            stab_to_data[new_cord1, coords] = "2TICK"
-                            stab_to_data[new_cord2, coords] = "3TICK"
+                            pairs = [(q4, coords), (q3, coords)]
+                            _assign_orders(
+                                stab_to_data,
+                                pairs,
+                                ["2TICK", "3TICK"],
+                            )
 
                         elif qtype == "X-STAB-BOUND-B":
-                            new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
-                            stab_to_data[new_cord1, coords] = "3TICK"
-                            stab_to_data[new_cord2, coords] = "2TICK"
+                            pairs = [(q2, coords), (q1, coords)]
+                            _assign_orders(
+                                stab_to_data,
+                                pairs,
+                                ["3TICK", "2TICK"],
+                            )
 
                 elif y_memory:
                     for coords, qtype in patch.items():
                         """
-                        In the memory Round we switch to the newly introduced 
+                        In the memory Round we switch to the newly introduced
                         boundary operators and deactivate the old ones
                         """
+                        # Get neigbouring data coords
+                        q1 = _neighbours(coords, +1, -1)
+                        q2 = _neighbours(coords, -1, -1)
+                        q3 = _neighbours(coords, +1, +1)
+                        q4 = _neighbours(coords, -1, +1)
 
                         if qtype == "Z-STAB-BOUND-L":
-                            new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                            stab_to_data[coords, new_cord1] = "4-CX"
-                            stab_to_data[coords, new_cord2] = "3-CX"
+                            pairs = [(coords, q1), (coords, q3)]
+                            _assign_orders(
+                                stab_to_data,
+                                pairs,
+                                ["4-CX", "3-CX"],
+                            )
 
                         elif qtype == "X-STAB-BOUND-R-H":
-                            new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
-                            stab_to_data[coords, new_cord1] = "2-CX"
-                            stab_to_data[coords, new_cord2] = "1-CX"
+                            pairs = [(coords, q2), (coords, q4)]
+                            _assign_orders(
+                                stab_to_data,
+                                pairs,
+                                ["2-CX", "1-CX"],
+                            )
 
                         elif qtype == "Z-STAB-BOUND-U-H":
-                            new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                            new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                            stab_to_data[new_cord1, coords] = "1-CX"
-                            stab_to_data[new_cord2, coords] = "2-CX"
+                            pairs = [(q4, coords), (q3, coords)]
+                            _assign_orders(
+                                stab_to_data,
+                                pairs,
+                                ["1-CX", "2-CX"],
+                            )
 
                         elif qtype == "X-STAB-BOUND-B":
-                            new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                            new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
-                            stab_to_data[new_cord1, coords] = "3-CX"
-                            stab_to_data[new_cord2, coords] = "4-CX"
+                            pairs = [(q2, coords), (q1, coords)]
+                            _assign_orders(
+                                stab_to_data,
+                                pairs,
+                                ["3-CX", "4-CX"],
+                            )
 
         else:
             for coords, qtype in patch.items():
                 # Switching the stabilizers so the Z-Stab have switched
                 # CX and therefore act like a X-Stab and vice versa
+                # Get neigbouring data coords
+                q1 = _neighbours(coords, +1, -1)
+                q2 = _neighbours(coords, -1, -1)
+                q3 = _neighbours(coords, +1, +1)
+                q4 = _neighbours(coords, -1, +1)
 
                 if qtype == "Z-STAB-BOUND-L":
-                    new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                    stab_to_data[new_cord1, coords] = "2-CX"
-                    stab_to_data[new_cord2, coords] = "1-CX"
+                    pairs = [(q1, coords), (q3, coords)]
+                    _assign_orders(
+                        stab_to_data,
+                        pairs,
+                        ["2-CX", "1-CX"],
+                    )
 
                 elif qtype == "Z-STAB-BOUND-R":
-                    new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
-                    stab_to_data[new_cord1, coords] = "4-CX"
-                    stab_to_data[new_cord2, coords] = "3-CX"
+                    pairs = [(q2, coords), (q4, coords)]
+                    _assign_orders(
+                        stab_to_data,
+                        pairs,
+                        ["4-CX", "3-CX"],
+                    )
 
                 elif qtype == "X-STAB-BOUND-U":
-                    new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                    new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                    stab_to_data[coords, new_cord1] = "3-CX"
-                    stab_to_data[coords, new_cord2] = "4-CX"
+                    pairs = [(coords, q4), (coords, q3)]
+                    _assign_orders(
+                        stab_to_data,
+                        pairs,
+                        ["3-CX", "4-CX"],
+                    )
 
                 elif qtype == "X-STAB-BOUND-B":
-                    new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
-                    stab_to_data[coords, new_cord1] = "1-CX"
-                    stab_to_data[coords, new_cord2] = "2-CX"
+                    pairs = [(coords, q2), (coords, q1)]
+                    _assign_orders(
+                        stab_to_data,
+                        pairs,
+                        ["1-CX", "2-CX"],
+                    )
 
     # Running the Functions to populate the Schedule
     attach_interior()
@@ -778,6 +861,11 @@ def _populate_surface(
         return stab_to_data, stab_to_data_xcy
 
     return stab_to_data
+
+
+# ---------------------------------------------
+# Global Call function for all stabilizer types
+# ---------------------------------------------
 
 
 def populate_stab_to_data(patch: dict[Coord, Label], *args, **kwargs):

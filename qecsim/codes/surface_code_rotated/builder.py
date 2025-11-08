@@ -8,7 +8,6 @@ from qecsim.core.data_models import (
     NoiseModel,
     Patch,
 )
-from qecsim.core.flow_builder import CircuitChunk, CompileChunk
 from qecsim.core.geometry import build_lattice
 from qecsim.core.stabilizers import populate_stab_to_data
 
@@ -304,15 +303,10 @@ def rotated_surface_code(
 
     # Check whether we need Y basis initilization
     if is_y:
-        initial_circuit = y_initial(lct=lct, patch=patches["patch"], noise=noise)
+        initial_circuit = y_initial(lct=lct, patch=patches["patch"])
 
     else:
-        initial_circuit = initial(lct=lct, patches=patches, cfg=cfg, noise=noise)
-
-        chunk_2 = CircuitChunk(
-            initial(lct=lct, patches=patches, cfg=cfg, noise=noise).circuit,
-            i2q=i2q,
-        )
+        initial_circuit = initial(lct=lct, patches=patches, cfg=cfg)
 
     ################################
     # 6. Building repetition Circuit
@@ -321,18 +315,13 @@ def rotated_surface_code(
     if is_y:
         repeat_circ = y_repetition_circ(lct=lct, patch=patches["patch"], cfg=cfg, noise=noise)
 
-        switch_circ = y_switch_circ(lct=lct, patch=patches["patch"], cfg=cfg, noise=noise)
+        switch_circ = y_switch_circ(lct=lct, patch=patches["patch"], cfg=cfg)
 
         initial_circuit += repeat_circ
         initial_circuit += switch_circ
 
     else:
         repeat_circ = repetition_circ(lct=lct, patches=patches, cfg=cfg, noise=noise)
-
-        chunk_3 = CircuitChunk(
-            repetition_circ(lct=lct, patches=patches, cfg=cfg, noise=noise).circuit,
-            i2q=i2q,
-        )
 
         initial_circuit += repeat_circ
 
@@ -354,7 +343,7 @@ def rotated_surface_code(
     if flip_needed is True:
         repeat_switch_init = h_switched_circ_init(lct=lct, patches=patches, noise=noise)
 
-        repeat_switched = h_switched_circ(lct=lct, patches=patches, cfg=cfg, noise=noise)
+        repeat_switched = h_switched_circ(lct=lct, patches=patches, cfg=cfg)
 
         initial_circuit += repeat_switch_init
         initial_circuit += repeat_switched
@@ -365,38 +354,16 @@ def rotated_surface_code(
 
     state_init_circuit = reset(lct=lct, patches=patches, cfg=cfg, logical_h=flip_needed)
 
-    test_flow = initial(lct=lct, patches=patches, cfg=cfg, noise=noise)
-
-    for flows in test_flow.circuit.flow_generators():
-        print(flows)
-
-    chunk_1 = CircuitChunk(
-        reset(lct=lct, patches=patches, cfg=cfg, logical_h=flip_needed).circuit,
-        i2q=i2q,
-    )
-
     if not is_y:
         final_measurement = final_m(
             lct=lct,
             patches=patches,
             cfg=cfg,
-            noise=noise,
             is_flipped=flip_needed,
         )
 
         state_init_circuit += initial_circuit
         state_init_circuit += final_measurement
-
-        chunk_4 = CircuitChunk(
-            final_m(
-                lct=lct,
-                patches=patches,
-                cfg=cfg,
-                noise=noise,
-                is_flipped=flip_needed,
-            ).circuit,
-            i2q=i2q,
-        )
 
     ##################################
     # Adding Actual Y basis Memory run
@@ -415,7 +382,10 @@ def rotated_surface_code(
         state_init_circuit += y_memory
 
         # Adding the basis reverse
-        reverse_switch = y_rev_switch_circ(lct=lct, patches=patches, noise=noise)
+        reverse_switch = y_rev_switch_circ(
+            lct=lct,
+            patches=patches,
+        )
 
         #############################
         # Adding logical Y Observable
@@ -538,18 +508,8 @@ def rotated_surface_code(
             return circ_with_dets
 
     else:
-        compiler = CompileChunk()
-        compiler.add_chunk(chunk_1)
-        compiler.add_chunk(chunk_2)
-        compiler.add_chunk(chunk_3)
-        compiler.add_chunk(chunk_4)
+        if final_measurement.obs_indices is not None:
+            return state_init_circuit.circuit, final_measurement.obs_indices
 
-        finished_circ = compiler.compile()
-
-        return finished_circ
-
-        # if final_measurement.obs_indices is not None:
-        #     return state_init_circuit.circuit, final_measurement.obs_indices
-
-        # else:
-        #     return state_init_circuit.circuit
+        else:
+            return state_init_circuit.circuit

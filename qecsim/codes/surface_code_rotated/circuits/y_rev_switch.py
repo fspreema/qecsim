@@ -3,7 +3,6 @@ import stim
 from qecsim.core.data_models import (
     CircuitResult,
     Context,
-    NoiseModel,
     Patch,
 )
 
@@ -17,7 +16,6 @@ def y_rev_switch_circ(
     lct: Context,
     patches: dict[str, Patch],
     offset: complex = 0 + 0j,
-    noise: NoiseModel,
 ) -> CircuitResult:
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -43,13 +41,6 @@ def y_rev_switch_circ(
     # Finding Upper right qubit index -> need to look in 2-CX
     y_coords = 1 + 1j + offset
     y_index = q2i[y_coords]
-
-    #################################
-    # Creating final MPP measurements
-    #################################
-
-    final_measurement = stim.Circuit()
-    final_measurement.append("TICK")
 
     #####################################
     # Define First Stab X MPP measurement
@@ -195,15 +186,6 @@ def y_rev_switch_circ(
     # Adding half diagonal H
     reversed_switch_circ.append("H", x_stab_index + r_h_stabs)
     reversed_switch_circ.append("TICK")
-
-    # Adding locial readout error -> Y logical meassured thorugh the stabilizers
-
-    if noise.before_m_flip_prob > 0:
-        reversed_switch_circ.append(
-            "X_ERROR",
-            x_stab_index + z_stab_index + r_h_stabs + u_h_stabs + [y_index],
-            noise.before_m_flip_prob,
-        )
 
     # Adding Resets
     reversed_switch_circ.append("MZ", x_stab_index + z_stab_index + r_h_stabs + u_h_stabs)

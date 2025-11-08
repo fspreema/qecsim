@@ -180,6 +180,19 @@ class CircuitNoise:
         return noisy_circuit
 
 
+class CircuitNoiseYBasis:
+    """
+    Adds Circuit Noise analog to CircuitNoise but in Y-Basis
+    -> Initialization etc. is not included in this noise model
+    -> Only tick window inside the memory experiment is considered
+    """
+
+    def __init__(self, circuit: stim.Circuit, noise: dict):
+        self.circuit = circuit
+        self.noise = noise
+        self.noise_before_operators: list[str] = ["H", "CX", "S", "S_DAG", "CZ"]
+
+
 class BiasNoise:
     """
     Adds Bias Noise to a given Circuit

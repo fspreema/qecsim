@@ -2,8 +2,6 @@ from collections.abc import Iterable
 
 import stim
 
-from qecsim.core.data_models import NoiseModel
-
 __all__ = ["cx_builder"]
 
 
@@ -14,8 +12,6 @@ def cx_builder(
     circuit: stim.Circuit,
     orders: Iterable[str] = ("1-CX", "2-CX", "3-CX", "4-CX"),
     excluded_index: int | None = None,
-    noise_overwrite: bool = False,
-    noise: NoiseModel,
     add_operator_before: dict[str, list[tuple[str, list[int]]]] = None,
     add_operator_after: dict[str, list[tuple[str, list[int]]]] = None,
 ) -> None:
@@ -48,7 +44,6 @@ def cx_builder(
     def _append_by_order(
         op: str,
         order: str,
-        noise: float = 0.0,
     ) -> None:
         # Getting pair info
         for pair in _pairs_for(order):
@@ -57,21 +52,16 @@ def cx_builder(
                 # Adding Pair on Operation
                 if op == "CX":
                     circuit.append(op, pair)
-                elif op == "DEPOLARIZE2":
-                    circuit.append(op, pair, noise)
                 else:
                     raise ValueError("Unsupported Operator")
 
     def _append_by_single_index(
         op: str,
         index: int,
-        noise: float = 0.0,
     ) -> None:
         # Adding Single Qubit Operation
         if op in ["X", "Y", "Z", "H", "S", "S_DAG", "T", "T_DAG"]:
             circuit.append(op, index)
-        elif op == "DEPOLARIZE1":
-            circuit.append(op, index, noise)
         else:
             raise ValueError("Unsupported Single Qubit Operator")
 
@@ -85,10 +75,6 @@ def cx_builder(
 
         # Add CX Operations
         _append_by_order("CX", order)
-
-        # Add noise after CX operations
-        if noise.after_c_depol_prob > 0 and noise_overwrite:
-            _append_by_order("DEPOLARIZE2", order, noise.after_c_depol_prob)
 
         # Add after CX operations
         if add_operator_after is not None and order in add_operator_after:
