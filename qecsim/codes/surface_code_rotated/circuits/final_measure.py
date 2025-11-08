@@ -66,6 +66,17 @@ def final_m(
 
     final_circuit = stim.Circuit()
 
+    final_circuit.append("R", x_stab_index + z_stab_index)
+
+    # -------Adding-After-Reset-Flip-Prob.------------
+
+    if noise.after_r_flip > 0:
+        final_circuit.append("X_ERROR", x_stab_index + z_stab_index, noise.after_r_flip)
+
+    # -------Continue-Circuit------------
+
+    final_circuit.append("TICK")
+
     # -------Adding-Before-Measurement-Flip-Prob.----------
     if noise.before_m_flip_prob > 0:
         final_circuit.append("X_ERROR", data, noise.before_m_flip_prob)
@@ -184,9 +195,9 @@ def final_m(
         final_record = current_record + last_record
 
         # Appending Detector
-        det_circ1.append(
-            "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
-        )
+        # det_circ1.append(
+        #     "DETECTOR", [stim.target_rec(i) for i in final_record], arg=(q.real, q.imag, 1),
+        # )
 
     if not is_flipped:
         # Det Observable
@@ -222,7 +233,9 @@ def final_m(
                         tar_rec.append(rec_pos)
 
                 final_circuit.append(
-                    "OBSERVABLE_INCLUDE", [stim.target_rec(-len(data) + k) for k in tar_rec], 0,
+                    "OBSERVABLE_INCLUDE",
+                    [stim.target_rec(-len(data) + k) for k in tar_rec],
+                    0,
                 )
 
         elif init_state in {"0", "1"}:
@@ -237,7 +250,9 @@ def final_m(
                         tar_rec.append(rec_pos)
 
                 final_circuit.append(
-                    "OBSERVABLE_INCLUDE", [stim.target_rec(-len(data) + k) for k in tar_rec], 0,
+                    "OBSERVABLE_INCLUDE",
+                    [stim.target_rec(-len(data) + k) for k in tar_rec],
+                    0,
                 )
 
     elif not is_flipped:
@@ -253,7 +268,9 @@ def final_m(
                         tar_rec.append(rec_pos)
 
                 final_circuit.append(
-                    "OBSERVABLE_INCLUDE", [stim.target_rec(-len(data) + k) for k in tar_rec], 0,
+                    "OBSERVABLE_INCLUDE",
+                    [stim.target_rec(-len(data) + k) for k in tar_rec],
+                    0,
                 )
 
             if log_obs == "Z":
@@ -308,7 +325,9 @@ def final_m(
                         tar_rec.append(rec_pos)
 
                 final_circuit.append(
-                    "OBSERVABLE_INCLUDE", [stim.target_rec(-len(data) + k) for k in tar_rec], 0,
+                    "OBSERVABLE_INCLUDE",
+                    [stim.target_rec(-len(data) + k) for k in tar_rec],
+                    0,
                 )
 
             if log_obs in {"X"}:

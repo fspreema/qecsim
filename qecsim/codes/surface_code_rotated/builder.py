@@ -8,6 +8,7 @@ from qecsim.core.data_models import (
     NoiseModel,
     Patch,
 )
+from qecsim.core.flow_builder import CircuitChunk, CompileChunk
 from qecsim.core.geometry import build_lattice
 from qecsim.core.stabilizers import populate_stab_to_data
 
@@ -308,6 +309,11 @@ def rotated_surface_code(
     else:
         initial_circuit = initial(lct=lct, patches=patches, cfg=cfg, noise=noise)
 
+        chunk_2 = CircuitChunk(
+            initial(lct=lct, patches=patches, cfg=cfg, noise=noise).circuit,
+            i2q=i2q,
+        )
+
     ################################
     # 6. Building repetition Circuit
     ################################
@@ -322,6 +328,11 @@ def rotated_surface_code(
 
     else:
         repeat_circ = repetition_circ(lct=lct, patches=patches, cfg=cfg, noise=noise)
+
+        chunk_3 = CircuitChunk(
+            repetition_circ(lct=lct, patches=patches, cfg=cfg, noise=noise).circuit,
+            i2q=i2q,
+        )
 
         initial_circuit += repeat_circ
 
@@ -354,6 +365,16 @@ def rotated_surface_code(
 
     state_init_circuit = reset(lct=lct, patches=patches, cfg=cfg, logical_h=flip_needed)
 
+    test_flow = initial(lct=lct, patches=patches, cfg=cfg, noise=noise)
+
+    for flows in test_flow.circuit.flow_generators():
+        print(flows)
+
+    chunk_1 = CircuitChunk(
+        reset(lct=lct, patches=patches, cfg=cfg, logical_h=flip_needed).circuit,
+        i2q=i2q,
+    )
+
     if not is_y:
         final_measurement = final_m(
             lct=lct,
@@ -365,6 +386,17 @@ def rotated_surface_code(
 
         state_init_circuit += initial_circuit
         state_init_circuit += final_measurement
+
+        chunk_4 = CircuitChunk(
+            final_m(
+                lct=lct,
+                patches=patches,
+                cfg=cfg,
+                noise=noise,
+                is_flipped=flip_needed,
+            ).circuit,
+            i2q=i2q,
+        )
 
     ##################################
     # Adding Actual Y basis Memory run
@@ -506,8 +538,18 @@ def rotated_surface_code(
             return circ_with_dets
 
     else:
-        if final_measurement.obs_indices is not None:
-            return state_init_circuit.circuit, final_measurement.obs_indices
+        compiler = CompileChunk()
+        compiler.add_chunk(chunk_1)
+        compiler.add_chunk(chunk_2)
+        compiler.add_chunk(chunk_3)
+        compiler.add_chunk(chunk_4)
 
-        else:
-            return state_init_circuit.circuit
+        finished_circ = compiler.compile()
+
+        return finished_circ
+
+        # if final_measurement.obs_indices is not None:
+        #     return state_init_circuit.circuit, final_measurement.obs_indices
+
+        # else:
+        #     return state_init_circuit.circuit

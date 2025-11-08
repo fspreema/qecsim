@@ -182,7 +182,6 @@ def initial(
 
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     initial_circuit.append("H", x_stab_index_control + x_stab_index_target)
-    initial_circuit.append("SHIFT_COORDS", arg=(0, 0, 1))
 
     # -------Adding-After-Clifford-Depol.------------
     if noise.after_c_depol_prob > 0:
@@ -207,8 +206,6 @@ def initial(
     ###########################################
 
     initial_repeat_circuit = stim.Circuit()
-
-    initial_repeat_circuit.append("SHIFT_COORDS", arg=(0, 0, 1))
 
     # Adding reset from initial round
     initial_repeat_circuit.append("TICK")
@@ -297,7 +294,6 @@ def initial(
 
     # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
     initial_repeat_circuit.append("H", x_stab_index_control + x_stab_index_target)
-    initial_repeat_circuit.append("SHIFT_COORDS", arg=(0, 0, 1))
 
     # -------Adding-After-Clifford-Depol.------------
     if noise.after_c_depol_prob > 0:

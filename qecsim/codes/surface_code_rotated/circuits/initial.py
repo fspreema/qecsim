@@ -15,7 +15,11 @@ __all__ = ["initial"]
 
 
 def initial(
-    *, lct: Context, patches: dict[str, Patch], cfg: Config, noise: NoiseModel,
+    *,
+    lct: Context,
+    patches: dict[str, Patch],
+    cfg: Config,
+    noise: NoiseModel,
 ) -> CircuitResult:
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -42,6 +46,10 @@ def initial(
     ########################
 
     initial_circuit = stim.Circuit()
+
+    initial_circuit.append("TICK")
+
+    initial_circuit.append("R", x_stab_index + z_stab_index)
 
     initial_circuit.append("TICK")
 
@@ -89,7 +97,7 @@ def initial(
 
     # -------Continue-Circuit------------
 
-    initial_circuit.append("MR", x_stab_index + z_stab_index)
+    initial_circuit.append("M", x_stab_index + z_stab_index)
 
     # -------Adding-After-Reset-Flip-Prob.------------
 
@@ -107,21 +115,21 @@ def initial(
 
         for index, q_index in enumerate(z_stab_index):
             current_tar = -1 * num_measurements_initial + index
-            initial_circuit.append(
-                "DETECTOR",
-                [stim.target_rec(current_tar)],
-                (i2q[q_index].real, i2q[q_index].imag, 0),
-            )
+            # initial_circuit.append(
+            #     "DETECTOR",
+            #     [stim.target_rec(current_tar)],
+            #     (i2q[q_index].real, i2q[q_index].imag, 0),
+            # )
 
     elif init_state in {"+", "-"}:
         num_measurements_initial = len(x_stab_index + z_stab_index)
 
         for index, q_index in enumerate(x_stab_index):
             current_tar = -1 * num_measurements_initial + index
-            initial_circuit.append(
-                "DETECTOR",
-                [stim.target_rec(current_tar)],
-                (i2q[q_index].real, i2q[q_index].imag, 0),
-            )
+            # initial_circuit.append(
+            #     "DETECTOR",
+            #     [stim.target_rec(current_tar)],
+            #     (i2q[q_index].real, i2q[q_index].imag, 0),
+            # )
 
     return CircuitResult(circuit=initial_circuit)

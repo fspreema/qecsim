@@ -23,7 +23,6 @@ def merge(
     cfg: Config,
     merging_type: str,
     noise: NoiseModel,
-    modified_measurement: str = "",
 ) -> stim.Circuit:
     """
     modified_measurement: str
@@ -177,7 +176,7 @@ def merge(
     combined_x_stab_merging_lattices: list = []
     combined_z_stab_merging_lattices: list = []
 
-    if modified_measurement in ["YY", "YX", "ZY", "YX", "YZ"]:
+    if flow_observable in []:
         # Finding index for data qubits if they are included in merging region
         data_qubits_merge_region_ancilla: list = []
         data_qubits_merge_region_lattice: list = []
@@ -203,7 +202,7 @@ def merge(
                 combined_z_stab_merging_lattices.append(coords)
 
         # Finding data qubits in merging region
-        if modified_measurement in ["YY", "YX", "ZY", "YX", "YZ"]:
+        if flow_observable in []:
             for q_coord, q_type in qubit_coords_control.items():
                 if q_type == "DATA" and q_coord.imag == distance * 2 + 1:
                     # Adding to index list
@@ -231,7 +230,7 @@ def merge(
                 combined_z_stab_merging_lattices.append(coords)
 
         # Finding data qubits in merging region
-        if modified_measurement in ["YY", "YX", "ZY", "YX", "YZ"]:
+        if flow_observable in []:
             for q_coord, q_type in qubit_coords_target.items():
                 if q_type == "DATA" and q_coord.real == distance * 2 + 1:
                     data_qubits_merge_region_lattice.append(q2i[q_coord])
@@ -240,55 +239,43 @@ def merge(
                 if q_type == "DATA" and q_coord.real == distance * 2 - 1:
                     data_qubits_merge_region_ancilla.append(q2i[q_coord])
 
-    if modified_measurement == "YY":
-        # Adding H gate if ZZ measurement
-        if merging_type == "AT":
-            # Add all operators at once for each order (before and after)
-            # Using surgery orders (1S-CX, 2S-CX, 3S-CX, 4S-CX) for merge boundary operations
+    if merging_type == "AT":
+        # Add all operators at once for each order (before and after)
+        # Using surgery orders (1S-CX, 2S-CX, 3S-CX, 4S-CX) for merge boundary operations
 
-            # Sort operations by flows:
-            if flow_observable == "YZ -> XY":
-                dict_operators_before["1S-CX"] = [("S", data_qubits_merge_region_lattice)]
-                dict_operators_after["4S-CX"] = [("S_DAG", data_qubits_merge_region_lattice)]
+        # Sort operations by flows:
+        if flow_observable in []:
+            dict_operators_before["1S-CX"] = [("S", data_qubits_merge_region_lattice)]
+            dict_operators_after["4S-CX"] = [("S_DAG", data_qubits_merge_region_lattice)]
 
-        elif merging_type == "AC":
-            # Add collected operators to dict_operators under the proper keys
-            # Using surgery orders (1S-CX, 2S-CX, 3S-CX, 4S-CX) for merge boundary operations
+    elif merging_type == "AC":
+        # Add collected operators to dict_operators under the proper keys
+        # Using surgery orders (1S-CX, 2S-CX, 3S-CX, 4S-CX) for merge boundary operations
 
-            # Sort operations by flows:
-            if flow_observable == "YZ -> XY":
-                # Store as list of tuples to preserve order: [(op1, indices), (op2, indices), ...]
-                dict_operators_before["1S-CX"] = [
-                    ("H", data_qubits_merge_region_lattice),
-                    ("S_DAG", data_qubits_merge_region_lattice),
-                ]
-                dict_operators_after["4S-CX"] = [
-                    ("S", data_qubits_merge_region_lattice),
-                    ("H", data_qubits_merge_region_lattice),
-                ]
+        # Sort operations by flows:
+        if flow_observable in []:
+            # Store as list of tuples to preserve order: [(op1, indices), (op2, indices), ...]
+            dict_operators_before["1S-CX"] = [
+                ("H", data_qubits_merge_region_lattice),
+                ("S_DAG", data_qubits_merge_region_lattice),
+            ]
+            dict_operators_after["4S-CX"] = [
+                ("S", data_qubits_merge_region_lattice),
+                ("H", data_qubits_merge_region_lattice),
+            ]
 
     # CX Operations -> If Y measurement H or S corrective gates need to be applied
     joined_dict = stab_to_data_curr_merg | stab_to_data_untouched_circ
 
-    if modified_measurement != "":
-        cx_builder(
-            q2i=q2i,
-            stab_to_data=joined_dict,
-            circuit=merge_init_circuit,
-            orders=("1-CX", "2-CX", "3-CX", "4-CX", "1S-CX", "2S-CX", "3S-CX", "4S-CX"),
-            noise=noise,
-            add_operator_before=dict_operators_before,
-            add_operator_after=dict_operators_after,
-        )
-
-    else:
-        cx_builder(
-            q2i=q2i,
-            stab_to_data=joined_dict,
-            circuit=merge_init_circuit,
-            orders=("1-CX", "2-CX", "3-CX", "4-CX", "1S-CX", "2S-CX", "3S-CX", "4S-CX"),
-            noise=noise,
-        )
+    cx_builder(
+        q2i=q2i,
+        stab_to_data=joined_dict,
+        circuit=merge_init_circuit,
+        orders=("1-CX", "2-CX", "3-CX", "4-CX", "1S-CX", "2S-CX", "3S-CX", "4S-CX"),
+        noise=noise,
+        add_operator_before=dict_operators_before if flow_observable in [] else None,
+        add_operator_after=dict_operators_after if flow_observable in [] else None,
+    )
 
     # Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement):
     merge_init_circuit.append("H", combined_x_stab_merging_lattices)
@@ -395,9 +382,6 @@ def merge(
 
     # Defining Repeat Circuit
     merge_round_circuit = stim.Circuit()
-
-    # Adding repeat circuit with all stabilizers defined
-    merge_round_circuit.append("SHIFT_COORDS", arg=(0, 0, 1))
 
     # Adding reset from initial round
     merge_round_circuit.append("TICK")

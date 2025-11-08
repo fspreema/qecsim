@@ -4,6 +4,28 @@ Pair = tuple[Coord, Coord]
 
 __all__ = ["populate_stab_to_data"]
 
+# ------------------------------
+# Internal helper function
+# ------------------------------
+
+
+def _neighbours(c: complex, dx: int, dy: int) -> complex:
+    """
+    Returns the neigbouring complex number with the real distance of dx
+    and imag distance of dy
+    """
+
+    return (c.real + dx) + (c.imag + dy) * 1j
+
+
+def _assign_orders(table: dict[Pair, str], pairs: list[Pair], orders: list[str]) -> None:
+    """
+    Adds the list of pairs into stab to data dict with the corresponding orders
+    """
+
+    for (a, b), order in zip(pairs, orders, strict=True):
+        table[(a, b)] = order
+
 
 def _populate_xzzx(patch: dict[Coord, Label]) -> dict[Pair, str]:
     """
@@ -18,24 +40,19 @@ def _populate_xzzx(patch: dict[Coord, Label]) -> dict[Pair, str]:
         """
 
         for coords, string in patch.items():
-            if string == "STAB-Ver":
-                new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
-                new_cord3 = (coords.real - 1) + (coords.imag + 1) * 1j
-                new_cord4 = (coords.real + 1) + (coords.imag + 1) * 1j
-                stab_to_data[(new_cord1, coords)] = "1-CX"
-                stab_to_data[(new_cord2, coords)] = "2-CZ"
-                stab_to_data[(new_cord3, coords)] = "3-CZ"
-                stab_to_data[(new_cord4, coords)] = "4-CX"
-            elif string == "STAB-Hor":
-                new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
-                new_cord3 = (coords.real - 1) + (coords.imag + 1) * 1j
-                new_cord4 = (coords.real + 1) + (coords.imag + 1) * 1j
-                stab_to_data[(new_cord1, coords)] = "1-CX"
-                stab_to_data[(new_cord2, coords)] = "2-CZ"
-                stab_to_data[(new_cord3, coords)] = "3-CZ"
-                stab_to_data[(new_cord4, coords)] = "4-CX"
+            # Get neigbouring data coords
+            q1 = _neighbours(coords, -1, -1)
+            q2 = _neighbours(coords, +1, -1)
+            q3 = _neighbours(coords, -1, +1)
+            q4 = _neighbours(coords, +1, +1)
+
+            if string in {"STAB-Ver", "STAB-Hor"}:
+                pairs = [(q1, coords), (q2, coords), (q3, coords), (q4, coords)]
+                _assign_orders(
+                    stab_to_data,
+                    pairs,
+                    ["1-CX", "2-CZ", "3-CZ", "4-CX"],
+                )
 
     def _attach_boundary_cx():
         """
@@ -43,26 +60,40 @@ def _populate_xzzx(patch: dict[Coord, Label]) -> dict[Pair, str]:
         """
 
         for coords, string in patch.items():
+            # Get neigbouring data coords
+            q1 = _neighbours(coords, -1, -1)
+            q2 = _neighbours(coords, +1, -1)
+            q3 = _neighbours(coords, -1, +1)
+            q4 = _neighbours(coords, +1, +1)
+
             if string == "STAB-BOUND-L-Hor":
-                new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                stab_to_data[(new_cord1, coords)] = "3-CZ"
-                stab_to_data[(new_cord2, coords)] = "4-CX"
+                pairs = [(q2, coords), (q4, coords)]
+                _assign_orders(
+                    stab_to_data,
+                    pairs,
+                    ["3-CZ", "4-CX"],
+                )
             elif string == "STAB-BOUND-R-Hor":
-                new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
-                stab_to_data[(new_cord1, coords)] = "1-CX"
-                stab_to_data[(new_cord2, coords)] = "2-CZ"
+                pairs = [(q1, coords), (q3, coords)]
+                _assign_orders(
+                    stab_to_data,
+                    pairs,
+                    ["1-CX", "2-CZ"],
+                )
             elif string == "STAB-BOUND-A-Ver":
-                new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                stab_to_data[(new_cord1, coords)] = "3-CZ"
-                stab_to_data[(new_cord2, coords)] = "4-CX"
+                pairs = [(q3, coords), (q4, coords)]
+                _assign_orders(
+                    stab_to_data,
+                    pairs,
+                    ["3-CZ", "4-CX"],
+                )
             elif string == "STAB-BOUND-B-Ver":
-                new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
-                stab_to_data[(new_cord1, coords)] = "1-CX"
-                stab_to_data[(new_cord2, coords)] = "2-CZ"
+                pairs = [(q1, coords), (q2, coords)]
+                _assign_orders(
+                    stab_to_data,
+                    pairs,
+                    ["1-CX", "2-CZ"],
+                )
 
     # Add interior and boundary CXs
     _attach_interior_cx()
@@ -90,95 +121,75 @@ def _populate_lattice_surgery(
 
         if not merging:
             for coords, string in patch.items():
+                # Get neigbouring data coords
+                q1 = _neighbours(coords, +1, -1)
+                q2 = _neighbours(coords, -1, -1)
+                q3 = _neighbours(coords, +1, +1)
+                q4 = _neighbours(coords, -1, +1)
+
                 if string == "X-STAB":
-                    new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
-                    new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
-                    stab_to_data[(new_cord1, coords)] = "1-CX"
-                    stab_to_data[(new_cord2, coords)] = "2-CX"
-                    stab_to_data[(new_cord3, coords)] = "3-CX"
-                    stab_to_data[(new_cord4, coords)] = "4-CX"
+                    pairs = [(q1, coords), (q2, coords), (q3, coords), (q4, coords)]
+                    _assign_orders(
+                        stab_to_data,
+                        pairs,
+                        ["1-CX", "2-CX", "3-CX", "4-CX"],
+                    )
                 elif string == "Z-STAB":
-                    new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                    new_cord3 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
-                    stab_to_data[(coords, new_cord1)] = "1-CX"
-                    stab_to_data[(coords, new_cord2)] = "2-CX"
-                    stab_to_data[(coords, new_cord3)] = "3-CX"
-                    stab_to_data[(coords, new_cord4)] = "4-CX"
+                    pairs = [(coords, q1), (coords, q3), (coords, q2), (coords, q4)]
+                    _assign_orders(
+                        stab_to_data,
+                        pairs,
+                        ["1-CX", "2-CX", "3-CX", "4-CX"],
+                    )
+
         else:
             if merging_type == "AC":
                 for coords, string in patch.items():
+                    # Get neigbouring data coords
+                    q1 = _neighbours(coords, +1, -1)
+                    q2 = _neighbours(coords, -1, -1)
+                    q3 = _neighbours(coords, +1, +1)
+                    q4 = _neighbours(coords, -1, +1)
+
                     if string in {"X-STAB", "X-STAB-BOUND-A-C"}:
-                        new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
-                        new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
-                        new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
+                        pairs = [(q1, coords), (q2, coords), (q3, coords), (q4, coords)]
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["1-CX", "2-CX", "3-CX", "4-CX"],
+                        )
 
-                        stab_to_data[(new_cord1, coords)] = "1-CX"
-                        stab_to_data[(new_cord2, coords)] = "2-CX"
-                        stab_to_data[(new_cord3, coords)] = "3-CX"
-                        stab_to_data[(new_cord4, coords)] = "4-CX"
+                    elif string in {"Z-STAB", "Z-STAB-SURGERY-M"}:
+                        pairs = [(coords, q1), (coords, q3), (coords, q2), (coords, q4)]
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["1-CX", "2-CX", "3-CX", "4-CX"],
+                        )
 
-                    elif string == "Z-STAB-SURGERY-M":
-                        # Use surgery orders for non deterministic stabilizers
-                        new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                        new_cord3 = (coords.real - 1) + (coords.imag - 1) * 1j
-                        new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
-
-                        stab_to_data[(coords, new_cord1)] = "1S-CX"
-                        stab_to_data[(coords, new_cord2)] = "2S-CX"
-                        stab_to_data[(coords, new_cord3)] = "3S-CX"
-                        stab_to_data[(coords, new_cord4)] = "4S-CX"
-
-                    elif string == "Z-STAB":
-                        new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                        new_cord3 = (coords.real - 1) + (coords.imag - 1) * 1j
-                        new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
-
-                        stab_to_data[(coords, new_cord1)] = "1-CX"
-                        stab_to_data[(coords, new_cord2)] = "2-CX"
-                        stab_to_data[(coords, new_cord3)] = "3-CX"
-                        stab_to_data[(coords, new_cord4)] = "4-CX"
             elif merging_type == "AT":
                 for coords, string in patch.items():
-                    if string == "X-STAB-SURGERY-M":
-                        # Use surgery orders for non deterministic stabilizers
-                        new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
-                        new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
-                        new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
+                    # Get neigbouring data coords
+                    q1 = _neighbours(coords, +1, -1)
+                    q2 = _neighbours(coords, -1, -1)
+                    q3 = _neighbours(coords, +1, +1)
+                    q4 = _neighbours(coords, -1, +1)
 
-                        stab_to_data[(new_cord1, coords)] = "1S-CX"
-                        stab_to_data[(new_cord2, coords)] = "2S-CX"
-                        stab_to_data[(new_cord3, coords)] = "3S-CX"
-                        stab_to_data[(new_cord4, coords)] = "4S-CX"
-
-                    elif string == "X-STAB":
-                        new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
-                        new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
-                        new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
-
-                        stab_to_data[(new_cord1, coords)] = "1-CX"
-                        stab_to_data[(new_cord2, coords)] = "2-CX"
-                        stab_to_data[(new_cord3, coords)] = "3-CX"
-                        stab_to_data[(new_cord4, coords)] = "4-CX"
+                    if string in {"X-STAB", "X-STAB-SURGERY-M"}:
+                        pairs = [(q1, coords), (q2, coords), (q3, coords), (q4, coords)]
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["1-CX", "2-CX", "3-CX", "4-CX"],
+                        )
 
                     elif string in {"Z-STAB", "Z-STAB-BOUND-L-T"}:
-                        new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                        new_cord3 = (coords.real - 1) + (coords.imag - 1) * 1j
-                        new_cord4 = (coords.real - 1) + (coords.imag + 1) * 1j
-
-                        stab_to_data[(coords, new_cord1)] = "1-CX"
-                        stab_to_data[(coords, new_cord2)] = "2-CX"
-                        stab_to_data[(coords, new_cord3)] = "3-CX"
-                        stab_to_data[(coords, new_cord4)] = "4-CX"
+                        pairs = [(coords, q1), (coords, q3), (coords, q2), (coords, q4)]
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["1-CX", "2-CX", "3-CX", "4-CX"],
+                        )
 
     def attach_boundary(merging: bool, merging_type: str | None):
         """
@@ -187,152 +198,188 @@ def _populate_lattice_surgery(
 
         if not merging:
             for coords, string in patch.items():
+                # Get neigbouring data coords
+                q1 = _neighbours(coords, +1, -1)
+                q2 = _neighbours(coords, -1, -1)
+                q3 = _neighbours(coords, +1, +1)
+                q4 = _neighbours(coords, -1, +1)
+
                 if string == "Z-STAB-BOUND-L-A":
-                    new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                    stab_to_data[coords, new_cord1] = "1-CX"
-                    stab_to_data[coords, new_cord2] = "2-CX"
+                    pairs = [(coords, q1), (coords, q3)]
+                    _assign_orders(
+                        stab_to_data,
+                        pairs,
+                        ["1-CX", "2-CX"],
+                    )
 
                 elif string == "Z-STAB-BOUND-R-A":
-                    new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
-                    stab_to_data[coords, new_cord1] = "3-CX"
-                    stab_to_data[coords, new_cord2] = "4-CX"
+                    pairs = [(coords, q2), (coords, q4)]
+                    _assign_orders(
+                        stab_to_data,
+                        pairs,
+                        ["3-CX", "4-CX"],
+                    )
 
                 elif string == "X-STAB-BOUND-A-A":
-                    new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                    new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                    stab_to_data[new_cord1, coords] = "4-CX"
-                    stab_to_data[new_cord2, coords] = "3-CX"
+                    pairs = [(q4, coords), (q3, coords)]
+                    _assign_orders(
+                        stab_to_data,
+                        pairs,
+                        ["4-CX", "3-CX"],
+                    )
 
                 elif string == "X-STAB-BOUND-B-A":
-                    new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
-                    stab_to_data[new_cord1, coords] = "2-CX"
-                    stab_to_data[new_cord2, coords] = "1-CX"
+                    pairs = [(q2, coords), (q1, coords)]
+                    _assign_orders(
+                        stab_to_data,
+                        pairs,
+                        ["2-CX", "1-CX"],
+                    )
 
                 elif string == "Z-STAB-BOUND-L-T":
-                    new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                    stab_to_data[coords, new_cord1] = "5-CX"
-                    stab_to_data[coords, new_cord2] = "6-CX"
+                    pairs = [(coords, q1), (coords, q3)]
+                    _assign_orders(
+                        stab_to_data,
+                        pairs,
+                        ["5-CX", "6-CX"],
+                    )
 
                 elif string == "Z-STAB-BOUND-R-T":
-                    new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
-                    stab_to_data[coords, new_cord1] = "5-CX"
-                    stab_to_data[coords, new_cord2] = "6-CX"
+                    pairs = [(coords, q2), (coords, q4)]
+                    _assign_orders(
+                        stab_to_data,
+                        pairs,
+                        ["5-CX", "6-CX"],
+                    )
 
                 elif string == "X-STAB-BOUND-A-T":
-                    new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                    new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                    stab_to_data[new_cord1, coords] = "5-CX"
-                    stab_to_data[new_cord2, coords] = "6-CX"
+                    pairs = [(q4, coords), (q3, coords)]
+                    _assign_orders(
+                        stab_to_data,
+                        pairs,
+                        ["5-CX", "6-CX"],
+                    )
 
                 elif string == "X-STAB-BOUND-B-T":
-                    new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
-                    stab_to_data[new_cord1, coords] = "5-CX"
-                    stab_to_data[new_cord2, coords] = "6-CX"
+                    pairs = [(q2, coords), (q1, coords)]
+                    _assign_orders(
+                        stab_to_data,
+                        pairs,
+                        ["5-CX", "6-CX"],
+                    )
 
                 elif string == "Z-STAB-BOUND-L-C":
-                    new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                    stab_to_data[coords, new_cord1] = "5-CX"
-                    stab_to_data[coords, new_cord2] = "6-CX"
+                    pairs = [(coords, q1), (coords, q3)]
+                    _assign_orders(
+                        stab_to_data,
+                        pairs,
+                        ["5-CX", "6-CX"],
+                    )
 
                 elif string == "Z-STAB-BOUND-R-C":
-                    new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
-                    stab_to_data[coords, new_cord1] = "5-CX"
-                    stab_to_data[coords, new_cord2] = "6-CX"
+                    pairs = [(coords, q2), (coords, q4)]
+                    _assign_orders(
+                        stab_to_data,
+                        pairs,
+                        ["5-CX", "6-CX"],
+                    )
 
                 elif string == "X-STAB-BOUND-A-C":
-                    new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                    new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                    stab_to_data[new_cord1, coords] = "5-CX"
-                    stab_to_data[new_cord2, coords] = "6-CX"
+                    pairs = [(q4, coords), (q3, coords)]
+                    _assign_orders(
+                        stab_to_data,
+                        pairs,
+                        ["5-CX", "6-CX"],
+                    )
 
                 elif string == "X-STAB-BOUND-B-C":
-                    new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                    new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
-                    stab_to_data[new_cord1, coords] = "5-CX"
-                    stab_to_data[new_cord2, coords] = "6-CX"
+                    pairs = [(q2, coords), (q1, coords)]
+                    _assign_orders(
+                        stab_to_data,
+                        pairs,
+                        ["5-CX", "6-CX"],
+                    )
 
         else:
             if merging_type == "AC":
                 for coords, string in patch.items():
-                    if string == "Z-STAB-SURGERY-L":
-                        # Use surgery orders for non deterministic stabilizers
-                        new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
+                    # Get neigbouring data coords
+                    q1 = _neighbours(coords, +1, -1)
+                    q2 = _neighbours(coords, -1, -1)
+                    q3 = _neighbours(coords, +1, +1)
+                    q4 = _neighbours(coords, -1, +1)
 
-                        stab_to_data[(coords, new_cord1)] = "1S-CX"
-                        stab_to_data[(coords, new_cord2)] = "2S-CX"
-
-                    elif string in {"Z-STAB-BOUND-L-A", "Z-STAB-BOUND-L-C"}:
-                        new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-
-                        stab_to_data[(coords, new_cord1)] = "1-CX"
-                        stab_to_data[(coords, new_cord2)] = "2-CX"
+                    if string in {"Z-STAB-BOUND-L-A", "Z-STAB-BOUND-L-C", "Z-STAB-SURGERY-L"}:
+                        pairs = [(coords, q1), (coords, q3)]
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["1-CX", "2-CX"],
+                        )
 
                     elif string in {"Z-STAB-BOUND-R-A", "Z-STAB-BOUND-R-C"}:
-                        new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
-
-                        stab_to_data[(coords, new_cord1)] = "3-CX"
-                        stab_to_data[(coords, new_cord2)] = "4-CX"
+                        pairs = [(coords, q2), (coords, q4)]
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["3-CX", "4-CX"],
+                        )
 
                     elif string == "X-STAB-BOUND-A-A":
-                        new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                        new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                        stab_to_data[(new_cord1, coords)] = "4-CX"
-                        stab_to_data[(new_cord2, coords)] = "3-CX"
+                        pairs = [(q4, coords), (q3, coords)]
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["4-CX", "3-CX"],
+                        )
 
                     elif string == "X-STAB-BOUND-B-C":
-                        new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
-
-                        stab_to_data[(new_cord1, coords)] = "2-CX"
-                        stab_to_data[(new_cord2, coords)] = "1-CX"
+                        pairs = [(q2, coords), (q1, coords)]
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["2-CX", "1-CX"],
+                        )
 
             elif merging_type == "AT":
                 for coords, string in patch.items():
-                    if string == "Z-STAB-BOUND-L-A":
-                        new_cord1 = (coords.real + 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
+                    # Get neigbouring data coords
+                    q1 = _neighbours(coords, +1, -1)
+                    q2 = _neighbours(coords, -1, -1)
+                    q3 = _neighbours(coords, +1, +1)
+                    q4 = _neighbours(coords, -1, +1)
 
-                        stab_to_data[(coords, new_cord1)] = "1-CX"
-                        stab_to_data[(coords, new_cord2)] = "2-CX"
+                    if string == "Z-STAB-BOUND-L-A":
+                        pairs = [(coords, q1), (coords, q3)]
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["1-CX", "2-CX"],
+                        )
 
                     elif string == "Z-STAB-BOUND-R-T":
-                        new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real - 1) + (coords.imag + 1) * 1j
-
-                        stab_to_data[(coords, new_cord1)] = "3-CX"
-                        stab_to_data[(coords, new_cord2)] = "4-CX"
+                        pairs = [(coords, q2), (coords, q4)]
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["3-CX", "4-CX"],
+                        )
 
                     elif string in {"X-STAB-BOUND-A-A", "X-STAB-BOUND-A-T"}:
-                        new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                        new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                        stab_to_data[(new_cord1, coords)] = "4-CX"
-                        stab_to_data[(new_cord2, coords)] = "3-CX"
+                        pairs = [(q4, coords), (q3, coords)]
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["4-CX", "3-CX"],
+                        )
 
-                    elif string == "X-STAB-SURGERY-B":
-                        # Use surgery orders for non deterministic stabilizers
-                        new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
-
-                        stab_to_data[(new_cord1, coords)] = "2S-CX"
-                        stab_to_data[(new_cord2, coords)] = "1S-CX"
-
-                    elif string in {"X-STAB-BOUND-B-A", "X-STAB-BOUND-B-T"}:
-                        new_cord1 = (coords.real - 1) + (coords.imag - 1) * 1j
-                        new_cord2 = (coords.real + 1) + (coords.imag - 1) * 1j
-
-                        stab_to_data[(new_cord1, coords)] = "2-CX"
-                        stab_to_data[(new_cord2, coords)] = "1-CX"
+                    elif string in {"X-STAB-BOUND-B-A", "X-STAB-BOUND-B-T", "X-STAB-SURGERY-B"}:
+                        pairs = [(q2, coords), (q1, coords)]
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["2-CX", "1-CX"],
+                        )
 
     # Running the Functions to populate the Schedule
     attach_interior(merging, merging_type)
@@ -365,50 +412,54 @@ def _populate_surface(
     stab_to_data_xcy: dict[Pair, str] = {}
 
     def attach_interior():
-        # ------------------------------
-        # Internal helper function
-        # ------------------------------
-
-        def _neighbours(c: complex, dx: int, dy: int) -> complex:
-            return (c.real + dx) + (c.imag + dy) * 1j
-
-        def _quad(c: complex):
-            return (
-                _neighbours(c, +1, -1),
-                _neighbours(c, -1, -1),
-                _neighbours(c, +1, +1),
-                _neighbours(c, -1, +1),
-            )
-
-        def _assign_orders(table: dict[Pair, str], pairs: list[Pair], orders: list[str]) -> None:
-            for (a, b), order in zip(pairs, orders, strict=True):
-                table[(a, b)] = order
-
-        orders_x_normal = ["1-CX", "2-CX", "3-CX", "4-CX"]
-        orders_x_ybasis = ["4-CX", "3-CX", "2-CX", "1-CX"]
-        orders_z_normal = ["1-CX", "3-CX", "2-CX", "4-CX"]
-        orders_z_ybasis = ["4-CX", "2-CX", "3-CX", "1-CX"]
-
         if not is_flipped:
             if not y_switch:
                 if not y_basis:
                     for coords, qtype in patch.items():
-                        q1, q2, q3, q4 = _quad(coords)
+                        # Get neigbouring data coords
+                        q1 = _neighbours(coords, +1, -1)
+                        q2 = _neighbours(coords, -1, -1)
+                        q3 = _neighbours(coords, +1, +1)
+                        q4 = _neighbours(coords, -1, +1)
+
                         if qtype == "X-STAB":
                             pairs = [(q1, coords), (q2, coords), (q3, coords), (q4, coords)]
-                            _assign_orders(stab_to_data, pairs, orders_x_normal)
+                            _assign_orders(
+                                stab_to_data,
+                                pairs,
+                                ["1-CX", "2-CX", "3-CX", "4-CX"],
+                            )
+
                         elif qtype == "Z-STAB":
                             pairs = [(coords, q1), (coords, q2), (coords, q3), (coords, q4)]
-                            _assign_orders(stab_to_data, pairs, orders_z_normal)
+                            _assign_orders(
+                                stab_to_data,
+                                pairs,
+                                ["1-CX", "3-CX", "2-CX", "4-CX"],
+                            )
                 else:
                     for coords, qtype in patch.items():
-                        q1, q2, q3, q4 = _quad(coords)
+                        # Get neigbouring data coords
+                        q1 = _neighbours(coords, +1, -1)
+                        q2 = _neighbours(coords, -1, -1)
+                        q3 = _neighbours(coords, +1, +1)
+                        q4 = _neighbours(coords, -1, +1)
+
                         if qtype == "X-STAB":
                             pairs = [(q1, coords), (q2, coords), (q3, coords), (q4, coords)]
-                            _assign_orders(stab_to_data, pairs, orders_x_ybasis)
+                            _assign_orders(
+                                stab_to_data,
+                                pairs,
+                                ["4-CX", "3-CX", "2-CX", "1-CX"],
+                            )
+
                         elif qtype == "Z-STAB":
                             pairs = [(coords, q1), (coords, q2), (coords, q3), (coords, q4)]
-                            _assign_orders(stab_to_data, pairs, orders_z_ybasis)
+                            _assign_orders(
+                                stab_to_data,
+                                pairs,
+                                ["4-CX", "2-CX", "3-CX", "1-CX"],
+                            )
             else:
                 # Filtering out the stabs needed for the two XCY Gate TICKS
                 filtered_stabs_x = []
@@ -438,12 +489,19 @@ def _populate_surface(
                         stab_to_data_xcy[(coords, new_cord)] = "1TICK"
 
                 for coords, qtype in stabs_norm_dict.items():
-                    # Defining Needed Neighbour Qubits
-                    q1, q2, q3, q4 = _quad(coords)
+                    # Get neigbouring data coords
+                    q1 = _neighbours(coords, +1, -1)
+                    q2 = _neighbours(coords, -1, -1)
+                    q3 = _neighbours(coords, +1, +1)
+                    q4 = _neighbours(coords, -1, +1)
 
                     if qtype == "X-STAB":
                         pairs = [(q1, coords), (q2, coords), (q3, coords), (q4, coords)]
-                        _assign_orders(stab_to_data, pairs, ["2TICK", "3TICK", "4TICK", "5TICK"])
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["2TICK", "3TICK", "4TICK", "5TICK"],
+                        )
 
                     elif qtype == "Z-STAB":
                         # Checking whether normal CX or the XCY gate
@@ -469,48 +527,63 @@ def _populate_surface(
 
                 # Implementing regular CX scheduele on H half -> only weight 3
                 for coords, qtype in stabs_h_dict.items():
+                    # Get neigbouring data coords
+                    q1 = _neighbours(coords, +1, -1)
+                    q2 = _neighbours(coords, -1, -1)
+                    q3 = _neighbours(coords, +1, +1)
+                    q4 = _neighbours(coords, -1, +1)
+
                     # Implementing orientation of CX with sub schedule of XCY Gates
                     if qtype == "X-STAB":
-                        new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                        new_cord2 = (coords.real - 1) + (coords.imag - 1) * 1j
-                        new_cord3 = (coords.real + 1) + (coords.imag + 1) * 1j
-
                         # Exclude the x stabs next to the diagonal:
                         if coords not in filtered_stabs_x:
-                            stab_to_data[(coords, new_cord1)] = "2TICK"
+                            stab_to_data[(coords, q4)] = "2TICK"
 
-                        stab_to_data[(coords, new_cord2)] = "3TICK"
-                        stab_to_data[(new_cord3, coords)] = "4TICK"
-                        stab_to_data[(new_cord1, coords)] = "5TICK"
+                        pairs = [(coords, q2), (q3, coords), (q4, coords)]
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["3TICK", "4TICK", "5TICK"],
+                        )
 
                     elif qtype == "Z-STAB":
-                        new_cord1 = (coords.real - 1) + (coords.imag + 1) * 1j
-                        new_cord2 = (coords.real + 1) + (coords.imag + 1) * 1j
-                        new_cord3 = (coords.real - 1) + (coords.imag - 1) * 1j
-
-                        stab_to_data[(new_cord2, coords)] = "3TICK"
-                        stab_to_data[(coords, new_cord3)] = "4TICK"
-                        stab_to_data[(new_cord1, coords)] = "2TICK"
+                        pairs = [(q3, coords), (coords, q2), (q4, coords)]
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["3TICK", "4TICK", "2TICK"],
+                        )
 
                         # HOTFIX: DATASET WILL OVERWRITE 2TICK if they are the same
-                        stab_to_data[coords, new_cord1, 2] = "5TICK"
+                        stab_to_data[coords, q4, 2] = "5TICK"
 
         else:
             # flipped roles: swap the X/Z assignment orders
             def _assign_flipped():
                 for coords, qtype in patch.items():
-                    # Defining Needed Neighbour Qubits
-                    q1, q2, q3, q4 = _quad(coords)
+                    # Get neigbouring data coords
+                    q1 = _neighbours(coords, +1, -1)
+                    q2 = _neighbours(coords, -1, -1)
+                    q3 = _neighbours(coords, +1, +1)
+                    q4 = _neighbours(coords, -1, +1)
 
                     # Control is stab -> (stab, data)
                     if qtype == "X-STAB":
                         pairs = [(coords, q1), (coords, q2), (coords, q3), (coords, q4)]
-                        _assign_orders(stab_to_data, pairs, orders_z_normal)
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["1-CX", "3-CX", "2-CX", "4-CX"],
+                        )
 
                     # Control is data -> (data, stab)
                     elif qtype == "Z-STAB":
                         pairs = [(q1, coords), (q2, coords), (q3, coords), (q4, coords)]
-                        _assign_orders(stab_to_data, pairs, orders_x_normal)
+                        _assign_orders(
+                            stab_to_data,
+                            pairs,
+                            ["1-CX", "2-CX", "3-CX", "4-CX"],
+                        )
 
             _assign_flipped()
 

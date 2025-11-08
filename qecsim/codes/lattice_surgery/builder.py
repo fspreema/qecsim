@@ -1,7 +1,7 @@
 import stim
-from tqecd import annotate_detectors_automatically
 
 from qecsim.codes.lattice_surgery.logical_strings import get_logical_strings
+from qecsim.core.circuit_utils import normalize_ticks
 from qecsim.core.data_models import (
     ConfigLatticeSurgery as Config,
     LatticeContext,
@@ -11,6 +11,7 @@ from qecsim.core.data_models import (
     PatchSurgery,
     PatchTarget,
 )
+from qecsim.core.flow_builder import CircuitChunk, CompileChunk
 from qecsim.core.geometry import build_lattice
 from qecsim.core.stabilizers import populate_stab_to_data
 
@@ -713,6 +714,6 @@ def surgery_circuit(
     ##########################
 
     reset_circ += final_measurement
-    # reset_circ += annotate_detectors_automatically(reset_circ)
 
-    return reset_circ
+    # Normalize to avoid double TICKs after composing subcircuits
+    return normalize_ticks(reset_circ)

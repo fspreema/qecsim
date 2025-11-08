@@ -15,7 +15,11 @@ __all__ = ["repetition_circ"]
 
 
 def repetition_circ(
-    *, lct: Context, patches: dict[str, Patch], cfg: Config, noise: NoiseModel,
+    *,
+    lct: Context,
+    patches: dict[str, Patch],
+    cfg: Config,
+    noise: NoiseModel,
 ) -> CircuitResult:
     #################################################
     # Exporting all necessary values from Dataclasses
@@ -44,6 +48,17 @@ def repetition_circ(
     # -----BUILDING-REPETITION-CIRC------
 
     round_circuit = stim.Circuit()
+
+    round_circuit.append("R", x_stab_index + z_stab_index)
+    round_circuit.append("TICK")
+
+    # -------Adding-After-Reset-Flip-Prob.------------
+
+    if noise.after_r_flip > 0:
+        round_circuit.append("X_ERROR", x_stab_index + z_stab_index, noise.after_r_flip)
+        round_circuit.append("TICK")
+
+    # -------Continue-Circuit------------
 
     # -------Adding-Before-Round-Depol.-Data------------
 
@@ -89,14 +104,7 @@ def repetition_circ(
 
     # -------Continue-Circuit----------
 
-    round_circuit.append("MR", x_stab_index + z_stab_index)
-
-    # -------Adding-After-Reset-Flip-Prob.------------
-
-    if noise.after_r_flip > 0:
-        round_circuit.append("X_ERROR", x_stab_index + z_stab_index, noise.after_r_flip)
-
-    # -------Continue-Circuit------------
+    round_circuit.append("M", x_stab_index + z_stab_index)
 
     # -> Shifting Coords in Time-Dimension to have 3D timelike Detector graph (Needed for decoding)
     round_circuit.append("SHIFT_COORDS", arg=(0, 0, 1))
@@ -107,11 +115,11 @@ def repetition_circ(
     for index, q_index in enumerate(x_stab_index + z_stab_index):
         prev_tar = -2 * num_measurements_repeat + index
         current_tar = -1 * num_measurements_repeat + index
-        round_circuit.append(
-            "DETECTOR",
-            [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
-            (i2q[q_index].real, i2q[q_index].imag, 0),
-        )
+        # round_circuit.append(
+        #     "DETECTOR",
+        #     [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+        #     (i2q[q_index].real, i2q[q_index].imag, 0),
+        # )
 
     round_circuit.append("TICK")
 

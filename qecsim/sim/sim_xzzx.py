@@ -5,7 +5,7 @@ import pickle
 import numpy as np
 import sinter
 
-from qecsim.codes.xzzx.circuit import xzzx_code
+from qecsim.codes.xzzx.legacy.circuit import xzzx_code
 from qecsim.tools.thresholds.threshold_approx import threshold_approx
 
 if __name__ == "__main__":

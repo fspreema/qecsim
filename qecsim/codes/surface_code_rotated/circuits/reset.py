@@ -75,7 +75,7 @@ def reset(
     #########################
 
     if init_state in {"0", "1"}:
-        reset_circuit.append("RZ", data + x_stab_index + z_stab_index)
+        reset_circuit.append("RZ", data)
 
         # Create logical X Data String:
         data_log = []
@@ -115,9 +115,6 @@ def reset(
 
     elif init_state in {"+", "-"}:
         reset_circuit.append("RX", data)
-
-        # ancilla are still init in 0
-        reset_circuit.append("RZ", x_stab_index + z_stab_index)
 
         # Create logical X Data String:
         data_log = []

@@ -159,9 +159,6 @@ def y_repetition_circ(
 
     # -------Continue-Circuit------------
 
-    # -> Shifting Coords in Time-Dimension to have 3D timelike Detector graph (Needed for decoding)
-    before_round_circuit.append("SHIFT_COORDS", arg=(0, 0, 1))
-
     ###########################
     # Define Repetition Circuit
     ###########################
@@ -225,9 +222,6 @@ def y_repetition_circ(
     round_circuit.append("M", x_stab_index + z_stab_index)
 
     # -------Continue-Circuit------------
-
-    # -> Shifting Coords in Time-Dimension to have 3D timelike Detector graph (Needed for decoding)
-    round_circuit.append("SHIFT_COORDS", arg=(0, 0, 1))
 
     # If FT round or Beggining Rounds
     if not memory_round:

@@ -15,12 +15,35 @@ Pair = tuple[Coord, Coord]
 
 @dataclass
 class NoiseModel:
-    """Group all noise probabilites used by sub-builders"""
+    """
+    Group all noise probabilites used by sub-builders
+    """
 
     before_round_depol: float = 0.0
     before_m_flip_prob: float = 0.0
     after_r_flip: float = 0.0
     after_c_depol_prob: float = 0.0
+
+
+@dataclass
+class XZZXNoise:
+    """
+    Extended noise model to support XZZX-specific pauli-channel parameters.
+
+    Notes:
+    - before_round_p_xyz: per-qubit 1-body Pauli channel before a round (pX, pY, pZ)
+    - after_c_p_xyz: per-qubit 1-body Pauli channel after Clifford (pX, pY, pZ)
+    - after_c_p_xyz_multi: 2-qubit 15-probability Pauli channel after 2-qubit Clifford
+    """
+
+    # For Bias Noise Model
+    before_round_p_xyz: list = None
+
+    # For regular circuit Noise Model
+    before_round_depol: float = None
+    before_m_flip_prob: float = None
+    after_r_flip: float = None
+    after_c_depol_prob: float = None
 
 
 @dataclass
@@ -35,7 +58,9 @@ class CircuitResult:
     obs_indices: list[int] | None = None
 
     def __iadd__(self, other: "CircuitResult | Any") -> "CircuitResult":
-        """Allow `result += other` regardless of other’s type."""
+        """
+        Allow `result += other` regardless of other’s type.
+        """
         if isinstance(other, CircuitResult):
             # prefer to delegate to circuit's in-place add if available
             try:
@@ -58,7 +83,9 @@ class CircuitResult:
 
 @dataclass
 class ConfigSurface:
-    """Configuration used by surface/rotated builders"""
+    """
+    Configuration used by surface/rotated builders
+    """
 
     distance: int
     state_init: str
@@ -67,8 +94,21 @@ class ConfigSurface:
 
 
 @dataclass
+class ConfigXZZX:
+    """
+    Configuration used by XZZX builders
+    """
+
+    distance: int
+    state_init: str  # "Ver" or "Hor"
+    rounds: int
+
+
+@dataclass
 class ConfigLatticeSurgery:
-    """Configuration used by lattice-surgery builders"""
+    """
+    Configuration used by lattice-surgery builders
+    """
 
     distance: int
     flow_observable: str
@@ -100,7 +140,9 @@ def _pick_up_indices(
 
 @dataclass
 class Patch:
-    """All geometry information is stored here i.e. data/x_stab indices"""
+    """
+    All geometry information is stored here i.e. data/x_stab indices
+    """
 
     coords: dict[Coord, Label]
     data: list[Index]
@@ -157,6 +199,53 @@ class Patch:
         )
 
 
+@dataclass
+class PatchXZZX:
+    """
+    XZZX-specific patch indices split by basis and stabilizer type.
+    """
+
+    coords: dict[Coord, Label]
+    # Data indices
+    data: list[Index]
+    data_x: list[Index]
+    data_z: list[Index]
+    # Ancilla (stabilizers)
+    stab_index: list[Index]
+    stab_index_ver: list[Index]
+    stab_index_hor: list[Index]
+
+    @classmethod
+    def from_coords(
+        cls,
+        coords: dict[Coord, Label],
+        q2i: Mapping[Coord, Index],
+    ) -> "PatchXZZX":
+        # Define Key pickup function
+        def pick_up(*labels: str) -> list[Index]:
+            return _pick_up_indices(coords, q2i, *labels)
+
+        # Pickup Data
+        data_z = pick_up("DATA_Z")
+        data_x = pick_up("DATA_X")
+        data = sorted(data_x + data_z)
+
+        # Pickup Stabs
+        stab_index_ver = pick_up("STAB-Ver", "STAB-BOUND-A-Ver", "STAB-BOUND-B-Ver")
+        stab_index_hor = pick_up("STAB-Hor", "STAB-BOUND-L-Hor", "STAB-BOUND-R-Hor")
+        stab_index = sorted(stab_index_ver + stab_index_hor)
+
+        return cls(
+            coords=coords,
+            data=data,
+            data_x=data_x,
+            data_z=data_z,
+            stab_index=stab_index,
+            stab_index_ver=stab_index_ver,
+            stab_index_hor=stab_index_hor,
+        )
+
+
 # --------------------------
 # Lattice-surgery-style patches
 # --------------------------
@@ -164,7 +253,9 @@ class Patch:
 
 @dataclass
 class PatchAncilla:
-    """All geometry information is stored here i.e. data x_stab indices"""
+    """
+    All geometry information for the Ancilla is stored here i.e. data x_stab indices
+    """
 
     coords: dict[Coord, Label]
     data: list[Index]
@@ -194,6 +285,10 @@ class PatchAncilla:
 
 @dataclass
 class PatchControl:
+    """
+    All geometry information for the Control is stored here i.e. data x_stab indices
+    """
+
     coords: dict[Coord, Label]
     data: list[Index]
     x_stab: list[Index]
@@ -218,6 +313,10 @@ class PatchControl:
 
 @dataclass
 class PatchTarget:
+    """
+    All geometry information for the Target is stored here i.e. data x_stab indices
+    """
+
     coords: dict[Coord, Label]
     data: list[Index]
     x_stab: list[Index]
@@ -242,6 +341,10 @@ class PatchTarget:
 
 @dataclass
 class PatchSurgery:
+    """
+    All geometry information needed for the Surgery (i.e. additional ancilla qubits) is stored here
+    """
+
     coords: dict[Coord, Label]
     x_stab_m: list[Index]
     z_stab_m: list[Index]
@@ -289,6 +392,18 @@ class Context:
 
 
 @dataclass
+class XZZXContext:
+    """
+    Shared mappings for XZZX-style lattices.
+    """
+
+    q2i: dict[Coord, Index]
+    i2q: dict[Index, Coord]
+    stab_to_data: dict[Pair, str]
+    coords: dict[Coord, Label]
+
+
+@dataclass
 class LatticeContext:
     """
     Shared information across lattice-surgery-style lattices
@@ -302,24 +417,24 @@ class LatticeContext:
     surgery_coords: dict[Coord, Label]
 
 
-# Backwards-compatibility helpers (thin aliases)
-# These let you import the familiar names from this core module and then
-# update the individual code modules to reference these symbols.
-
 __all__ = [
     "Coord",
     "Label",
     "Index",
     "Pair",
     "NoiseModel",
+    "XZZXNoise",
     "CircuitResult",
     "ConfigSurface",
+    "ConfigXZZX",
     "ConfigLatticeSurgery",
     "Patch",
+    "PatchXZZX",
     "PatchAncilla",
     "PatchControl",
     "PatchTarget",
     "PatchSurgery",
     "Context",
+    "XZZXContext",
     "LatticeContext",
 ]

@@ -1,7 +1,7 @@
 import pytest
 import stim
 
-from qecsim.codes.xzzx.circuit import xzzx_code
+from qecsim.codes.xzzx.builder import xzzx_code
 
 
 @pytest.mark.parametrize("distance", [3, 5, 7], ids=["d3", "d5", "d7"])

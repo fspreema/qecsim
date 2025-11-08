@@ -209,7 +209,4 @@ def y_rev_switch_circ(
     reversed_switch_circ.append("MZ", x_stab_index + z_stab_index + r_h_stabs + u_h_stabs)
     reversed_switch_circ.append("MY", y_index)
 
-    # -> Shifting Coords in Time-Dimension to have 3D timelike Detector graph (Needed for decoding)
-    reversed_switch_circ.append("SHIFT_COORDS", arg=(0, 0, 1))
-
     return CircuitResult(circuit=reversed_switch_circ)

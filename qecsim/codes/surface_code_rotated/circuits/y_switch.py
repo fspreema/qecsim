@@ -84,9 +84,6 @@ def y_switch_circ(
 
     pre_switch_circ.append("MZ", x_stab_index + z_stab_index)
 
-    # -> Shifting Coords in Time-Dimension to have 3D timelike Detector graph (Needed for decoding)
-    pre_switch_circ.append("SHIFT_COORDS", arg=(0, 0, 1))
-
     # 4) Detectors
     _num_measurements_repeat = len(x_stab_index + z_stab_index)
 
@@ -241,9 +238,6 @@ def y_switch_circ(
     switch_circ.append("TICK")
     switch_circ.append("M", x_stab_index + z_stab_index + r_h_stabs + u_h_stabs)
     switch_circ.append("TICK")
-
-    # -> Shifting Coords in Time-Dimension to have 3D timelike Detector graph (Needed for decoding)
-    switch_circ.append("SHIFT_COORDS", arg=(0, 0, 1))
 
     ############################################################
     # Adding Observable Includes if logical basis differs from Y
