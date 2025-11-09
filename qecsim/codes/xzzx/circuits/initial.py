@@ -1,5 +1,6 @@
 import stim
 
+from qecsim.core.cx_builder import cx_builder
 from qecsim.core.data_models import ConfigXZZX, PatchXZZX, XZZXContext
 
 __all__ = ["initial"]
@@ -46,52 +47,18 @@ def initial(
     # CX Operations
     ###############
 
-    for coord_pairs, order in stab_to_data.items():
-        # Parallel Implementation of CX
-        if order == "1-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            initial_circuit.append("CX", index_pairs)
-
-    initial_circuit.append("TICK")
-
-    for coord_pairs, order in stab_to_data.items():
-        # Parallel Implementation of CX
-        if order == "2-CZ":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            initial_circuit.append("CZ", index_pairs)
-
-    initial_circuit.append("TICK")
-
-    for coord_pairs, order in stab_to_data.items():
-        # Parallel Implementation of CX
-        if order == "3-CZ":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            initial_circuit.append("CZ", index_pairs)
-
-    initial_circuit.append("TICK")
-
-    for coord_pairs, order in stab_to_data.items():
-        # Parallel Implementation of CX
-        if order == "4-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            initial_circuit.append("CX", index_pairs)
+    cx_builder(
+        circuit=initial_circuit,
+        q2i=q2i,
+        stab_to_data=stab_to_data,
+        orders=("1-CX", "2-CZ", "3-CZ", "4-CX"),
+    )
 
     # Retreive Boundary + Normal Stabilizers Ancilla:
-    initial_circuit.append("TICK")
     initial_circuit.append("H", stab_index)
-
     initial_circuit.append("TICK")
 
     initial_circuit.append("M", stab_index)
-
     initial_circuit.append("TICK")
 
     ##########################################################################

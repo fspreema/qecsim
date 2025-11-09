@@ -52,6 +52,8 @@ def cx_builder(
                 # Adding Pair on Operation
                 if op == "CX":
                     circuit.append(op, pair)
+                elif op == "CZ":
+                    circuit.append(op, pair)
                 else:
                     raise ValueError("Unsupported Operator")
 
@@ -73,8 +75,15 @@ def cx_builder(
                 _append_by_single_index(op, indices)
             circuit.append("TICK")
 
-        # Add CX Operations
-        _append_by_order("CX", order)
+        # Check if CX or CZ
+        if order.endswith("CX"):
+            # Add CX Operations
+            _append_by_order("CX", order)
+        elif order.endswith("CZ"):
+            # Add CZ Operations
+            _append_by_order("CZ", order)
+        else:
+            raise ValueError("Unsupported Multi Qubit Operator inside Order")
 
         # Add after CX operations
         if add_operator_after is not None and order in add_operator_after:

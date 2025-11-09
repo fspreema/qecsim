@@ -600,21 +600,6 @@ def surgery_circuit(
         else:
             raise ValueError("Invalid basis for selected flow: YZ -> XY")
 
-    elif flow_observable == "YI -> YX":
-        # Left: control Y, target I; Right: control Y, target X
-        if control_state_init in {"Y+", "Y-"} and target_state_init in {"Z0", "Z1", "X+", "X-"}:
-            right_terms = (
-                [f"X{i}" for i in log_strings_shift["t_x"]]
-                + [f"Z{i}" for i in c_y["z_string"]]
-                + [f"Y{i}" for i in c_y["y_corner"]]
-                + [f"X{i}" for i in c_y["x_string"]]
-            )
-            result = f"{1} -> {'*'.join(right_terms)}"
-
-            (included_measurements,) = flow_circuit.solve_flow_measurements([stim.Flow(result)])
-        else:
-            raise ValueError("Invalid basis for selected flow: YI -> YX")
-
     elif flow_observable == "YX -> YI":
         # Left: control Y, target X; Right: control Y, target I
         if control_state_init in {"Y+", "Y-"} and target_state_init in {"X+", "X-"}:
@@ -629,6 +614,21 @@ def surgery_circuit(
             (included_measurements,) = flow_circuit.solve_flow_measurements([stim.Flow(result)])
         else:
             raise ValueError("Invalid basis for selected flow: YX -> YI")
+
+    elif flow_observable == "YI -> YX":
+        # Left: control Y, target I; Right: control Y, target X
+        if control_state_init in {"Y+", "Y-"} and target_state_init in {"Z0", "Z1", "X+", "X-"}:
+            right_terms = (
+                [f"X{i}" for i in log_strings_shift["t_x"]]
+                + [f"Z{i}" for i in c_y["z_string"]]
+                + [f"Y{i}" for i in c_y["y_corner"]]
+                + [f"X{i}" for i in c_y["x_string"]]
+            )
+            result = f"{1} -> {'*'.join(right_terms)}"
+
+            (included_measurements,) = flow_circuit.solve_flow_measurements([stim.Flow(result)])
+        else:
+            raise ValueError("Invalid basis for selected flow: YI -> YX")
 
     elif flow_observable == "YY -> XZ":
         # Left: control Y, target Y; Right: control X, target Z
@@ -661,7 +661,6 @@ def surgery_circuit(
         # Left: control X, target Y; Right: control Y, target Z
         if control_state_init in {"X+", "X-"} and target_state_init in {"Y+", "Y-"}:
             left_terms = [f"X{i}" for i in log_strings_shift["c_x"]]
-
             right_terms = (
                 [f"Z{i}" for i in c_y["z_string"]]
                 + [f"Y{i}" for i in c_y["y_corner"]]
@@ -732,6 +731,9 @@ def surgery_circuit(
 
         # Building final circuit with noise
         return_circuit = circuit_noise_builder.apply()
+
+    else:
+        return_circuit = reset_circ
 
     # Normalize to avoid double TICKs after composing subcircuits
     return return_circuit

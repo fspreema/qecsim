@@ -1,5 +1,6 @@
 import stim
 
+from qecsim.core.cx_builder import cx_builder
 from qecsim.core.data_models import ConfigXZZX, PatchXZZX, XZZXContext
 
 __all__ = ["repetition"]
@@ -38,7 +39,6 @@ def repetition(
     repeat_circuit.append("R", stab_index)
 
     repeat_circuit.append("TICK")
-
     repeat_circuit.append("H", stab_index)
 
     repeat_circuit.append("TICK")
@@ -47,52 +47,18 @@ def repetition(
     # CX Operations
     ####################################################
 
-    for coord_pairs, order in stab_to_data.items():
-        # Parallel Implementation of CX
-        if order == "1-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            repeat_circuit.append("CX", index_pairs)
-
-    repeat_circuit.append("TICK")
-
-    for coord_pairs, order in stab_to_data.items():
-        # Parallel Implementation of CX
-        if order == "2-CZ":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            repeat_circuit.append("CZ", index_pairs)
-
-    repeat_circuit.append("TICK")
-
-    for coord_pairs, order in stab_to_data.items():
-        # Parallel Implementation of CX
-        if order == "3-CZ":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            repeat_circuit.append("CZ", index_pairs)
-
-    repeat_circuit.append("TICK")
-
-    for coord_pairs, order in stab_to_data.items():
-        # Parallel Implementation of CX
-        if order == "4-CX":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            repeat_circuit.append("CX", index_pairs)
+    cx_builder(
+        circuit=repeat_circuit,
+        q2i=q2i,
+        stab_to_data=stab_to_data,
+        orders=("1-CX", "2-CZ", "3-CZ", "4-CX"),
+    )
 
     # Retreive Boundary + Normal Stabilizers Ancilla:
-    repeat_circuit.append("TICK")
     repeat_circuit.append("H", stab_index)
-
     repeat_circuit.append("TICK")
 
     repeat_circuit.append("M", stab_index)
-
     repeat_circuit.append("TICK")
 
     ######################################################
