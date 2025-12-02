@@ -1,5 +1,5 @@
 from qecsim.codes.lattice_surgery.builder import surgery_circuit
-from qecsim.core.circuit_utils import has_consecutive_ticks
+from qecsim.core.legacy_circuit_utils import has_consecutive_ticks
 
 
 # X Flows alalogue to Z flow
