@@ -173,179 +173,44 @@ class YBasisPairings(BasePairings):
         Adds the 2-body CX Schedule for the *boundary* stabilizers
         """
 
-        if not self.y_switch and not self.y_memory:
-            for coords, qtype in self.pairings.items():
-                # Get neigbouring data coords
-                q1 = self._neighbours(coords, +1, -1)
-                q2 = self._neighbours(coords, -1, -1)
-                q3 = self._neighbours(coords, +1, +1)
-                q4 = self._neighbours(coords, -1, +1)
+        for coords, qtype in self.pairings.items():
+            # Get neigbouring data coords
+            q1 = self._neighbours(coords, +1, -1)
+            q2 = self._neighbours(coords, -1, -1)
+            q3 = self._neighbours(coords, +1, +1)
+            q4 = self._neighbours(coords, -1, +1)
 
-                if qtype == "Z-STAB-BOUND-L":
-                    pairs = [(coords, q1), (coords, q3)]
-                    self._assign_orders(
-                        self.stab_to_data,
-                        pairs,
-                        ["4-CX", "3-CX"],
-                    )
+            if qtype == "Z-STAB-BOUND-L":
+                pairs = [(coords, q1), (coords, q3)]
+                self._assign_orders(
+                    self.stab_to_data,
+                    pairs,
+                    ["4-CX", "3-CX"],
+                )
 
-                elif qtype == "X-STAB-BOUND-R":
-                    pairs = [(q2, coords), (q4, coords)]
-                    self._assign_orders(
-                        self.stab_to_data,
-                        pairs,
-                        ["3-CX", "1-CX"],
-                    )
+            elif qtype == "X-STAB-BOUND-R":
+                pairs = [(q2, coords), (q4, coords)]
+                self._assign_orders(
+                    self.stab_to_data,
+                    pairs,
+                    ["3-CX", "1-CX"],
+                )
 
-                elif qtype == "Z-STAB-BOUND-U":
-                    pairs = [(coords, q4), (coords, q3)]
-                    self._assign_orders(
-                        self.stab_to_data,
-                        pairs,
-                        ["1-CX", "3-CX"],
-                    )
+            elif qtype == "Z-STAB-BOUND-U":
+                pairs = [(coords, q4), (coords, q3)]
+                self._assign_orders(
+                    self.stab_to_data,
+                    pairs,
+                    ["1-CX", "3-CX"],
+                )
 
-                elif qtype == "X-STAB-BOUND-B":
-                    pairs = [(q2, coords), (q1, coords)]
-                    self._assign_orders(
-                        self.stab_to_data,
-                        pairs,
-                        ["3-CX", "4-CX"],
-                    )
-
-        elif self.y_switch and not self.y_memory:
-            for coords, qtype in self.pairings.items():
-                """
-                As the H gates was applied we need to flip the corressponding
-                stabilizer schedule
-
-                * ATTENTION *
-                -> ONLY FLIP THESE WHICH WHERE FLIPPED I.E. on only one diagonal half
-                -> Additional Boundary Stabs do CX both ways i.e. detecting z and x 
-                    errors!
-                """
-                # Get neigbouring data coords
-                q1 = self._neighbours(coords, +1, -1)
-                q2 = self._neighbours(coords, -1, -1)
-                q3 = self._neighbours(coords, +1, +1)
-                q4 = self._neighbours(coords, -1, +1)
-
-                if qtype == "Z-STAB-BOUND-L":
-                    pairs = [(coords, q1), (coords, q3)]
-                    self._assign_orders(
-                        self.stab_to_data,
-                        pairs,
-                        ["2TICK", "3TICK"],
-                    )
-
-                elif qtype == "X-STAB-BOUND-R":
-                    # Check for lower boundary condition and exclude
-                    # the cx which gets replaced by CYX
-                    lower_boundary = [i for i in range(4, self.distance * 2, 4)][-1]
-                    lower_coord = (self.distance * 2 + self.offset.real) + (
-                        lower_boundary + self.offset.imag
-                    ) * 1j
-
-                    if coords != lower_coord:
-                        pairs = [(coords, q2), (coords, q4)]
-                        self._assign_orders(
-                            self.stab_to_data,
-                            pairs,
-                            ["3TICK", "2TICK"],
-                        )
-                    else:
-                        pairs = [(coords, q2)]
-                        self._assign_orders(
-                            self.stab_to_data,
-                            pairs,
-                            ["3TICK"],
-                        )
-
-                elif qtype == "X-STAB-BOUND-R-H":
-                    # H Boundary has mixed cx direction
-                    pairs = [(coords, q2), (q4, coords), (coords, q4)]
-                    self._assign_orders(
-                        self.stab_to_data,
-                        pairs,
-                        ["4TICK", "2TICK", "5TICK"],
-                    )
-
-                elif qtype == "Z-STAB-BOUND-U-H":
-                    # H Boundary has mixed direction
-                    if q4 != 1 + 1j + self.offset:
-                        pairs = [(coords, q4), (q3, coords), (q4, coords)]
-                        self._assign_orders(
-                            self.stab_to_data,
-                            pairs,
-                            ["2TICK", "4TICK", "5TICK"],
-                        )
-                    else:
-                        pairs = [(q3, coords), (q4, coords)]
-                        self._assign_orders(
-                            self.stab_to_data,
-                            pairs,
-                            ["4TICK", "5TICK"],
-                        )
-
-                elif qtype == "Z-STAB-BOUND-U":
-                    pairs = [(q4, coords), (q3, coords)]
-                    self._assign_orders(
-                        self.stab_to_data,
-                        pairs,
-                        ["2TICK", "3TICK"],
-                    )
-
-                elif qtype == "X-STAB-BOUND-B":
-                    pairs = [(q2, coords), (q1, coords)]
-                    self._assign_orders(
-                        self.stab_to_data,
-                        pairs,
-                        ["3TICK", "2TICK"],
-                    )
-
-        elif self.y_memory:
-            for coords, qtype in self.pairings.items():
-                """
-                In the memory Round we switch to the newly introduced
-                boundary operators and deactivate the old ones
-                """
-                # Get neigbouring data coords
-                q1 = self._neighbours(coords, +1, -1)
-                q2 = self._neighbours(coords, -1, -1)
-                q3 = self._neighbours(coords, +1, +1)
-                q4 = self._neighbours(coords, -1, +1)
-
-                if qtype == "Z-STAB-BOUND-L":
-                    pairs = [(coords, q1), (coords, q3)]
-                    self._assign_orders(
-                        self.stab_to_data,
-                        pairs,
-                        ["4-CX", "3-CX"],
-                    )
-
-                elif qtype == "X-STAB-BOUND-R-H":
-                    pairs = [(coords, q2), (coords, q4)]
-                    self._assign_orders(
-                        self.stab_to_data,
-                        pairs,
-                        ["2-CX", "1-CX"],
-                    )
-
-                elif qtype == "Z-STAB-BOUND-U-H":
-                    pairs = [(q4, coords), (q3, coords)]
-                    self._assign_orders(
-                        self.stab_to_data,
-                        pairs,
-                        ["1-CX", "2-CX"],
-                    )
-
-                elif qtype == "X-STAB-BOUND-B":
-                    pairs = [(q2, coords), (q1, coords)]
-                    self._assign_orders(
-                        self.stab_to_data,
-                        pairs,
-                        ["3-CX", "4-CX"],
-                    )
+            elif qtype == "X-STAB-BOUND-B":
+                pairs = [(q2, coords), (q1, coords)]
+                self._assign_orders(
+                    self.stab_to_data,
+                    pairs,
+                    ["3-CX", "4-CX"],
+                )
 
 
 class YSwitchPairings(BasePairings):

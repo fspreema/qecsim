@@ -111,20 +111,8 @@ def rotated_surface_code(
 
     if is_y:
         geometry = SurfaceGeometry(distance=distance, y_basis=True, starting_stabilizer_x=False)
-        qubit_coords: dict[Coord, Label] = geometry.coords
     else:
         geometry = SurfaceGeometry(distance=distance, y_basis=False, starting_stabilizer_x=True)
-        qubit_coords: dict[Coord, Label] = geometry.coords
-
-    ###############################################
-    # 3. Indexing All Qubits From given Coordinates
-    ###############################################
-
-    # Indexing Qubits
-    q2i = geometry._get_q2i()
-
-    # Reverse Indexing
-    i2q = geometry._get_i2q()
 
     ############################################################
     # 4. Adding the Mapping from Stabilizer to Data for later CX
@@ -138,14 +126,14 @@ def rotated_surface_code(
 
     if is_y:  # Logical Y Basis
         surface_pairings1 = SurfacePairings(
-            patch=qubit_coords,
+            patch=geometry.coords,
             distance=distance,
             y_basis=True,
         )
         stab_to_data = surface_pairings1.get_schedule()
 
         surface_pairings2 = SurfacePairings(
-            patch=qubit_coords,
+            patch=geometry.coords,
             distance=distance,
             y_basis=True,
             y_switch=True,
@@ -153,7 +141,7 @@ def rotated_surface_code(
         stab_to_data_switch, stab_to_data_xcy = surface_pairings2.get_schedule()
 
         surface_pairings3 = SurfacePairings(
-            patch=qubit_coords,
+            patch=geometry.coords,
             distance=distance,
             y_basis=True,
             y_memory=True,
@@ -161,8 +149,8 @@ def rotated_surface_code(
         stab_to_data_memory: dict[tuple[Coord, Coord], str] = surface_pairings3.get_schedule()
 
         lct = Context(
-            q2i=q2i,
-            i2q=i2q,
+            q2i=geometry._get_q2i(),
+            i2q=geometry._get_i2q(),
             stab_to_data=stab_to_data,
             stab_to_data_modified=stab_to_data_switch,
             stab_to_data_modified2=stab_to_data_xcy,
@@ -171,14 +159,14 @@ def rotated_surface_code(
 
     elif logical_h:  # Logical H Gate
         surface_pairings = SurfacePairings(
-            patch=qubit_coords,
+            patch=geometry.coords,
             distance=distance,
         )
 
         stab_to_data: dict[tuple[Coord, Coord], str] = surface_pairings.get_schedule()
 
         surface_pairings_flipped = SurfacePairings(
-            patch=qubit_coords,
+            patch=geometry.coords,
             distance=distance,
             is_flipped=True,
         )
@@ -188,25 +176,25 @@ def rotated_surface_code(
         )
 
         lct = Context(
-            q2i=q2i,
-            i2q=i2q,
+            q2i=geometry._get_q2i(),
+            i2q=geometry._get_i2q(),
             stab_to_data=stab_to_data,
             stab_to_data_modified=stab_to_data_flipped,
         )
     else:  # Regular X or Z Basis
         surface_pairings_reg = SurfacePairings(
-            patch=qubit_coords,
+            patch=geometry.coords,
             distance=distance,
         )
 
         stab_to_data: dict[tuple[Coord, Coord], str] = surface_pairings_reg.get_schedule()
-        lct = Context(q2i=q2i, i2q=i2q, stab_to_data=stab_to_data)
+        lct = Context(q2i=geometry._get_q2i(), i2q=geometry._get_i2q(), stab_to_data=stab_to_data)
 
     ##########################################################
     # Adding Indexes and shared information into lct dataclass
     ##########################################################
 
-    patches: dict[str, Patch] = {"patch": Patch.from_coords(qubit_coords, q2i)}
+    patches: dict[str, Patch] = {"patch": Patch.from_coords(geometry.coords, geometry._get_q2i())}
 
     ###################################
     # 5. Building Initilization Circuit
@@ -313,15 +301,15 @@ def rotated_surface_code(
 
             # Finding logical Strings for x and z
             for imag in range(1, (distance * 2) - 1, 2):
-                logical_x_string.append(q2i[fixed_coord + 1j * imag])
+                logical_x_string.append(geometry._get_q2i()[fixed_coord + 1j * imag])
 
             for real in range(1, (distance * 2) - 1, 2):
-                logical_z_string.append(q2i[real + fixed_coord * 1j])
+                logical_z_string.append(geometry._get_q2i()[real + fixed_coord * 1j])
 
             # Adding logical z string
             logical_xyz_string = "*".join(
                 [f"Z{idz}" for j, idz in enumerate(logical_z_string)]
-                + [f"Y{q2i[fixed_coord + fixed_coord * 1j]}"]
+                + [f"Y{geometry._get_q2i()[fixed_coord + fixed_coord * 1j]}"]
                 + [f"X{idx}" for j, idx in enumerate(logical_x_string)],
             )
 

@@ -33,6 +33,14 @@ class SurgeryGeometry(BaseGeometry):
         self.start_stab_x_control = False
         self.type = "Surgery"
 
+        """
+        Different Patches are needed, because of different Keywords on 
+        identical Coordinates (inside dict.):
+
+        -> X-Stab-Boundary-Above-Control & X-Stab-Boundary-Below-Ancilla f.ex. 
+        get Keywords for surgery stabilizers
+        """
+
         # Generate Coordinates for each patch
         self.coords_ancilla = self._get_qubit_coords(self.offset_ancilla, self.start_stab_x_ancilla)
         self.coords_target = self._get_qubit_coords(self.offset_target, self.start_stab_x_target)

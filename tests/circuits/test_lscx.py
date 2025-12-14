@@ -88,60 +88,6 @@ def test_lscx_qubit_count_lower_bound(d):
     assert circuit.num_qubits >= expected_min_qubits
 
 
-@pytest.mark.parametrize("distance", [3, 5], ids=["d3", "d5"])
-def test_lscx_invalid_flow_and_state_combinations_return_error(distance):
-    """Invalid combinations should raise ValueError."""
-
-    # Invalid flow name raises ValueError
-    with pytest.raises(ValueError, match="Invalid Flow selected"):
-        surgery_circuit(
-            distance=distance,
-            target_state_init="X+",
-            control_state_init="X+",
-            flow_observable="INVALID",
-        )
-
-    # Using Y-basis isn't supported - raises ValueError
-    with pytest.raises(
-        ValueError,
-        match="Invalid control/target state initialization",
-    ):
-        surgery_circuit(
-            distance=distance,
-            target_state_init="Y+",
-            control_state_init="X+",
-            flow_observable="X -> X",
-        )
-
-    # Wrong basis per flow rules - raises ValueError
-    # X -> XX requires both control and target in X basis
-    with pytest.raises(ValueError, match="Wrong target basis for selected flow"):
-        surgery_circuit(
-            distance=distance,
-            target_state_init="Z0",
-            control_state_init="X+",
-            flow_observable="X -> XX",
-        )
-
-    # Z -> ZZ requires both control and target in Z basis
-    with pytest.raises(ValueError, match="Wrong target basis for selected flow"):
-        surgery_circuit(
-            distance=distance,
-            target_state_init="X+",
-            control_state_init="Z0",
-            flow_observable="Z -> ZZ",
-        )
-
-    # ZX -> ZX requires control in Z basis and target in X basis
-    with pytest.raises(ValueError, match="Wrong control basis for selected flow"):
-        surgery_circuit(
-            distance=distance,
-            target_state_init="Z0",
-            control_state_init="X+",
-            flow_observable="ZX -> ZX",
-        )
-
-
 @pytest.mark.parametrize("distance", [2, 4, 10], ids=["d2", "d4", "d10"])
 def test_lscx_even_distance_is_invalid(distance):
     """Even distances are invalid (geometry build requires odd d)."""

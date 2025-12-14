@@ -51,23 +51,11 @@ def xzzx_code(
         state_init=state_init,
     )
 
-    # Get Qubit Coordiantes (Boundary and full weight 4 coords)
-    qubit_coords: dict[Coord, Label] = class_geometry.coords
-
     ################################################################################
     # 4. Adding the Mapping from Stabilizer to Data for later CX gate implementation
     ################################################################################
 
-    pairings = XZZXPairings(patch=qubit_coords)
-    stab_to_data: dict[tuple[Coord, Coord], str] = pairings.get_schedule()
-
-    ###############################################
-    # 5. Indexing All Qubits From given Coordinates
-    ###############################################
-
-    # Get Index and reverse Index Mapping
-    q2i = class_geometry._get_q2i()
-    i2q = class_geometry._get_i2q()
+    pairings = XZZXPairings(patch=class_geometry.coords)
 
     # Filling Dataclasses
     noise = XZZXNoise(
@@ -79,10 +67,10 @@ def xzzx_code(
     )
 
     lct = XZZXContext(
-        q2i=q2i,
-        i2q=i2q,
-        stab_to_data=stab_to_data,
-        coords=qubit_coords,
+        q2i=class_geometry._get_q2i(),
+        i2q=class_geometry._get_i2q(),
+        stab_to_data=pairings.get_schedule(),
+        coords=class_geometry.coords,
     )
 
     cfg = ConfigXZZX(
@@ -91,7 +79,12 @@ def xzzx_code(
         rounds=rounds,
     )
 
-    patches: dict[str, PatchXZZX] = {"patch": PatchXZZX.from_coords(qubit_coords, q2i)}
+    patches: dict[str, PatchXZZX] = {
+        "patch": PatchXZZX.from_coords(
+            class_geometry.coords,
+            class_geometry._get_q2i(),
+        ),
+    }
 
     ###############################
     # 6. Adding State Reset Circuit

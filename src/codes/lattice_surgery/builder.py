@@ -106,55 +106,36 @@ def surgery_circuit(
     #######################################################################################
     full_geometry = SurgeryGeometry(distance=distance)
 
-    qubit_coords_ancilla: dict[Coord, Label] = full_geometry.coords_ancilla
-    qubit_coords_target: dict[Coord, Label] = full_geometry.coords_target
-    qubit_coords_control: dict[Coord, Label] = full_geometry.coords_control
-    qubit_coords_surgery: dict[Coord, Label] = full_geometry.coords_surgery
-
-    # Merge into different Patches
-    """
-    Different Patches are needed, because of different Keywords on 
-    identical Coordinates (inside dict.):
-
-    -> X-Stab-Boundary-Above-Control & X-Stab-Boundary-Below-Ancilla f.ex. 
-       get Keywords for surgery stabilizers
-    """
-
     ################################################################################
     # 3. Adding the Mapping from Stabilizer to Data for later CX gate implementation
     ################################################################################
 
     pairings_ancilla = LatticeSurgeryPairings(
-        qubit_coords=qubit_coords_ancilla,
+        qubit_coords=full_geometry.coords_ancilla,
         merging=False,
     )
-    stab_to_data_ancilla: dict[tuple[Coord, Coord], str] = pairings_ancilla.get_schedule()
 
     pairings_target = LatticeSurgeryPairings(
-        qubit_coords=qubit_coords_target,
+        qubit_coords=full_geometry.coords_target,
         merging=False,
     )
-    stab_to_data_target: dict[tuple[Coord, Coord], str] = pairings_target.get_schedule()
 
     pairings_control = LatticeSurgeryPairings(
-        qubit_coords=qubit_coords_control,
+        qubit_coords=full_geometry.coords_control,
         merging=False,
     )
-    stab_to_data_control: dict[tuple[Coord, Coord], str] = pairings_control.get_schedule()
 
     pairings_surgery_ac = LatticeSurgeryPairings(
-        qubit_coords=qubit_coords_surgery,
+        qubit_coords=full_geometry.coords_surgery,
         merging=True,
         merging_type="AC",
     )
-    stab_to_data_surgery_ac: dict[tuple[Coord, Coord], str] = pairings_surgery_ac.get_schedule()
 
     pairings_surgery_at = LatticeSurgeryPairings(
-        qubit_coords=qubit_coords_surgery,
+        qubit_coords=full_geometry.coords_surgery,
         merging=True,
         merging_type="AT",
     )
-    stab_to_data_surgery_at: dict[tuple[Coord, Coord], str] = pairings_surgery_at.get_schedule()
 
     ###############################################
     # 4. Indexing All Qubits From given Coordinates
@@ -173,17 +154,19 @@ def surgery_circuit(
     lct = LatticeContext(
         q2i=q2i,
         i2q=i2q,
-        stab_to_data=stab_to_data_ancilla | stab_to_data_control | stab_to_data_target,
-        stab_to_data_surgery_ac=stab_to_data_surgery_ac,
-        stab_to_data_surgery_at=stab_to_data_surgery_at,
-        surgery_coords=qubit_coords_surgery,
+        stab_to_data=pairings_ancilla.get_schedule()
+        | pairings_control.get_schedule()
+        | pairings_target.get_schedule(),
+        stab_to_data_surgery_ac=pairings_surgery_ac.get_schedule(),
+        stab_to_data_surgery_at=pairings_surgery_at.get_schedule(),
+        surgery_coords=full_geometry.coords_surgery,
     )
 
     patches: dict[str, PatchAncilla | PatchTarget | PatchControl | PatchSurgery] = {
-        "ancilla": PatchAncilla.from_coords(qubit_coords_ancilla, q2i),
-        "target": PatchTarget.from_coords(qubit_coords_target, q2i),
-        "control": PatchControl.from_coords(qubit_coords_control, q2i),
-        "surgery": PatchSurgery.from_coords(qubit_coords_surgery, q2i),
+        "ancilla": PatchAncilla.from_coords(full_geometry.coords_ancilla, q2i),
+        "target": PatchTarget.from_coords(full_geometry.coords_target, q2i),
+        "control": PatchControl.from_coords(full_geometry.coords_control, q2i),
+        "surgery": PatchSurgery.from_coords(full_geometry.coords_surgery, q2i),
     }
 
     #################################
