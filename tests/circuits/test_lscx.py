@@ -1,7 +1,7 @@
 import pytest
 import stim
 
-from qecsim.codes.lattice_surgery.builder import surgery_circuit
+from src.codes.lattice_surgery.builder import surgery_circuit
 
 
 def _has_observable(circuit: stim.Circuit) -> bool:

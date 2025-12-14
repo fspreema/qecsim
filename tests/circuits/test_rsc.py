@@ -1,7 +1,7 @@
 import pytest
 import stim
 
-from qecsim.codes.surface_code_rotated.builder import rotated_surface_code
+from src.codes.surface_code_rotated.builder import rotated_surface_code
 
 
 @pytest.mark.parametrize("distance", [3, 5, 7], ids=["d3", "d5", "d7"])

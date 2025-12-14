@@ -1,7 +1,7 @@
 import pytest
 import stim
 
-from qecsim.codes.xzzx.builder import xzzx_code
+from src.codes.xzzx.builder import xzzx_code
 
 
 @pytest.mark.parametrize("distance", [3, 5, 7], ids=["d3", "d5", "d7"])
@@ -10,7 +10,7 @@ def test_xzzx_qubits(distance):
     circuit = xzzx_code(
         distance=distance,
         rounds=distance,
-        state_init="Ver",
+        state_init="XZZX-VER",
     )
     assert isinstance(circuit, stim.Circuit)
 
@@ -22,7 +22,7 @@ def test_xzzx_qubits(distance):
 
 
 @pytest.mark.parametrize("distance", [3, 5, 7], ids=["d3", "d5", "d7"])
-@pytest.mark.parametrize("state_init", ["Ver", "Hor"])
+@pytest.mark.parametrize("state_init", ["XZZX-VER", "XZZX-HOR"])
 def test_xzzx_different_states(distance, state_init):
     """Test XZZX code with different state initializations"""
     circuit = xzzx_code(
@@ -35,7 +35,7 @@ def test_xzzx_different_states(distance, state_init):
 
 
 @pytest.mark.parametrize("distance", [3, 5, 7], ids=["d3", "d5", "d7"])
-@pytest.mark.parametrize("state_init", ["Ver", "Hor"])
+@pytest.mark.parametrize("state_init", ["XZZX-VER", "XZZX-HOR"])
 def test_xzzx_observable_present(distance, state_init):
     """Test that XZZX circuit includes observable"""
     circuit = xzzx_code(
@@ -48,7 +48,7 @@ def test_xzzx_observable_present(distance, state_init):
     assert "OBSERVABLE_INCLUDE" in str(circuit)
 
 
-@pytest.mark.parametrize("state_init", ["Ver", "Hor"], ids=["Ver", "Hor"])
+@pytest.mark.parametrize("state_init", ["XZZX-VER", "XZZX-HOR"], ids=["XZZX-VER", "XZZX-HOR"])
 @pytest.mark.parametrize("distance", [2, 4, 6, 8, 10], ids=["d2", "d4", "d6", "d8", "d10"])
 def test_xzzx_invalid_params_even_distance(state_init, distance):
     """Test that XZZX code raises error for even distance"""
@@ -61,7 +61,7 @@ def test_xzzx_invalid_params_even_distance(state_init, distance):
         )
 
 
-@pytest.mark.parametrize("state_init", ["Ver", "Hor"], ids=["Ver", "Hor"])
+@pytest.mark.parametrize("state_init", ["XZZX-VER", "XZZX-HOR"], ids=["XZZX-VER", "XZZX-HOR"])
 def test_xzzx_invalid_params_distance_too_small(state_init):
     """Test that XZZX code raises error for distance < 3"""
     # Distance < 3 should fail

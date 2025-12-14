@@ -1,6 +1,6 @@
 import stim
 
-from qecsim.core.flow_builder import CircuitChunk
+from src.core.unused.flow_builder import CircuitChunk
 
 """
 This tests needs to be updated!!
@@ -27,7 +27,10 @@ def test_surgery_chunk_flow_extraction():
     circuit.append("H", [4])  # Measure in X basis
     circuit.append("M", [4])
 
-    chunk = CircuitChunk(circuit=circuit)
+    # Create a dummy i2q mapping
+    i2q = {0: 0j, 1: 1 + 0j, 2: 0 + 1j, 3: 1 + 1j, 4: 0.5 + 0.5j}
+
+    chunk = CircuitChunk(circuit=circuit, i2q=i2q)
 
     assert chunk.flows is not None
     assert isinstance(chunk.flows, (list, dict))

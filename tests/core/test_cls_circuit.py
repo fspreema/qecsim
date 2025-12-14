@@ -1,6 +1,6 @@
 import stim
 
-from qecsim.core.cls_circuit import GenCircuit
+from src.core.unused.cls_circuit import GenCircuit
 
 """
 TEST OVERLAPPING MEASUREMENTS
