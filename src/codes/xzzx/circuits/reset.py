@@ -3,7 +3,7 @@ import stim
 
 from src.codes.xzzx.get_stab_pairings import XZZXPairings
 from src.codes.xzzx.xzzx_geom import XZZXGeometry
-from src.core.data_models import XZZXNoise
+from src.core.data_models import NoiseParameters
 
 __all__ = ["ResetCircuit"]
 
@@ -13,7 +13,7 @@ class ResetCircuit:
         self,
         geometry: XZZXGeometry,
         stab_pairings: XZZXPairings,
-        noise: XZZXNoise,
+        noise: NoiseParameters,
     ):
         self.geometry = geometry
         self.stab_pairings = stab_pairings

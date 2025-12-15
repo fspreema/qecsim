@@ -1,23 +1,70 @@
 from abc import ABC, abstractmethod
 
+import stim
+
+from src.core.data_models import NoiseParameters
+from src.core.noise_models import BiasNoise, CircuitNoise
+
 
 class BaseClassBuilder(ABC):
+    def __init__(self, noise=None):
+        # Initialize Noise Model
+        if noise is None:
+            noise = NoiseParameters(
+                after_c_depol_prob=0.0,
+                before_round_depol=0.0,
+                before_m_flip_prob=0.0,
+                after_r_flip=0.0,
+                after_c_pauli_channel_prob=0.0,
+                noise_bias=None,
+            )
+        self.noise = noise
+
     @abstractmethod
-    def build_circuit(self) -> None:
+    def build_circuit(self) -> stim.Circuit:
         """
         Abstract Method to build the circuit.
 
         Returns:
-            None
+            stim.Circuit
         """
         pass
 
-    @abstractmethod
-    def _get_detectors(self) -> None:
+    def _apply_noise(self, input_circuit: stim.Circuit) -> stim.Circuit:
         """
-        Abstract Method to get the detectors.
+        Method to apply noise models to the circuit.
+        """
 
-        Returns:
-            None
-        """
-        pass
+        # 1) Circuit Noise Model
+        if (
+            self.noise.before_m_flip_prob > 0.0
+            or self.noise.after_r_flip > 0.0
+            or self.noise.after_c_depol_prob > 0.0
+            or self.noise.before_round_depol > 0.0
+        ):
+            noise_dict = {
+                "before_round_depol": self.noise.before_round_depol,
+                "before_m_flip_prob": self.noise.before_m_flip_prob,
+                "after_r_flip": self.noise.after_r_flip,
+                "after_c_depol_prob": self.noise.after_c_depol_prob,
+            }
+
+            # Apply Noise Model
+            circuit_noise_builder = CircuitNoise(circuit=input_circuit, noise=noise_dict)
+            input_circuit = circuit_noise_builder.apply()
+
+        # 2) Biased Noise Model
+        if self.noise.after_c_pauli_channel_prob not in (
+            0.0,
+            None,
+        ) or self.noise.noise_bias not in (None, []):
+            noise_dict = {
+                "after_c_custom_noise": self.noise.after_c_pauli_channel_prob,
+                "bias": self.noise.noise_bias,
+            }
+
+            # Apply Noise Model
+            bias_noise_builder = BiasNoise(circuit=input_circuit, noise=noise_dict)
+            input_circuit = bias_noise_builder.apply()
+
+        return input_circuit

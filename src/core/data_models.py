@@ -26,7 +26,7 @@ class NoiseModel:
 
 
 @dataclass
-class XZZXNoise:
+class NoiseParameters:
     """
     Extended noise model to support XZZX-specific pauli-channel parameters.
 
@@ -355,7 +355,7 @@ __all__ = [
     "Index",
     "Pair",
     "NoiseModel",
-    "XZZXNoise",
+    "NoiseParameters",
     "CircuitResult",
     "ConfigSurface",
     "ConfigLatticeSurgery",
