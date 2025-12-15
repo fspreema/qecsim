@@ -44,6 +44,8 @@ class XZZXNoise:
     before_m_flip_prob: float = None
     after_r_flip: float = None
     after_c_depol_prob: float = None
+    after_c_pauli_channel_prob: float = None
+    noise_bias: list[float] = None
 
 
 @dataclass
@@ -90,17 +92,6 @@ class ConfigSurface:
     distance: int
     state_init: str
     obs: str
-    rounds: int
-
-
-@dataclass
-class ConfigXZZX:
-    """
-    Configuration used by XZZX builders
-    """
-
-    distance: int
-    state_init: str  # "Ver" or "Hor"
     rounds: int
 
 
@@ -196,53 +187,6 @@ class Patch:
             ),
             upper_h=pick_up("Z-STAB-BOUND-U-H"),
             right_h=pick_up("X-STAB-BOUND-R-H"),
-        )
-
-
-@dataclass
-class PatchXZZX:
-    """
-    XZZX-specific patch indices split by basis and stabilizer type.
-    """
-
-    coords: dict[Coord, Label]
-    # Data indices
-    data: list[Index]
-    data_x: list[Index]
-    data_z: list[Index]
-    # Ancilla (stabilizers)
-    stab_index: list[Index]
-    stab_index_ver: list[Index]
-    stab_index_hor: list[Index]
-
-    @classmethod
-    def from_coords(
-        cls,
-        coords: dict[Coord, Label],
-        q2i: Mapping[Coord, Index],
-    ) -> "PatchXZZX":
-        # Define Key pickup function
-        def pick_up(*labels: str) -> list[Index]:
-            return _pick_up_indices(coords, q2i, *labels)
-
-        # Pickup Data
-        data_z = pick_up("DATA_Z")
-        data_x = pick_up("DATA_X")
-        data = sorted(data_x + data_z)
-
-        # Pickup Stabs
-        stab_index_ver = pick_up("STAB-Ver", "STAB-BOUND-A-Ver", "STAB-BOUND-B-Ver")
-        stab_index_hor = pick_up("STAB-Hor", "STAB-BOUND-L-Hor", "STAB-BOUND-R-Hor")
-        stab_index = sorted(stab_index_ver + stab_index_hor)
-
-        return cls(
-            coords=coords,
-            data=data,
-            data_x=data_x,
-            data_z=data_z,
-            stab_index=stab_index,
-            stab_index_ver=stab_index_ver,
-            stab_index_hor=stab_index_hor,
         )
 
 
@@ -392,18 +336,6 @@ class Context:
 
 
 @dataclass
-class XZZXContext:
-    """
-    Shared mappings for XZZX-style lattices.
-    """
-
-    q2i: dict[Coord, Index]
-    i2q: dict[Index, Coord]
-    stab_to_data: dict[Pair, str]
-    coords: dict[Coord, Label]
-
-
-@dataclass
 class LatticeContext:
     """
     Shared information across lattice-surgery-style lattices
@@ -426,15 +358,12 @@ __all__ = [
     "XZZXNoise",
     "CircuitResult",
     "ConfigSurface",
-    "ConfigXZZX",
     "ConfigLatticeSurgery",
     "Patch",
-    "PatchXZZX",
     "PatchAncilla",
     "PatchControl",
     "PatchTarget",
     "PatchSurgery",
     "Context",
-    "XZZXContext",
     "LatticeContext",
 ]

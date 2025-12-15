@@ -1,76 +1,95 @@
 import numpy as np
 import stim
 
-from src.core.data_models import ConfigXZZX, PatchXZZX, XZZXContext, XZZXNoise
+from src.codes.xzzx.get_stab_pairings import XZZXPairings
+from src.codes.xzzx.xzzx_geom import XZZXGeometry
+from src.core.data_models import XZZXNoise
 
-__all__ = ["reset"]
+__all__ = ["ResetCircuit"]
 
 
-def reset(
-    *,
-    lct: XZZXContext,
-    cfg: ConfigXZZX,
-    patch: PatchXZZX,
-    noise: XZZXNoise,
-) -> stim.Circuit:
-    #################################################
-    # Exporting all necessary values from Dataclasses
-    #################################################
+class ResetCircuit:
+    def __init__(
+        self,
+        geometry: XZZXGeometry,
+        stab_pairings: XZZXPairings,
+        noise: XZZXNoise,
+    ):
+        self.geometry = geometry
+        self.stab_pairings = stab_pairings
+        self.noise = noise
 
-    # Retrieving Global Infomration
-    q2i = lct.q2i
-    state_init = cfg.state_init
+    def build_reset_circuit(self) -> stim.Circuit:
+        # Initialize Empty Circuit
+        self.reset_circ = stim.Circuit()
 
-    # Retrievin Data Coords from Patch
-    data_x = patch.data_x
-    data_z = patch.data_z
-    data = patch.data
+        # Apply Reset Operations
+        self.reset_circ = self._apply_reset()
 
-    ########################
-    # Define Initial Circuit
-    ########################
+        # Apply Pre-Round Noise
+        self.reset_circ = self._apply_pre_round_noise()
 
-    initial_circuit = stim.Circuit()
+        return self.reset_circ
 
-    """
-    Looking at every state preperation seperatly seems to be inefficient
-    ->  If not all Operators only once used one gets an incorrect formatting in the 
-        timeslice view because of the Operations being in different timeslices in each TICK!
-    """
+    def _apply_reset(self):
+        ########################
+        # Define Initial Circuit
+        ########################
 
-    ##################
-    # Appending Coords
-    ##################
+        """
+        Looking at every state preperation seperatly seems to be inefficient
+        ->  If not all Operators only once used one gets an incorrect formatting in the
+            timeslice view because of the Operations being in different timeslices in each TICK!
+        """
 
-    for q, i in q2i.items():
-        initial_circuit.append("QUBIT_COORDS", [i], [q.real, q.imag])
+        ##################
+        # Appending Coords
+        ##################
 
-    ########################################################################
-    # Inilizing Ancilla in Plus (Reset) and Control/ Target in desired State
-    ########################################################################
+        for q, i in self.geometry.q2i.items():
+            self.reset_circ.append("QUBIT_COORDS", [i], [q.real, q.imag])
 
-    init_patterns = {
-        ("XZZX-VER"): [("RZ", data_z), ("RX", data_x)],
-        ("XZZX-HOR"): [("RX", data_x), ("RZ", data_z)],
-    }
+        ########################################################################
+        # Inilizing Ancilla in Plus (Reset) and Control/ Target in desired State
+        ########################################################################
 
-    # Apply the initialization pattern
-    key = state_init
+        init_patterns = {
+            ("XZZX-VER"): [
+                ("RZ", self.geometry.data_z_idx),
+                ("RX", self.geometry.data_x_idx),
+            ],
+            ("XZZX-HOR"): [
+                ("RX", self.geometry.data_x_idx),
+                ("RZ", self.geometry.data_z_idx),
+            ],
+        }
 
-    if key not in init_patterns:
-        raise ValueError(f"Invalid basis combination: {key}")
+        # Apply the initialization pattern
+        if self.geometry.state_init not in init_patterns:
+            raise ValueError(f"Invalid basis combination: {self.geometry.state_init}")
 
-    for gate, qubits in init_patterns[key]:
-        initial_circuit.append(gate, qubits)
+        for gate, qubits in init_patterns[self.geometry.state_init]:
+            self.reset_circ.append(gate, qubits)
 
-    # -------Adding Before Round Data Depol.------------
-    if noise.before_round_depol > 0:
-        initial_circuit.append("DEPOLARIZE1", data, noise.before_round_depol)
-    # --------------------------------------------------
+        return self.reset_circ
 
-    # -------Adding Before Round Data Depol.------------
-    if np.any(noise.before_round_p_xyz):
-        initial_circuit.append("PAULI_CHANNEL_1", data, noise.before_round_p_xyz)
-    # --------------------------------------------------
+    def _apply_pre_round_noise(self):
+        # -------Adding Before Round Data Depol.------------
+        if self.noise.before_round_depol > 0:
+            self.reset_circ.append(
+                "DEPOLARIZE1",
+                self.geometry.data_idx,
+                self.noise.before_round_depol,
+            )
+        # --------------------------------------------------
 
-    return initial_circuit
+        # -------Adding Before Round Data Depol.------------
+        if np.any(self.noise.before_round_p_xyz):
+            self.reset_circ.append(
+                "PAULI_CHANNEL_1",
+                self.geometry.data_idx,
+                self.noise.before_round_p_xyz,
+            )
+        # --------------------------------------------------
+
+        return self.reset_circ

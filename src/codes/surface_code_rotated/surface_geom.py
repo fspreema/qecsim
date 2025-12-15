@@ -27,9 +27,24 @@ class SurfaceGeometry(BaseGeometry):
         self.distance = distance
         self.offset = offset
         self.starting_stabilizer_x = starting_stabilizer_x
-        self.coords = self._get_qubit_coords() | self._add_boundary_labels(y_basis=y_basis)
+        self.coords = self.get_coords(y_basis=y_basis)
 
-    def _get_qubit_coords(self) -> dict[complex, str]:
+    def get_coords(self, y_basis: bool = False) -> dict[complex, str]:
+        """
+        Returns all qubit coordinates with their labels
+
+        Returns:
+            dict[complex, str]
+                Dictionary with coordinates as keys and labels as values
+        """
+
+        qubit_coords = self._get_central_labels()
+        bound_coords = self._get_boundary_labels(y_basis=y_basis)
+        full_coords = qubit_coords | bound_coords
+
+        return full_coords
+
+    def _get_central_labels(self) -> dict[complex, str]:
         """
         Returns the qubit coordinates depending on the type of the block
 
@@ -76,7 +91,7 @@ class SurfaceGeometry(BaseGeometry):
 
         return qubit_coords
 
-    def _add_boundary_labels(self, y_basis: bool = False) -> dict[complex, str]:
+    def _get_boundary_labels(self, y_basis: bool = False) -> dict[complex, str]:
         """
         Adds the neseccary Boundary and Surgery Stabilizers needed for the code
         """

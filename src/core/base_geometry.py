@@ -1,3 +1,5 @@
+from abc import ABC, abstractmethod
+
 """
 Central Geometry Class
 ======================
@@ -6,7 +8,45 @@ Houses central functions used across different code geometries.
 """
 
 
-class BaseGeometry:
+class BaseGeometry(ABC):
+    def __init__(self, **kwargs):
+        self.coords = self.get_coords(**kwargs)
+        self.q2i = self._get_q2i()
+        self.i2q = self._get_i2q()
+
+    @abstractmethod
+    def get_coords(self, **kwargs) -> dict[complex, str]:
+        """
+        Abstract Method to get all coordinates with their labels.
+
+        Returns:
+            dict[complex, str]
+                Dictionary with coordinates as keys and labels as values
+        """
+        pass
+
+    @abstractmethod
+    def _get_central_labels(self, **kwargs) -> dict[complex, str]:
+        """
+        Abstract Method to get only the qubit coordinates without boundaries.
+
+        Returns:
+            dict[complex, str]
+                Dictionary with data qubit coordinates as keys and labels as values
+        """
+        pass
+
+    @abstractmethod
+    def _get_boundary_labels(self, **kwargs) -> dict[complex, str]:
+        """
+        Abstract Method to get only the boundary qubit coordinates.
+
+        Returns:
+            dict[complex, str]
+                Dictionary with boundary qubit coordinates as keys and labels as values
+        """
+        pass
+
     def _get_q2i(self):
         """
         Returns the index mapping of lattice points.
@@ -38,4 +78,17 @@ class BaseGeometry:
         """
 
         data_qubits = {coord: label for coord, label in self.coords.items() if type in label}
+        return data_qubits
+
+    def _get_specific_indices(self, type: str) -> dict[int, str]:
+        """
+        Returns only the qubit indices with type corresponding to the label.
+
+        Returns:
+            dict[int, str]
+                Dictionary with data qubit indices as keys and labels as values
+        """
+
+        data_qubits = [self.q2i[coord] for coord, label in self.coords.items() if type in label]
+
         return data_qubits

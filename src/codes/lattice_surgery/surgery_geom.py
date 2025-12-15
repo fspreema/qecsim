@@ -32,6 +32,16 @@ class SurgeryGeometry(BaseGeometry):
         self.start_stab_x_target = False
         self.start_stab_x_control = False
         self.type = "Surgery"
+        self.coords = self.get_coords()
+
+    def get_coords(self) -> dict[complex, str]:
+        """
+        Returns all qubit coordinates with their labels
+
+        Returns:
+            dict[complex, str]
+                Dictionary with coordinates as keys and labels as values
+        """
 
         """
         Different Patches are needed, because of different Keywords on 
@@ -42,20 +52,35 @@ class SurgeryGeometry(BaseGeometry):
         """
 
         # Generate Coordinates for each patch
-        self.coords_ancilla = self._get_qubit_coords(self.offset_ancilla, self.start_stab_x_ancilla)
-        self.coords_target = self._get_qubit_coords(self.offset_target, self.start_stab_x_target)
-        self.coords_control = self._get_qubit_coords(self.offset_control, self.start_stab_x_control)
+        self.coords_ancilla = self._get_central_labels(
+            self.offset_ancilla,
+            self.start_stab_x_ancilla,
+        )
+        self.coords_target = self._get_central_labels(
+            self.offset_target,
+            self.start_stab_x_target,
+        )
+        self.coords_control = self._get_central_labels(
+            self.offset_control,
+            self.start_stab_x_control,
+        )
         self.coords_surgery: dict[complex, str] = {}
 
         # Add Boundary and Surgery Stabilizers
-        self._add_boundary_labels()
+        self._get_boundary_labels()
 
         # Full Coordinate Dictionary
-        self.coords = (
+        full_coords = (
             self.coords_ancilla | self.coords_target | self.coords_control | self.coords_surgery
         )
 
-    def _get_qubit_coords(self, offset: complex, starting_stabilizer_x: bool) -> dict[complex, str]:
+        return full_coords
+
+    def _get_central_labels(
+        self,
+        offset: complex,
+        starting_stabilizer_x: bool,
+    ) -> dict[complex, str]:
         """
         Returns the qubit coordinates depending on the type of the block
 
@@ -102,7 +127,7 @@ class SurgeryGeometry(BaseGeometry):
 
         return qubit_coords
 
-    def _add_boundary_labels(self) -> dict[complex, str]:
+    def _get_boundary_labels(self) -> dict[complex, str]:
         """
         Adds the neseccary Boundary and Surgery Stabilizers needed
         """
