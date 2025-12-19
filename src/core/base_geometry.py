@@ -47,7 +47,7 @@ class BaseGeometry(ABC):
         """
         pass
 
-    def _get_q2i(self):
+    def _get_q2i(self) -> dict[complex, int]:
         """
         Returns the index mapping of lattice points.
         """
@@ -57,7 +57,7 @@ class BaseGeometry(ABC):
             index[coord] = int(idx)
         return index
 
-    def _get_i2q(self):
+    def _get_i2q(self) -> dict[int, complex]:
         """
         Returns the coordinate mapping of indices.
         """

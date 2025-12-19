@@ -14,20 +14,20 @@ class XZZXPairings(BasePairings):
     ):
         self.patch = patch
         self.stab_to_data: dict[Pair, str] = {}
-        self.stab_to_data = self.get_schedule(self.stab_to_data)
+        self.stab_to_data = self.generate_pairings(self.stab_to_data)
 
-    def get_schedule(self, stab_to_data: dict[Pair, str]) -> dict[Pair, str]:
+    def generate_pairings(self, stab_to_data: dict[Pair, str]) -> dict[Pair, str]:
         """
         Populate schedule for XZZX-style stabilizers
         """
 
         # Add interior and boundary CXs
-        self._attach_interior_cx(stab_to_data)
-        self._attach_boundary_cx(stab_to_data)
+        self._attach_interior(stab_to_data)
+        self._attach_boundary(stab_to_data)
 
         return stab_to_data
 
-    def _attach_interior_cx(self, stab_to_data: dict[Pair, str]):
+    def _attach_interior(self, stab_to_data: dict[Pair, str]):
         """
         Adds the 4-body CX Schedule for the *interior* stabilizers
         """
@@ -49,7 +49,7 @@ class XZZXPairings(BasePairings):
 
         return stab_to_data
 
-    def _attach_boundary_cx(self, stab_to_data: dict[Pair, str]):
+    def _attach_boundary(self, stab_to_data: dict[Pair, str]):
         """
         Adds the 2-body CX Schedule for the *boundary* stabilizers
         """

@@ -55,7 +55,7 @@ class XZZXGeometry(BaseGeometry):
         )
         self.stab_idx = self.stab_ver_idx + self.stab_hor_idx
 
-    def get_neighbors(self, coords: int, qtype: str) -> list[int]:
+    def get_neighbors(self, coords: complex, qtype: str) -> list[int]:
         """
         Returns the list of neighboring qubit coords for a given ancilla qubit.
         """

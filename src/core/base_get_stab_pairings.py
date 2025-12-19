@@ -1,13 +1,37 @@
+from abc import ABC, abstractmethod
+
 Coord = complex
 Label = str
 Pair = tuple[Coord, Coord]
 
 
 # Create the abstract base class every pairing class will inherit from
-class BasePairings:
+class BasePairings(ABC):
     def __init__(self, patch: dict[complex, str], distance: int):
         self.patch = patch
         self.distance = distance
+
+    @abstractmethod
+    def generate_pairings(self) -> None:
+        """
+        Abstract Method to generate the stabilizer to data qubit pairings
+        for cx gate schedules
+        """
+        pass
+
+    @abstractmethod
+    def _attach_interior(self) -> None:
+        """
+        Abstract Method to get interioir stabilizer cx schedules
+        """
+        pass
+
+    @abstractmethod
+    def _attach_boundary(self) -> None:
+        """
+        Abstract Method to get boundary stabilizer cx schedules
+        """
+        pass
 
     def _neighbours(
         self,
