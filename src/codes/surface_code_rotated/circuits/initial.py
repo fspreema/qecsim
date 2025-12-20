@@ -1,102 +1,116 @@
 import stim
 
+from src.codes.surface_code_rotated.data_geometry import MasterGeometry, MasterPairings
 from src.core.cx_builder import cx_builder
-from src.core.data_models import (
-    CircuitResult,
-    ConfigSurface as Config,
-    Context,
-    Patch,
-)
 
-Coord = complex
-
-__all__ = ["initial"]
+__all__ = ["SurfaceInitialization"]
 
 
-def initial(
-    *,
-    lct: Context,
-    patches: dict[str, Patch],
-    cfg: Config,
-) -> CircuitResult:
-    #################################################
-    # Exporting all necessary values from Dataclasses
-    #################################################
+class SurfaceInitialization:
+    def __init__(self, master_geometry: MasterGeometry, master_pairings: MasterPairings, type: str):
+        if type not in {"standard", "y_initial", "log_h_initial"}:
+            raise ValueError(
+                f"Invalid type '{type}' for SurfaceInitialization. Must be 'standard'"
+                f", 'y_initial' or 'log_h_initial'.",
+            )
 
-    # -Loading in Patches
-    patch = patches["patch"]
+        self.type = type
 
-    # -Retrieving Global Infomration
-    q2i = lct.q2i
-    i2q = lct.i2q
-    init_state = cfg.state_init
-    stab_to_data = lct.stab_to_data
+        # Initialize Geometry and Pairings depending on the type
+        if type == "standard":
+            self.geometry = master_geometry.geometry_std
+            self.pairings = master_pairings.pairings_std
+        elif type == "y_initial":
+            self.geometry = master_geometry.geometry_ybasis
+            self.pairings = master_pairings.pairings_ybasis
+        elif type == "log_h_initial":
+            self.geometry = master_geometry.geometry_std
+            self.pairings = master_pairings.pairings_log_h
 
-    # -Retrieving Data Coords
-    data = patch.data
+    def build_circuit(self) -> stim.Circuit:
+        circuit = stim.Circuit()
 
-    # -Retrieving Index from Stabilizers of the Lattices
-    x_stab_index = patch.x_stab
-    z_stab_index = patch.z_stab
+        # Adding Resets
+        circuit += self._adding_resets()
 
-    ########################
-    # Define Initial Circuit
-    ########################
+        # Adding Transversal H if Logical H init
+        if self.type == "log_h_initial":
+            circuit += self._adding_transversal_h()
 
-    initial_circuit = stim.Circuit()
+        # Adding Initializations
+        circuit += self._adding_initializations()
 
-    initial_circuit.append("TICK")
+        # Adding Detectors
+        # circuit += self._adding_detectors()
 
-    initial_circuit.append("R", x_stab_index + z_stab_index)
+        return circuit
 
-    initial_circuit.append("TICK")
+    def _adding_resets(self):
+        # Reset Circuit
+        reset_circuit = stim.Circuit()
+        reset_circuit.append("TICK")
+        reset_circuit.append("R", self.geometry.stab_x_idx + self.geometry.stab_z_idx)
+        reset_circuit.append("TICK")
 
-    # 1) Reset/ Basis
-    initial_circuit.append("H", x_stab_index)
+        return reset_circuit
 
-    initial_circuit.append("TICK")
+    def _adding_transversal_h(self):
+        # Transversal H Circuit
+        h_circuit = stim.Circuit()
 
-    # 2) CX Operations
+        h_circuit.append("H", self.geometry.data_idx)
+        h_circuit.append("TICK")
 
-    cx_builder(
-        q2i=q2i,
-        stab_to_data=stab_to_data,
-        circuit=initial_circuit,
-    )
+        return h_circuit
 
-    # -------Continue-Circuit------------
+    def _adding_initializations(self):
+        # Init Circuit
+        init_circuit = stim.Circuit()
 
-    # 3) Basis/ Measurement
-    initial_circuit.append("H", x_stab_index)
+        # 1) Reset/ Basis
+        init_circuit.append("H", self.geometry.stab_x_idx)
+        init_circuit.append("TICK")
 
-    initial_circuit.append("TICK")
+        # 2) CX Operations
+        cx_builder(
+            q2i=self.geometry.q2i,
+            stab_to_data=self.pairings.stab_to_data,
+            circuit=init_circuit,
+            excluded_index=self.geometry.y_index if self.type == "y_initial" else None,
+        )
 
-    initial_circuit.append("M", x_stab_index + z_stab_index)
+        # -------Continue-Circuit------------
 
-    initial_circuit.append("TICK")
+        # 3) Basis/ Measurement
+        init_circuit.append("H", self.geometry.stab_x_idx)
+        init_circuit.append("TICK")
+        init_circuit.append("M", self.geometry.stab_x_idx + self.geometry.stab_z_idx)
 
-    # 4) DETECTORS -> Measure only deterministic-Stabilizers!
+        return init_circuit
 
-    if init_state in {"0", "1"}:
-        num_measurements_initial = len(z_stab_index)
+    def _adding_detectors(self):
+        # Init Det circuit
+        det_circuit = stim.Circuit()
 
-        for index, q_index in enumerate(z_stab_index):
-            current_tar = -1 * num_measurements_initial + index
-            # initial_circuit.append(
-            #     "DETECTOR",
-            #     [stim.target_rec(current_tar)],
-            #     (i2q[q_index].real, i2q[q_index].imag, 0),
-            # )
+        # Adding Detectors depending on the basis initlized
+        if self.geometry.state_init in {"0", "1"}:
+            num_measurements_initial = len(self.geometry.stab_z_idx)
 
-    elif init_state in {"+", "-"}:
-        num_measurements_initial = len(x_stab_index + z_stab_index)
+            for index, q_index in enumerate(self.geometry.stab_z_idx):
+                current_tar = -1 * num_measurements_initial + index
+                det_circuit.append(
+                    "DETECTOR",
+                    [stim.target_rec(current_tar)],
+                    (self.geometry.i2q[q_index].real, self.geometry.i2q[q_index].imag, 0),
+                )
 
-        for index, q_index in enumerate(x_stab_index):
-            current_tar = -1 * num_measurements_initial + index
-            # initial_circuit.append(
-            #     "DETECTOR",
-            #     [stim.target_rec(current_tar)],
-            #     (i2q[q_index].real, i2q[q_index].imag, 0),
-            # )
+        elif self.geometry.state_init in {"+", "-"}:
+            num_measurements_initial = len(self.geometry.stab_x_idx + self.geometry.stab_z_idx)
 
-    return CircuitResult(circuit=initial_circuit)
+            for index, q_index in enumerate(self.geometry.stab_x_idx):
+                current_tar = -1 * num_measurements_initial + index
+                det_circuit.append(
+                    "DETECTOR",
+                    [stim.target_rec(current_tar)],
+                    (self.geometry.i2q[q_index].real, self.geometry.i2q[q_index].imag, 0),
+                )

@@ -12,36 +12,24 @@ class StandardPairings(BasePairings):
         self,
         patch: dict[complex, str],
         distance: int,
-        is_flipped: bool = False,
-        y_basis: bool = False,
-        y_switch: bool = False,
-        y_memory: bool = False,
         offset: complex = 0 + 0j,
     ):
         # Initialize Parameters
         self.pairings = patch
-        self.is_flipped = is_flipped
-        self.y_basis = y_basis
-        self.y_switch = y_switch
-        self.y_memory = y_memory
         self.distance = distance
         self.offset = offset
 
-    def generate_standard_pairings(self):
+    def generate_pairings(self):
         # Initialize Schedule Dictionary
         self.stab_to_data: dict[Pair, str] = {}
-        self.stab_to_data_xcy: dict[Pair, str] = {}
 
         # Running the Functions to populate the Schedule
-        self._attach_interior_standard()
-        self._attach_boundary_standard()
+        self._attach_interior()
+        self._attach_boundary()
 
-        if self.y_switch:
-            return self.stab_to_data, self.stab_to_data_xcy
-        else:
-            return self.stab_to_data
+        return self.stab_to_data
 
-    def _attach_interior_standard(self):
+    def _attach_interior(self):
         for coords, qtype in self.pairings.items():
             # Get neigbouring data coords
             q1 = self._neighbours(coords, +1, -1)
@@ -65,7 +53,7 @@ class StandardPairings(BasePairings):
                     ["1-CX", "3-CX", "2-CX", "4-CX"],
                 )
 
-    def _attach_boundary_standard(self):
+    def _attach_boundary(self):
         """
         Adds the 2-body CX Schedule for the *boundary* stabilizers
         """
@@ -115,36 +103,24 @@ class YBasisPairings(BasePairings):
         self,
         patch: dict[complex, str],
         distance: int,
-        is_flipped: bool = False,
-        y_basis: bool = False,
-        y_switch: bool = False,
-        y_memory: bool = False,
         offset: complex = 0 + 0j,
     ):
         # Initialize Parameters
         self.pairings = patch
-        self.is_flipped = is_flipped
-        self.y_basis = y_basis
-        self.y_switch = y_switch
-        self.y_memory = y_memory
         self.distance = distance
         self.offset = offset
 
-    def generate_ybasis_pairings(self):
+    def generate_pairings(self):
         # Initialize Schedule Dictionary
         self.stab_to_data: dict[Pair, str] = {}
-        self.stab_to_data_xcy: dict[Pair, str] = {}
 
         # Running the Functions to populate the Schedule
-        self._attach_interior_ybasis()
-        self._attach_boundary_ybasis()
+        self._attach_interior()
+        self._attach_boundary()
 
-        if self.y_switch:
-            return self.stab_to_data, self.stab_to_data_xcy
-        else:
-            return self.stab_to_data
+        return self.stab_to_data
 
-    def _attach_interior_ybasis(self):
+    def _attach_interior(self):
         for coords, qtype in self.pairings.items():
             # Get neigbouring data coords
             q1 = self._neighbours(coords, +1, -1)
@@ -168,7 +144,7 @@ class YBasisPairings(BasePairings):
                     ["4-CX", "2-CX", "3-CX", "1-CX"],
                 )
 
-    def _attach_boundary_ybasis(self):
+    def _attach_boundary(self):
         """
         Adds the 2-body CX Schedule for the *boundary* stabilizers
         """
@@ -218,36 +194,25 @@ class YSwitchPairings(BasePairings):
         self,
         patch: dict[complex, str],
         distance: int,
-        is_flipped: bool = False,
-        y_basis: bool = False,
-        y_switch: bool = False,
-        y_memory: bool = False,
         offset: complex = 0 + 0j,
     ):
         # Initialize Parameters
         self.pairings = patch
-        self.is_flipped = is_flipped
-        self.y_basis = y_basis
-        self.y_switch = y_switch
-        self.y_memory = y_memory
         self.distance = distance
         self.offset = offset
 
-    def get_yswitch_schedule(self):
+    def generate_pairings(self):
         # Initialize Schedule Dictionary
         self.stab_to_data: dict[Pair, str] = {}
         self.stab_to_data_xcy: dict[Pair, str] = {}
 
         # Running the Functions to populate the Schedule
-        self._attach_interior_yswitch()
-        self._attach_boundary_yswitch()
+        self._attach_interior()
+        self._attach_boundary()
 
-        if self.y_switch:
-            return self.stab_to_data, self.stab_to_data_xcy
-        else:
-            return self.stab_to_data
+        return self.stab_to_data, self.stab_to_data_xcy
 
-    def _attach_interior_yswitch(self):
+    def _attach_interior(self):
         # Filtering out the stabs needed for the two XCY Gate TICKS
         filtered_stabs_x = []
         filtered_stabs_z = []
@@ -344,7 +309,7 @@ class YSwitchPairings(BasePairings):
                 # HOTFIX: DATASET WILL OVERWRITE 2TICK if they are the same
                 self.stab_to_data[coords, q4, 2] = "5TICK"
 
-    def _attach_boundary_yswitch(self):
+    def _attach_boundary(self):
         """
         Adds the 2-body CX Schedule for the *boundary* stabilizers
         """
@@ -444,36 +409,24 @@ class YMemoryPairings(BasePairings):
         self,
         patch: dict[complex, str],
         distance: int,
-        is_flipped: bool = False,
-        y_basis: bool = False,
-        y_switch: bool = False,
-        y_memory: bool = False,
         offset: complex = 0 + 0j,
     ):
         # Initialize Parameters
         self.pairings = patch
-        self.is_flipped = is_flipped
-        self.y_basis = y_basis
-        self.y_switch = y_switch
-        self.y_memory = y_memory
         self.distance = distance
         self.offset = offset
 
-    def get_ymemory_schedule(self):
+    def generate_pairings(self):
         # Initialize Schedule Dictionary
         self.stab_to_data: dict[Pair, str] = {}
-        self.stab_to_data_xcy: dict[Pair, str] = {}
 
         # Running the Functions to populate the Schedule
-        self._attach_interior_ymemory()
-        self._attach_boundary_ymemory()
+        self._attach_interior()
+        self._attach_boundary()
 
-        if self.y_switch:
-            return self.stab_to_data, self.stab_to_data_xcy
-        else:
-            return self.stab_to_data
+        return self.stab_to_data
 
-    def _attach_interior_ymemory(self):
+    def _attach_interior(self):
         for coords, qtype in self.pairings.items():
             # Get neigbouring data coords
             q1 = self._neighbours(coords, +1, -1)
@@ -497,7 +450,7 @@ class YMemoryPairings(BasePairings):
                     ["4-CX", "2-CX", "3-CX", "1-CX"],
                 )
 
-    def _attach_boundary_ymemory(self):
+    def _attach_boundary(self):
         """
         Adds the 2-body CX Schedule for the *boundary* stabilizers
         """
@@ -551,36 +504,24 @@ class FlippedPairings(BasePairings):
         self,
         patch: dict[complex, str],
         distance: int,
-        is_flipped: bool = False,
-        y_basis: bool = False,
-        y_switch: bool = False,
-        y_memory: bool = False,
         offset: complex = 0 + 0j,
     ):
         # Initialize Parameters
         self.pairings = patch
-        self.is_flipped = is_flipped
-        self.y_basis = y_basis
-        self.y_switch = y_switch
-        self.y_memory = y_memory
         self.distance = distance
         self.offset = offset
 
-    def get_flipped_schedule(self):
+    def generate_pairings(self):
         # Initialize Schedule Dictionary
         self.stab_to_data: dict[Pair, str] = {}
-        self.stab_to_data_xcy: dict[Pair, str] = {}
 
         # Running the Functions to populate the Schedule
-        self._attach_interior_flipped()
-        self._attach_boundary_flipped()
+        self._attach_interior()
+        self._attach_boundary()
 
-        if self.y_switch:
-            return self.stab_to_data, self.stab_to_data_xcy
-        else:
-            return self.stab_to_data
+        return self.stab_to_data
 
-    def _attach_interior_flipped(self):
+    def _attach_interior(self):
         # flipped roles: swap the X/Z assignment orders
 
         for coords, qtype in self.pairings.items():
@@ -608,7 +549,7 @@ class FlippedPairings(BasePairings):
                     ["1-CX", "2-CX", "3-CX", "4-CX"],
                 )
 
-    def _attach_boundary_flipped(self):
+    def _attach_boundary(self):
         """
         Adds the 2-body CX Schedule for the *boundary* stabilizers
         """
@@ -655,13 +596,7 @@ class FlippedPairings(BasePairings):
                 )
 
 
-class SurfacePairings(
-    StandardPairings,
-    YBasisPairings,
-    YSwitchPairings,
-    YMemoryPairings,
-    FlippedPairings,
-):
+class SurfacePairings:
     def __init__(
         self,
         patch: dict[complex, str],
@@ -672,6 +607,9 @@ class SurfacePairings(
         y_memory: bool = False,
         offset: complex = 0 + 0j,
     ):
+        if offset.real != 0 and offset.imag != 0:
+            raise ValueError("Offset needs to be either 0 or either real or imaginary")
+
         # Initialize Parameters
         self.pairings = patch
         self.is_flipped = is_flipped
@@ -680,6 +618,14 @@ class SurfacePairings(
         self.y_memory = y_memory
         self.distance = distance
         self.offset = offset
+
+        # Get the CX-Schedule
+        schedule = self.get_schedule()
+        if isinstance(schedule, tuple):
+            self.stab_to_data = schedule[0]
+            self.stab_to_data_xcy = schedule[1]
+        else:
+            self.stab_to_data = schedule
 
     def get_schedule(self):
         """
@@ -702,25 +648,50 @@ class SurfacePairings(
         # Running the Functions to populate the Schedule
         if not self.is_flipped and not self.y_basis and not self.y_switch and not self.y_memory:
             # Generate Pairings and return dict
-            self.generate_standard_pairings()
-            return self.stab_to_data
+            pairings = StandardPairings(
+                patch=self.pairings,
+                distance=self.distance,
+                offset=self.offset,
+            )
+            pairings.generate_pairings()
+            return pairings.stab_to_data
 
         elif not self.is_flipped and self.y_basis and not self.y_switch and not self.y_memory:
             # Generate Pairings and return dict
-            self.generate_ybasis_pairings()
-            return self.stab_to_data
+            pairings = YBasisPairings(
+                patch=self.pairings,
+                distance=self.distance,
+                offset=self.offset,
+            )
+            pairings.generate_pairings()
+            return pairings.stab_to_data
 
         elif not self.is_flipped and self.y_basis and self.y_switch and not self.y_memory:
             # Generate Pairings and return dict
-            self.get_yswitch_schedule()
-            return self.stab_to_data, self.stab_to_data_xcy
+            pairings = YSwitchPairings(
+                patch=self.pairings,
+                distance=self.distance,
+                offset=self.offset,
+            )
+            pairings.generate_pairings()
+            return pairings.stab_to_data, pairings.stab_to_data_xcy
 
         elif not self.is_flipped and self.y_basis and not self.y_switch and self.y_memory:
             # Generate Pairings and return dict
-            self.get_ymemory_schedule()
-            return self.stab_to_data
+            pairings = YMemoryPairings(
+                patch=self.pairings,
+                distance=self.distance,
+                offset=self.offset,
+            )
+            pairings.generate_pairings()
+            return pairings.stab_to_data
 
         elif self.is_flipped and not self.y_basis and not self.y_switch and not self.y_memory:
             # Generate Pairings and return dict
-            self.get_flipped_schedule()
-            return self.stab_to_data
+            pairings = FlippedPairings(
+                patch=self.pairings,
+                distance=self.distance,
+                offset=self.offset,
+            )
+            pairings.generate_pairings()
+            return pairings.stab_to_data

@@ -14,18 +14,6 @@ Pair = tuple[Coord, Coord]
 
 
 @dataclass
-class NoiseModel:
-    """
-    Group all noise probabilites used by sub-builders
-    """
-
-    before_round_depol: float = 0.0
-    before_m_flip_prob: float = 0.0
-    after_r_flip: float = 0.0
-    after_c_depol_prob: float = 0.0
-
-
-@dataclass
 class NoiseParameters:
     """
     Extended noise model to support XZZX-specific pauli-channel parameters.
@@ -40,11 +28,11 @@ class NoiseParameters:
     before_round_p_xyz: list = None
 
     # For regular circuit Noise Model
-    before_round_depol: float = None
-    before_m_flip_prob: float = None
-    after_r_flip: float = None
-    after_c_depol_prob: float = None
-    after_c_pauli_channel_prob: float = None
+    before_round_depol: float = 0.0
+    before_m_flip_prob: float = 0.0
+    after_r_flip: float = 0.0
+    after_c_depol_prob: float = 0.0
+    after_c_pauli_channel_prob: float = 0.0
     noise_bias: list[float] = None
 
 
@@ -81,18 +69,6 @@ class CircuitResult:
 # --------------------------
 # Configs (surface vs lattice-surgery)
 # --------------------------
-
-
-@dataclass
-class ConfigSurface:
-    """
-    Configuration used by surface/rotated builders
-    """
-
-    distance: int
-    state_init: str
-    obs: str
-    rounds: int
 
 
 @dataclass
@@ -354,10 +330,8 @@ __all__ = [
     "Label",
     "Index",
     "Pair",
-    "NoiseModel",
     "NoiseParameters",
     "CircuitResult",
-    "ConfigSurface",
     "ConfigLatticeSurgery",
     "Patch",
     "PatchAncilla",

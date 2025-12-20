@@ -57,22 +57,24 @@ def final_m(
     # Meassuring all Data Qubits:
     #############################
 
-    measure_circuit.append("TICK")
-
     if control_state_init in {"Y+", "Y-"} or target_state_init in {"Y+", "Y-"}:
         # Y-including flows are handled per-flow below (measure only logical strings)
         pass
     else:
         if control_state_init in {"X+", "X-"}:
+            measure_circuit.append("TICK")
             measure_circuit.append("MX", data_control)
 
         elif control_state_init in {"Z0", "Z1"}:
+            measure_circuit.append("TICK")
             measure_circuit.append("MZ", data_control)
 
         if target_state_init in {"X+", "X-"}:
+            measure_circuit.append("TICK")
             measure_circuit.append("MX", data_target)
 
         elif target_state_init in {"Z0", "Z1"}:
+            measure_circuit.append("TICK")
             measure_circuit.append("MZ", data_target)
 
     ##############################

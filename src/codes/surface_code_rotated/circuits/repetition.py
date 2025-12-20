@@ -1,103 +1,240 @@
 import stim
 
+from src.codes.surface_code_rotated.data_geometry import MasterGeometry, MasterPairings
 from src.core.cx_builder import cx_builder
-from src.core.data_models import (
-    CircuitResult,
-    ConfigSurface as Config,
-    Context,
-    NoiseModel,
-    Patch,
-)
 
 Coord = complex
 
-__all__ = ["repetition_circ"]
+__all__ = ["SurfaceRepetitionCircuit"]
 
 
-def repetition_circ(
-    *,
-    lct: Context,
-    patches: dict[str, Patch],
-    cfg: Config,
-    noise: NoiseModel,
-) -> CircuitResult:
-    #################################################
-    # Exporting all necessary values from Dataclasses
-    #################################################
+class SurfaceRepetitionCircuit:
+    def __init__(
+        self,
+        master_geometry: MasterGeometry,
+        master_pairings: MasterPairings,
+        type: str,
+    ):
+        """
+        Initialize the Surface Repetition Circuit
 
-    # -Loading in Patches
-    patch = patches["patch"]
+        Parameters:
+            geometry : SurfaceGeometry
+            pairings : SurfacePairings
+            noise : NoiseParameters
+                -> Depending on the type the correct pairings need to be loaded in (Surface/Memory)!
+            type : str, default "standard"
+                -> What type of repetition, i.e. standard (x,z basis) or y-basis repetition/ memory
 
-    # -Retrieving Global Infomration
-    q2i = lct.q2i
-    i2q = lct.i2q
-    rounds = cfg.rounds
-    stab_to_data = lct.stab_to_data
+        """
 
-    # -Retrieving Data Coords
-    data = patch.data
+        if type not in {"standard", "y_memory", "y_repetition", "h_repetition"}:
+            raise ValueError(
+                f"Unknown repetition circuit type: {type}. "
+                f"Type must be one of 'standard', 'y_memory', 'y_repetition', 'h_repetition'.",
+            )
 
-    # -Retrieving Index from Stabilizers of the Lattices
-    x_stab_index = patch.x_stab
-    z_stab_index = patch.z_stab
+        self.type = type
 
-    ###########################
-    # Define Repetition Circuit
-    ###########################
+        # Initialize Geometry and Pairings depending on the type
+        if self.type == "y_memory":
+            # Get Geometry and Pairings for y-basis memory round
+            self.geometry = master_geometry.geometry_ybasis
+            self.pairings = master_pairings.pairings_ymemory
 
-    # -----BUILDING-REPETITION-CIRC------
+            # Define Indexes for memory round
+            self.stab_idx = self.geometry.stab_x_memory + self.geometry.stab_z_memory
+            self.stab_x_idx = self.geometry.stab_x_memory
+            self.stab_z_idx = self.geometry.stab_z_memory
 
-    round_circuit = stim.Circuit()
+            # Set number of rounds
+            self.rounds = int((self.geometry.distance - 1) / 2)
 
-    round_circuit.append("R", x_stab_index + z_stab_index)
-    round_circuit.append("TICK")
+        elif self.type == "y_repetition":
+            # Get Geometry and Pairings for standard repetition or y-basis repetition
+            self.geometry = master_geometry.geometry_ybasis
+            self.pairings = master_pairings.pairings_ybasis
 
-    # -------Adding-Before-Round-Depol.-Data------------
+            # Define Indexes for standard repetition
+            self.stab_idx = self.geometry.stab_x_idx + self.geometry.stab_z_idx
+            self.stab_x_idx = self.geometry.stab_x_idx
+            self.stab_z_idx = self.geometry.stab_z_idx
 
-    if noise.before_round_depol > 0:
-        round_circuit.append("DEPOLARIZE1", data, noise.before_round_depol)
+            # Set number of rounds
+            self.rounds = self.geometry.distance - 1
 
-    # -------Continue-Circuit------------
+        elif self.type == "h_repetition":
+            # Get Geometry and Pairings for logical H repetition round
+            self.geometry = master_geometry.geometry_std
+            self.pairings = master_pairings.pairings_log_h
 
-    # 1) Reset/ Basis
-    round_circuit.append("H", x_stab_index)
+            # Define Indexes for memory round
+            self.stab_idx = self.geometry.stab_x_idx + self.geometry.stab_z_idx
+            self.stab_x_idx = self.geometry.stab_x_idx
+            self.stab_z_idx = self.geometry.stab_z_idx
 
-    round_circuit.append("TICK")
+            # Set number of rounds
+            self.rounds = self.geometry.distance - 1
 
-    # 2) CX Operations
+        elif self.type == "standard":
+            # Get Geometry and Pairings for standard repetition or y-basis repetition
+            self.geometry = master_geometry.geometry_std
+            self.pairings = master_pairings.pairings_std
 
-    cx_builder(
-        q2i=q2i,
-        stab_to_data=stab_to_data,
-        circuit=round_circuit,
-    )
+            # Define Indexes for standard repetition
+            self.stab_idx = self.geometry.stab_x_idx + self.geometry.stab_z_idx
+            self.stab_x_idx = self.geometry.stab_x_idx
+            self.stab_z_idx = self.geometry.stab_z_idx
 
-    # -------Continue-Circuit------------
+            # Set number of rounds
+            self.rounds = self.geometry.distance - 1
 
-    # 3) Basis/ Measurement
-    round_circuit.append("H", x_stab_index)
+    def build_circuit(self) -> stim.Circuit:
+        circuit = stim.Circuit()
 
-    round_circuit.append("TICK")
+        # If normal repetition (Non y-basis)
+        if self.type in {"standard", "h_repetition", "y_repetition"}:
+            circuit += self._adding_repetition_rounds()
+            # circuit += self._adding_detectors()
 
-    round_circuit.append("M", x_stab_index + z_stab_index)
+        elif self.type == "y_memory":
+            circuit += self._y_basis_memory_prep_circuit()
+            circuit += self._adding_repetition_rounds()
+            circuit += self._y_basis_add_non_det_obs()[0]
 
-    # -> Shifting Coords in Time-Dimension to have 3D timelike Detector graph (Needed for decoding)
-    round_circuit.append("SHIFT_COORDS", arg=(0, 0, 1))
+        return circuit
 
-    # 4) Detectors
-    num_measurements_repeat = len(x_stab_index + z_stab_index)
+    def _y_basis_memory_prep_circuit(self):
+        # Init reset Circuit
+        y_memory_prep_circ = stim.Circuit()
 
-    for index, q_index in enumerate(x_stab_index + z_stab_index):
-        prev_tar = -2 * num_measurements_repeat + index
-        current_tar = -1 * num_measurements_repeat + index
-        # round_circuit.append(
-        #     "DETECTOR",
-        #     [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
-        #     (i2q[q_index].real, i2q[q_index].imag, 0),
-        # )
+        y_memory_prep_circ.append("R", self.stab_idx)
+        y_memory_prep_circ.append("TICK")
 
-    round_circuit.append("TICK")
+        if self.geometry.state_init == "-i":
+            # Append logical flip of Y Observable
+            y_memory_prep_circ.append(
+                "X",
+                self.geometry.get_logical_observables(
+                    "Y",
+                    fixed_coord=(self.geometry.distance * 2 - 1),
+                )[0],
+            )
+            y_memory_prep_circ.append(
+                "Y",
+                self.geometry.get_logical_observables(
+                    "Y",
+                    fixed_coord=(self.geometry.distance * 2 - 1),
+                )[1],
+            )
+            y_memory_prep_circ.append(
+                "Z",
+                self.geometry.get_logical_observables(
+                    "Y",
+                    fixed_coord=(self.geometry.distance * 2 - 1),
+                )[2],
+            )
+            y_memory_prep_circ.append("TICK")
 
-    rep_circ = round_circuit * (rounds - 1)
+        y_memory_prep_circ.append("H", self.stab_x_idx)
+        y_memory_prep_circ.append("TICK")
 
-    return CircuitResult(circuit=rep_circ)
+        # 2) CX Operations
+        cx_builder(
+            q2i=self.geometry.q2i,
+            stab_to_data=self.pairings.stab_to_data,
+            circuit=y_memory_prep_circ,
+        )
+
+        # 3) Basis/ Measurement
+        y_memory_prep_circ.append("H", self.stab_x_idx)
+        y_memory_prep_circ.append("TICK")
+        y_memory_prep_circ.append("M", self.stab_x_idx + self.stab_z_idx)
+        y_memory_prep_circ.append("TICK")
+
+        return y_memory_prep_circ
+
+    def _y_basis_add_non_det_obs(self):
+        observable_circ = stim.Circuit()
+
+        if self.geometry.obs == "X":
+            # Getting corresponding logical string and rec
+            log_x = self.geometry.get_logical_observables(
+                "X",
+                fixed_coord=(self.geometry.distance * 2 - 1),
+            )
+
+            observable_circ.append("MX", log_x)
+            observable_circ.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in log_x], 0)
+
+            # For later decoding we need the measurement record postiions of the logical operator
+            rec_list = [-i - 1 for i in range(len(log_x))]
+
+            return observable_circ, rec_list
+
+        elif self.geometry.obs == "Z":
+            # Getting corresponding logical string and rec
+            log_z = self.geometry.get_logical_observables(
+                "Z",
+                fixed_coord=(self.geometry.distance * 2 - 1),
+            )
+
+            observable_circ.append("MZ", log_z)
+            observable_circ.append("OBSERVABLE_INCLUDE", [f"Z{index}" for index in log_z], 0)
+
+            # For later decoding we need the measurement record postiions of the logical operator
+            rec_list = [-i - 1 for i in range(len(log_z))]
+
+            return observable_circ, rec_list
+
+        return observable_circ, []
+
+    def _adding_repetition_rounds(self):
+        repetition_circ = stim.Circuit()
+
+        # -----BUILDING-REPETITION-CIRC------
+        repetition_circ.append("R", self.stab_idx)
+        repetition_circ.append("TICK")
+
+        # 1) Reset/ Basis
+        repetition_circ.append("H", self.stab_x_idx)
+        repetition_circ.append("TICK")
+
+        # 2) CX Operations
+        cx_builder(
+            q2i=self.geometry.q2i,
+            stab_to_data=self.pairings.stab_to_data,
+            circuit=repetition_circ,
+            excluded_index=self.geometry.y_index if self.type == "y_repetition" else None,
+        )
+
+        # 3) Basis/ Measurement
+        repetition_circ.append("H", self.stab_x_idx)
+        repetition_circ.append("TICK")
+        repetition_circ.append("M", self.stab_idx)
+        repetition_circ.append("TICK")
+
+        return repetition_circ * self.rounds
+
+    def _adding_detectors(self):
+        # Init Det circuit
+        det_circuit = stim.Circuit()
+
+        # -> Shifting Coords in Time-Dimension to have 3D timelike Detector graph
+        #    (Needed for decoding)
+        det_circuit.append("SHIFT_COORDS", arg=(0, 0, 1))
+
+        # Adding needed Detectors
+        num_measurements_repeat = len(self.stab_idx)
+
+        for index, q_index in enumerate(self.stab_idx):
+            prev_tar = -2 * num_measurements_repeat + index
+            current_tar = -1 * num_measurements_repeat + index
+            det_circuit.append(
+                "DETECTOR",
+                [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
+                (self.geometry.i2q[q_index].real, self.geometry.i2q[q_index].imag, 0),
+            )
+        det_circuit.append("TICK")
+
+        return det_circuit

@@ -80,15 +80,8 @@ class BaseGeometry(ABC):
         data_qubits = {coord: label for coord, label in self.coords.items() if type in label}
         return data_qubits
 
-    def _get_specific_indices(self, type: str) -> dict[int, str]:
+    def _get_specific_indices(self, type: str) -> list[int]:
         """
-        Returns only the qubit indices with type corresponding to the label.
-
-        Returns:
-            dict[int, str]
-                Dictionary with data qubit indices as keys and labels as values
+        Returns only the qubit indices with label exactly matching the type.
         """
-
-        data_qubits = [self.q2i[coord] for coord, label in self.coords.items() if type in label]
-
-        return data_qubits
+        return [self.q2i[coord] for coord, label in self.coords.items() if label == type]

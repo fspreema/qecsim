@@ -1,194 +1,142 @@
 import stim
 
-from src.core.data_models import (
-    CircuitResult,
-    Context,
-    Patch,
-)
+from src.codes.surface_code_rotated.data_geometry import MasterGeometry, MasterPairings
 
-Coord = complex
-
-__all__ = ["y_rev_switch_circ"]
+__all__ = ["YRevSwitchCircuit"]
 
 
-def y_rev_switch_circ(
-    *,
-    lct: Context,
-    patches: dict[str, Patch],
-    offset: complex = 0 + 0j,
-) -> CircuitResult:
-    #################################################
-    # Exporting all necessary values from Dataclasses
-    #################################################
+class YRevSwitchCircuit:
+    def __init__(
+        self,
+        master_geometry: MasterGeometry,
+        master_pairings: MasterPairings,
+    ):
+        """
+        Initialize the Y-Basis Reversal Switch Circuit
+        -> Follows the exact procedure as the Y-Basis Switch but in reverse
+            - 1) First cx and xcy gate applications
+            - 2) Then half digaonal h gates and SQRT_X_DAG gates
 
-    # -Loading in Patches
-    patch = patches["patch"]
+        Parameters:
+            geometry : SurfaceGeometry
+            pairings : SurfacePairings
+        """
 
-    # -Retrieving Global Infomration
-    q2i = lct.q2i
-    stab_to_data_switch = lct.stab_to_data_modified
-    stab_to_data_switch_xcy = lct.stab_to_data_modified2
+        # Set Geometry and Pairings for Y-Basis Switch
+        self.geometry = master_geometry.geometry_ybasis
+        self.stab_to_data_switch = master_pairings.pairings_yswitch.stab_to_data
+        self.stab_to_data_xcy = master_pairings.pairings_yswitch.stab_to_data_xcy
 
-    # Getting infromation about the additional newly formed boundary operators:
-    r_h_stabs = patch.right_h
-    u_h_stabs = patch.upper_h
+    def build_circuit(self) -> stim.Circuit:
+        # Initialize Empty Circuit
+        self.switch_circuit = stim.Circuit()
 
-    # -Retrieving Index from Stabilizers of the Lattices
-    x_stab_index = patch.x_stab
-    z_stab_index = patch.z_stab
-    switch_stab_apply_h = patch.stab_switch_apply_h
+        # Building Circuit
+        self.switch_circuit += self._apply_y_rev_switch()
 
-    # Finding Upper right qubit index -> need to look in 2-CX
-    y_coords = 1 + 1j + offset
-    y_index = q2i[y_coords]
+        return self.switch_circuit
 
-    #####################################
-    # Define First Stab X MPP measurement
-    #####################################
+    def _apply_y_rev_switch(self) -> stim.Circuit:
+        ##########################
+        # Applying Y-Basis Reversal Switch
+        ##########################
+        rev_switch_circuit = stim.Circuit()
 
-    reversed_switch_circ = stim.Circuit()
-    reversed_switch_circ.append("TICK")
+        rev_switch_circuit.append(
+            "R",
+            self.geometry.stab_idx + self.geometry.right_h + self.geometry.upper_h,
+        )
+        rev_switch_circuit.append("TICK")
+        rev_switch_circuit.append("H", self.geometry.stab_switch_apply_h)
+        rev_switch_circuit.append("TICK")
 
-    """
-    The following procedure will be done
-    -> Along the mirrored diagonal one half h gate one half not
-    -> Boundary on the site of the h gate gets expanded
-        -> Every postion is now a boundary! (No 2 coords distance between them)
-    -> Along the Y digaonal we do SQRT_X_DAG on all ancilla qubits
-    """
+        #########################################
+        # Adding the XCY gates after the H switch
+        #########################################
 
-    # Getting infromation about the additional newly formed boundary operators:
-    r_h_stabs = patch.right_h
-    u_h_stabs = patch.upper_h
+        # 2) CX Operations
+        for coord_pairs, order in self.stab_to_data_switch.items():
+            # Parallel Implementation of CX
+            if order == "5TICK":
+                if len(coord_pairs) == 2:
+                    index_pairs = []
+                    index_pairs.append(self.geometry.q2i[coord_pairs[1]])
+                    index_pairs.append(self.geometry.q2i[coord_pairs[0]])
+                    rev_switch_circuit.append("CX", index_pairs)
+                else:
+                    index_pairs = []
+                    index_pairs.append(self.geometry.q2i[coord_pairs[1]])
+                    index_pairs.append(self.geometry.q2i[coord_pairs[0]])
+                    rev_switch_circuit.append("CX", index_pairs)
 
-    # Defining new diagonal and the corresponding stabilizers after the switch:
+        rev_switch_circuit.append("TICK")
 
-    index_h = []
-    index_x_deg = []
-    index_nh = []
-
-    for cords, qtype in patch.coords.items():
-        if cords != y_coords:
-            # Diagonal Cut
-            if cords.real - offset.real > cords.imag - offset.imag:
-                index_h.append(q2i[cords])
-
-            # Filtering out the X_DAG -> Not on Data
-            elif cords.real - offset.real == cords.imag - offset.imag:
-                if qtype != "DATA":
-                    index_x_deg.append(q2i[cords])
-
-            else:
-                index_nh.append(q2i[cords])
-
-    h_gates_rep: list = []
-
-    for qubit, q_type in patch.coords.items():
-        if q_type in {"X-STAB", "X-STAB-BOUND-B"}:
-            if q2i[qubit] in index_h:
-                continue
-            else:
-                h_gates_rep.append(q2i[qubit])
-
-        elif q_type == "Z-STAB":
-            if q2i[qubit] in index_h:
-                h_gates_rep.append(q2i[qubit])
-            else:
-                continue
-
-        if q_type in {"Z-STAB-BOUND-U-H", "Z-STAB-BOUND-U"}:
-            h_gates_rep.append(q2i[qubit])
-
-    reversed_switch_circ.append("R", x_stab_index + z_stab_index + r_h_stabs + u_h_stabs)
-    reversed_switch_circ.append("TICK")
-    reversed_switch_circ.append("H", switch_stab_apply_h)
-    reversed_switch_circ.append("TICK")
-
-    #########################################
-    # Adding the XCY gates after the H switch
-    #########################################
-
-    # 2) CX Operations
-
-    for coord_pairs, order in stab_to_data_switch.items():
-        # Parallel Implementation of CX
-        if order == "5TICK":
-            if len(coord_pairs) == 2:
+        for coord_pairs, order in self.stab_to_data_switch.items():
+            # Parallel Implementation of CX
+            if order == "4TICK":
                 index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                reversed_switch_circ.append("CX", index_pairs)
-            else:
+                index_pairs.append(self.geometry.q2i[coord_pairs[1]])
+                index_pairs.append(self.geometry.q2i[coord_pairs[0]])
+                rev_switch_circuit.append("CX", index_pairs)
+
+        rev_switch_circuit.append("TICK")
+
+        for coord_pairs, order in self.stab_to_data_switch.items():
+            # Parallel Implementation of CX
+            if order == "3.5TICK":
                 index_pairs = []
-                index_pairs.append(q2i[coord_pairs[1]])
-                index_pairs.append(q2i[coord_pairs[0]])
-                reversed_switch_circ.append("CX", index_pairs)
+                index_pairs.append(self.geometry.q2i[coord_pairs[1]])
+                index_pairs.append(self.geometry.q2i[coord_pairs[0]])
+                rev_switch_circuit.append("XCY", index_pairs)
 
-    reversed_switch_circ.append("TICK")
+        rev_switch_circuit.append("TICK")
 
-    for coord_pairs, order in stab_to_data_switch.items():
-        # Parallel Implementation of CX
-        if order == "4TICK":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            reversed_switch_circ.append("CX", index_pairs)
+        for coord_pairs, order in self.stab_to_data_switch.items():
+            # Parallel Implementation of CX
+            if order == "3TICK":
+                index_pairs = []
+                index_pairs.append(self.geometry.q2i[coord_pairs[1]])
+                index_pairs.append(self.geometry.q2i[coord_pairs[0]])
+                rev_switch_circuit.append("CX", index_pairs)
 
-    reversed_switch_circ.append("TICK")
+        rev_switch_circuit.append("TICK")
 
-    for coord_pairs, order in stab_to_data_switch.items():
-        # Parallel Implementation of CX
-        if order == "3.5TICK":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            reversed_switch_circ.append("XCY", index_pairs)
+        for coord_pairs, order in self.stab_to_data_switch.items():
+            # Parallel Implementation of CX
+            if order == "2TICK":
+                index_pairs = []
+                index_pairs.append(self.geometry.q2i[coord_pairs[1]])
+                index_pairs.append(self.geometry.q2i[coord_pairs[0]])
+                rev_switch_circuit.append("CX", index_pairs)
 
-    reversed_switch_circ.append("TICK")
+        rev_switch_circuit.append("TICK")
 
-    for coord_pairs, order in stab_to_data_switch.items():
-        # Parallel Implementation of CX
-        if order == "3TICK":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            reversed_switch_circ.append("CX", index_pairs)
+        for coord_pairs, order in self.stab_to_data_xcy.items():
+            # Parallel Implementation of CX
+            if order == "1TICK":
+                index_pairs = []
+                index_pairs.append(self.geometry.q2i[coord_pairs[1]])
+                index_pairs.append(self.geometry.q2i[coord_pairs[0]])
+                rev_switch_circuit.append("XCY", index_pairs)
 
-    reversed_switch_circ.append("TICK")
+        rev_switch_circuit.append("TICK")
 
-    for coord_pairs, order in stab_to_data_switch.items():
-        # Parallel Implementation of CX
-        if order == "2TICK":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            reversed_switch_circ.append("CX", index_pairs)
+        # -------Continue-Circuit------------
 
-    reversed_switch_circ.append("TICK")
+        # Adding stabs h
+        rev_switch_circuit.append("H", self.geometry._y_basis_get_switch_h_qubits())
+        rev_switch_circuit.append("SQRT_X_DAG", self.geometry._y_basis_get_switch_xdag_qubits())
+        rev_switch_circuit.append("TICK")
 
-    for coord_pairs, order in stab_to_data_switch_xcy.items():
-        # Parallel Implementation of CX
-        if order == "1TICK":
-            index_pairs = []
-            index_pairs.append(q2i[coord_pairs[1]])
-            index_pairs.append(q2i[coord_pairs[0]])
-            reversed_switch_circ.append("XCY", index_pairs)
+        # Adding half diagonal H
+        rev_switch_circuit.append("H", self.geometry.stab_x_idx + self.geometry.right_h)
+        rev_switch_circuit.append("TICK")
 
-    reversed_switch_circ.append("TICK")
+        # Adding Resets
+        rev_switch_circuit.append(
+            "MZ",
+            self.geometry.stab_idx + self.geometry.right_h + self.geometry.upper_h,
+        )
+        rev_switch_circuit.append("MY", self.geometry.y_index)
 
-    # -------Continue-Circuit------------
-
-    # Adding stabs h
-    reversed_switch_circ.append("H", index_h)
-    reversed_switch_circ.append("SQRT_X_DAG", index_x_deg)
-    reversed_switch_circ.append("TICK")
-
-    # Adding half diagonal H
-    reversed_switch_circ.append("H", x_stab_index + r_h_stabs)
-    reversed_switch_circ.append("TICK")
-
-    # Adding Resets
-    reversed_switch_circ.append("MZ", x_stab_index + z_stab_index + r_h_stabs + u_h_stabs)
-    reversed_switch_circ.append("MY", y_index)
-
-    return CircuitResult(circuit=reversed_switch_circ)
+        return rev_switch_circuit
