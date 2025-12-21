@@ -82,6 +82,7 @@ class SurfaceInitialization:
         init_circuit.append("H", self.geometry.stab_x_idx)
         init_circuit.append("TICK")
         init_circuit.append("M", self.geometry.stab_x_idx + self.geometry.stab_z_idx)
+        init_circuit.append("SHIFT_COORDS", arg=(0, 0, 1))
         init_circuit.append("TICK")
 
         return init_circuit

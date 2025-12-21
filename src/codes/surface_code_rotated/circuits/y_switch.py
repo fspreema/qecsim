@@ -62,6 +62,7 @@ class YSwitchCircuit:
         pre_switch_circ.append("H", self.geometry.stab_x_idx)
         pre_switch_circ.append("TICK")
         pre_switch_circ.append("MZ", self.geometry.stab_idx)
+        pre_switch_circ.append("SHIFT_COORDS", arg=(0, 0, 1))
         pre_switch_circ.append("TICK")
 
         return pre_switch_circ
@@ -167,6 +168,7 @@ class YSwitchCircuit:
             "M",
             self.geometry.stab_idx + self.geometry.right_h + self.geometry.upper_h,
         )
+        switch_circ.append("SHIFT_COORDS", arg=(0, 0, 1))
         switch_circ.append("TICK")
 
         return switch_circ

@@ -154,6 +154,7 @@ class SurfaceRepetitionCircuit:
         y_memory_prep_circ.append("H", self.stab_x_idx)
         y_memory_prep_circ.append("TICK")
         y_memory_prep_circ.append("M", self.stab_x_idx + self.stab_z_idx)
+        y_memory_prep_circ.append("SHIFT_COORDS", arg=(0, 0, 1))
         y_memory_prep_circ.append("TICK")
 
         return y_memory_prep_circ
@@ -216,6 +217,7 @@ class SurfaceRepetitionCircuit:
         repetition_circ.append("H", self.stab_x_idx)
         repetition_circ.append("TICK")
         repetition_circ.append("M", self.stab_idx)
+        repetition_circ.append("SHIFT_COORDS", arg=(0, 0, 1))
         repetition_circ.append("TICK")
 
         return repetition_circ * self.rounds
