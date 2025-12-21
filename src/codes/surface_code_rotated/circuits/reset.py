@@ -79,6 +79,9 @@ class SurfaceReset:
         These Observables are added for measurement which in the given
         basis would be non deterministic
         -> We need to remove them in order to simulate the 50/50 outcome
+
+        Inside the Y basis the observables are removed after the switch as the observable
+        "lives" only inside the memory rounds of the y circuit
         """
         log_circuit = stim.Circuit()
 
@@ -91,12 +94,17 @@ class SurfaceReset:
                 log_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in log_x], 0)
 
             if self.geometry.obs == "Y":
+                mx_idx, my_idx, mz_idx = self.geometry.get_logical_observables(
+                    "Y",
+                    fixed_coord=(self.geometry.distance * 2 - 1),
+                )
+
                 # XORing the observable away
                 log_circuit.append(
                     "OBSERVABLE_INCLUDE",
-                    [f"X{index}" for index in self.geometry.get_logical_observables("Y")[0]]
-                    + [f"Y{index}" for index in self.geometry.get_logical_observables("Y")[1]]
-                    + [f"Z{index}" for index in self.geometry.get_logical_observables("Y")[2]],
+                    [f"X{index}" for index in mx_idx]
+                    + [f"Y{index}" for index in my_idx]
+                    + [f"Z{index}" for index in mz_idx],
                     0,
                 )
 
@@ -109,17 +117,18 @@ class SurfaceReset:
                 log_circuit.append("OBSERVABLE_INCLUDE", [f"Z{index}" for index in log_z], 0)
 
             if self.geometry.obs == "Y":
+                mx_idx, my_idx, mz_idx = self.geometry.get_logical_observables(
+                    "Y",
+                    fixed_coord=(self.geometry.distance * 2 - 1),
+                )
+
                 # XORing the observable away
                 log_circuit.append(
                     "OBSERVABLE_INCLUDE",
-                    [f"X{index}" for index in self.geometry.get_logical_observables("Y")[0]]
-                    + [f"Y{index}" for index in self.geometry.get_logical_observables("Y")[1]]
-                    + [f"Z{index}" for index in self.geometry.get_logical_observables("Y")[2]],
+                    [f"X{index}" for index in mx_idx]
+                    + [f"Y{index}" for index in my_idx]
+                    + [f"Z{index}" for index in mz_idx],
                     0,
                 )
-
-        elif self.geometry.state_init in {"+i", "-i"}:
-            if self.geometry.obs in {"X", "Z"}:
-                raise NotImplementedError("Not implemented for +i/-i init yet")
 
         return log_circuit

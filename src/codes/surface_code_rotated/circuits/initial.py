@@ -40,9 +40,6 @@ class SurfaceInitialization:
         # Adding Initializations
         circuit += self._adding_initializations()
 
-        # Adding Detectors
-        # circuit += self._adding_detectors()
-
         return circuit
 
     def _adding_resets(self):
@@ -85,32 +82,6 @@ class SurfaceInitialization:
         init_circuit.append("H", self.geometry.stab_x_idx)
         init_circuit.append("TICK")
         init_circuit.append("M", self.geometry.stab_x_idx + self.geometry.stab_z_idx)
+        init_circuit.append("TICK")
 
         return init_circuit
-
-    def _adding_detectors(self):
-        # Init Det circuit
-        det_circuit = stim.Circuit()
-
-        # Adding Detectors depending on the basis initlized
-        if self.geometry.state_init in {"0", "1"}:
-            num_measurements_initial = len(self.geometry.stab_z_idx)
-
-            for index, q_index in enumerate(self.geometry.stab_z_idx):
-                current_tar = -1 * num_measurements_initial + index
-                det_circuit.append(
-                    "DETECTOR",
-                    [stim.target_rec(current_tar)],
-                    (self.geometry.i2q[q_index].real, self.geometry.i2q[q_index].imag, 0),
-                )
-
-        elif self.geometry.state_init in {"+", "-"}:
-            num_measurements_initial = len(self.geometry.stab_x_idx + self.geometry.stab_z_idx)
-
-            for index, q_index in enumerate(self.geometry.stab_x_idx):
-                current_tar = -1 * num_measurements_initial + index
-                det_circuit.append(
-                    "DETECTOR",
-                    [stim.target_rec(current_tar)],
-                    (self.geometry.i2q[q_index].real, self.geometry.i2q[q_index].imag, 0),
-                )

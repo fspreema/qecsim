@@ -149,14 +149,16 @@ class SurfaceGeometry(BaseGeometry):
             # Combination of X and Z logical strings + the y qubit in the corner
             z_string = [
                 self.q2i[real + self.offset.real + (self.offset.imag + fixed_coord) * 1j]
-                for real in range(3, 2 * self.distance, 2)
+                for real in range(1, 2 * self.distance, 2)
+                if real != fixed_coord
             ]
             x_string = [
-                self.q2i[self.offset.real + fixed_coord + (imag + self.offset.imag) * 1j]
-                for imag in range(3, 2 * self.distance, 2)
+                self.q2i[fixed_coord + self.offset.real + (imag + self.offset.imag) * 1j]
+                for imag in range(1, 2 * self.distance, 2)
+                if imag != fixed_coord
             ]
             y_string = [
-                self.q2i[self.offset.real + fixed_coord + (self.offset.imag + fixed_coord) * 1j],
+                self.q2i[fixed_coord + self.offset.real + (self.offset.imag + fixed_coord) * 1j],
             ]
 
             return (x_string, y_string, z_string)

@@ -154,6 +154,7 @@ class SurfaceBuilder(BaseClassBuilder):
             type="y_repetition" if self.state_init in {"+i", "-i"} else "standard",
         )
         self.full_circuit += repet_circ.build_circuit()
+        self.rec_list = repet_circ.rec_list()
 
         #####################################################
         # Y BASIS ONLY: Add Switch/Memory/Rev-Switch Circuits
@@ -174,6 +175,7 @@ class SurfaceBuilder(BaseClassBuilder):
                 type="y_memory",
             )
             self.full_circuit += y_memory_circ.build_circuit()
+            self.rec_list += y_memory_circ.rec_list()
 
             # Adding Y Reverse Switch Circuit
             y_rev_switch_circ = YRevSwitchCircuit(
@@ -211,22 +213,18 @@ class SurfaceBuilder(BaseClassBuilder):
             )
             self.full_circuit += flip_repet_circ.build_circuit()
 
-        ##################################
-        # Adding Final Measurement Circuit
-        ##################################
-        final_meas_circ = FinalMeasureCircuit(
-            master_geometry=self.master_geometry,
-            master_pairings=self.master_pairings,
-            type=(
-                "ybasis"
-                if self.state_init in {"+i", "-i"}
-                else "logical_h"
-                if self.logical_h is True
-                else "standard"
-            ),
-        )
-        meas_circ, self.rec_list = final_meas_circ.build_final_measurement_circuit()
-        self.full_circuit += meas_circ
+        #####################################################
+        # Adding Final Measurement Circuit -> Not for Y Basis
+        #####################################################
+
+        if self.state_init not in {"+i", "-i"}:
+            final_meas_circ = FinalMeasureCircuit(
+                master_geometry=self.master_geometry,
+                master_pairings=self.master_pairings,
+                type=("logical_h" if self.logical_h is True else "standard"),
+            )
+            meas_circ, self.rec_list = final_meas_circ.build_final_measurement_circuit()
+            self.full_circuit += meas_circ
 
         ###########################
         # Adding Noise if specified

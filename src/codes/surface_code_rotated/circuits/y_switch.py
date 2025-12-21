@@ -35,6 +35,7 @@ class YSwitchCircuit:
         # Building Circuit
         self.switch_circuit += self._apply_pre_switch_circ()
         self.switch_circuit += self._apply_y_switch()
+        self.switch_circuit += self._add_logical_observables()
 
         return self.switch_circuit
 

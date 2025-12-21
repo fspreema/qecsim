@@ -95,7 +95,6 @@ class SurfaceRepetitionCircuit:
         # If normal repetition (Non y-basis)
         if self.type in {"standard", "h_repetition", "y_repetition"}:
             circuit += self._adding_repetition_rounds()
-            # circuit += self._adding_detectors()
 
         elif self.type == "y_memory":
             circuit += self._y_basis_memory_prep_circuit()
@@ -103,6 +102,11 @@ class SurfaceRepetitionCircuit:
             circuit += self._y_basis_add_non_det_obs()[0]
 
         return circuit
+
+    def rec_list(self):
+        if self.type == "y_memory":
+            return self._y_basis_add_non_det_obs()[1]
+        return []
 
     def _y_basis_memory_prep_circuit(self):
         # Init reset Circuit
@@ -215,26 +219,3 @@ class SurfaceRepetitionCircuit:
         repetition_circ.append("TICK")
 
         return repetition_circ * self.rounds
-
-    def _adding_detectors(self):
-        # Init Det circuit
-        det_circuit = stim.Circuit()
-
-        # -> Shifting Coords in Time-Dimension to have 3D timelike Detector graph
-        #    (Needed for decoding)
-        det_circuit.append("SHIFT_COORDS", arg=(0, 0, 1))
-
-        # Adding needed Detectors
-        num_measurements_repeat = len(self.stab_idx)
-
-        for index, q_index in enumerate(self.stab_idx):
-            prev_tar = -2 * num_measurements_repeat + index
-            current_tar = -1 * num_measurements_repeat + index
-            det_circuit.append(
-                "DETECTOR",
-                [stim.target_rec(current_tar), stim.target_rec(prev_tar)],
-                (self.geometry.i2q[q_index].real, self.geometry.i2q[q_index].imag, 0),
-            )
-        det_circuit.append("TICK")
-
-        return det_circuit

@@ -24,10 +24,10 @@ class FinalMeasureCircuit:
                 -> What type of final measurement, i.e. standard (x,z basis) or y-basis measurement
         """
 
-        if type not in {"standard", "ybasis", "logical_h"}:
+        if type not in {"standard", "logical_h"}:
             raise ValueError(
                 f"Unknown final measurement circuit type: {type}. "
-                f"Type must be one of 'standard', 'ybasis', 'logical_h'.",
+                f"Type must be one of 'standard', 'logical_h'.",
             )
 
         self.type = type
@@ -37,11 +37,6 @@ class FinalMeasureCircuit:
             # Get Geometry and Pairings for standard final measurement
             self.geometry = master_geometry.geometry_std
             self.pairings = master_pairings.pairings_std
-
-        elif self.type == "ybasis":
-            # Get Geometry and Pairings for y-basis final measurement
-            self.geometry = master_geometry.geometry_ybasis
-            self.pairings = master_pairings.pairings_ybasis
 
         elif self.type == "logical_h":
             # Get Geometry and Pairings for logical H final measurement
@@ -83,9 +78,14 @@ class FinalMeasureCircuit:
             final_circuit.append("MX", self.geometry.data_idx)
 
         elif self.geometry.obs == "Y" and self.non_deterministic_pairing:
-            final_circuit.append("MX", self.geometry.get_logical_observables("Y")[0])
-            final_circuit.append("MY", self.geometry.get_logical_observables("Y")[1])
-            final_circuit.append("MZ", self.geometry.get_logical_observables("Y")[2])
+            idx_mx, idx_my, idx_mz = self.geometry.get_logical_observables(
+                "Y",
+                fixed_coord=(self.geometry.distance * 2 - 1),
+            )
+
+            final_circuit.append("MX", idx_mx)
+            final_circuit.append("MY", idx_my)
+            final_circuit.append("MZ", idx_mz)
 
         return final_circuit
 
@@ -147,7 +147,10 @@ class FinalMeasureCircuit:
                 )
 
             elif self.geometry.obs in {"Y"}:
-                log_x, log_y, log_z = self.geometry.get_logical_observables("Y")
+                log_x, log_y, log_z = self.geometry.get_logical_observables(
+                    "Y",
+                    fixed_coord=(self.geometry.distance * 2 - 1),
+                )
 
                 observable_circuit.append(
                     "OBSERVABLE_INCLUDE",
