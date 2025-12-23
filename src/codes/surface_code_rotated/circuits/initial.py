@@ -8,10 +8,10 @@ __all__ = ["SurfaceInitialization"]
 
 class SurfaceInitialization:
     def __init__(self, master_geometry: MasterGeometry, master_pairings: MasterPairings, type: str):
-        if type not in {"standard", "y_initial", "log_h_initial"}:
+        if type not in {"standard", "y_basis", "log_h"}:
             raise ValueError(
                 f"Invalid type '{type}' for SurfaceInitialization. Must be 'standard'"
-                f", 'y_initial' or 'log_h_initial'.",
+                f", 'y_basis' or 'log_h'.",
             )
 
         self.type = type
@@ -20,10 +20,10 @@ class SurfaceInitialization:
         if type == "standard":
             self.geometry = master_geometry.geometry_std
             self.pairings = master_pairings.pairings_std
-        elif type == "y_initial":
+        elif type == "y_basis":
             self.geometry = master_geometry.geometry_ybasis
             self.pairings = master_pairings.pairings_ybasis
-        elif type == "log_h_initial":
+        elif type == "log_h":
             self.geometry = master_geometry.geometry_std
             self.pairings = master_pairings.pairings_log_h
 
@@ -34,7 +34,7 @@ class SurfaceInitialization:
         circuit += self._adding_resets()
 
         # Adding Transversal H if Logical H init
-        if self.type == "log_h_initial":
+        if self.type == "log_h":
             circuit += self._adding_transversal_h()
 
         # Adding Initializations
@@ -73,7 +73,7 @@ class SurfaceInitialization:
             q2i=self.geometry.q2i,
             stab_to_data=self.pairings.stab_to_data,
             circuit=init_circuit,
-            excluded_index=self.geometry.y_index if self.type == "y_initial" else None,
+            excluded_index=self.geometry.y_index if self.type == "y_basis" else None,
         )
 
         # -------Continue-Circuit------------

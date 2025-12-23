@@ -30,27 +30,6 @@ class BaseClassBuilder(ABC):
         """
         pass
 
-    def get_circuit_flows(flow: str, cut_circuit: stim.Circuit) -> stim.Circuit:
-        """
-        For a given circuit without final measurement and reset, the needed Measurements can be
-        deterermined by the flow type.
-
-        -> These are given as a list of qubit indicies to be measured.
-        -> These are then applied to the circuit as additional measurement
-           records to the same observable
-
-        Returns:
-            stim.Circuit: Corrected Circuit with the correct logical observable included
-        """
-
-        # Determine if the flow exists and if so what measurements are needed
-
-        flow_circuit = stim.Circuit()
-
-        # Adding measurements to the logical observable.
-
-        return flow_circuit
-
     def _apply_noise(self, input_circuit: stim.Circuit) -> stim.Circuit:
         """
         Method to apply noise models to the circuit.

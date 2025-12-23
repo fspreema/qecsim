@@ -28,10 +28,10 @@ class SurfaceRepetitionCircuit:
 
         """
 
-        if type not in {"standard", "y_memory", "y_repetition", "h_repetition"}:
+        if type not in {"standard", "y_memory", "y_basis", "log_h"}:
             raise ValueError(
                 f"Unknown repetition circuit type: {type}. "
-                f"Type must be one of 'standard', 'y_memory', 'y_repetition', 'h_repetition'.",
+                f"Type must be one of 'standard', 'y_memory', 'y_basis', 'log_h'.",
             )
 
         self.type = type
@@ -50,7 +50,7 @@ class SurfaceRepetitionCircuit:
             # Set number of rounds
             self.rounds = int((self.geometry.distance - 1) / 2)
 
-        elif self.type == "y_repetition":
+        elif self.type == "y_basis":
             # Get Geometry and Pairings for standard repetition or y-basis repetition
             self.geometry = master_geometry.geometry_ybasis
             self.pairings = master_pairings.pairings_ybasis
@@ -63,7 +63,7 @@ class SurfaceRepetitionCircuit:
             # Set number of rounds
             self.rounds = self.geometry.distance - 1
 
-        elif self.type == "h_repetition":
+        elif self.type == "log_h":
             # Get Geometry and Pairings for logical H repetition round
             self.geometry = master_geometry.geometry_std
             self.pairings = master_pairings.pairings_log_h
@@ -93,7 +93,7 @@ class SurfaceRepetitionCircuit:
         circuit = stim.Circuit()
 
         # If normal repetition (Non y-basis)
-        if self.type in {"standard", "h_repetition", "y_repetition"}:
+        if self.type in {"standard", "log_h", "y_basis"}:
             circuit += self._adding_repetition_rounds()
 
         elif self.type == "y_memory":
@@ -116,28 +116,13 @@ class SurfaceRepetitionCircuit:
         y_memory_prep_circ.append("TICK")
 
         if self.geometry.state_init == "-i":
+            # Get logical y string
+            x_idx, y_idx, z_idx = self.geometry.get_logical_observables("Y")
+
             # Append logical flip of Y Observable
-            y_memory_prep_circ.append(
-                "X",
-                self.geometry.get_logical_observables(
-                    "Y",
-                    fixed_coord=(self.geometry.distance * 2 - 1),
-                )[0],
-            )
-            y_memory_prep_circ.append(
-                "Y",
-                self.geometry.get_logical_observables(
-                    "Y",
-                    fixed_coord=(self.geometry.distance * 2 - 1),
-                )[1],
-            )
-            y_memory_prep_circ.append(
-                "Z",
-                self.geometry.get_logical_observables(
-                    "Y",
-                    fixed_coord=(self.geometry.distance * 2 - 1),
-                )[2],
-            )
+            y_memory_prep_circ.append("X", x_idx)
+            y_memory_prep_circ.append("Y", y_idx)
+            y_memory_prep_circ.append("Z", z_idx)
             y_memory_prep_circ.append("TICK")
 
         y_memory_prep_circ.append("H", self.stab_x_idx)
@@ -210,7 +195,7 @@ class SurfaceRepetitionCircuit:
             q2i=self.geometry.q2i,
             stab_to_data=self.pairings.stab_to_data,
             circuit=repetition_circ,
-            excluded_index=self.geometry.y_index if self.type == "y_repetition" else None,
+            excluded_index=self.geometry.y_index if self.type == "y_basis" else None,
         )
 
         # 3) Basis/ Measurement

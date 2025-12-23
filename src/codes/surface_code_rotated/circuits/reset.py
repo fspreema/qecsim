@@ -13,10 +13,10 @@ class SurfaceReset:
         master_geometry: MasterGeometry,
         type: str,
     ):
-        if type not in {"standard", "log_h", "ybasis"}:
+        if type not in {"standard", "log_h", "y_basis"}:
             raise ValueError(
                 f"Invalid type '{type}' for SurfaceReset. "
-                f"Must be 'standard', 'log_h', or 'ybasis'.",
+                f"Must be 'standard', 'log_h', or 'y_basis'.",
             )
 
         # Initialize Geometry depending on the type
@@ -24,7 +24,7 @@ class SurfaceReset:
 
         if self.type in {"standard", "log_h"}:
             self.geometry = master_geometry.geometry_std
-        elif self.type == "ybasis":
+        elif self.type == "y_basis":
             self.geometry = master_geometry.geometry_ybasis
 
     def build_circuit(self) -> stim.Circuit:

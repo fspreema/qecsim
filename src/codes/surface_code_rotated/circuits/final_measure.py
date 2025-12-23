@@ -24,10 +24,10 @@ class FinalMeasureCircuit:
                 -> What type of final measurement, i.e. standard (x,z basis) or y-basis measurement
         """
 
-        if type not in {"standard", "logical_h"}:
+        if type not in {"standard", "log_h"}:
             raise ValueError(
                 f"Unknown final measurement circuit type: {type}. "
-                f"Type must be one of 'standard', 'logical_h'.",
+                f"Type must be one of 'standard', 'log_h'.",
             )
 
         self.type = type
@@ -38,7 +38,7 @@ class FinalMeasureCircuit:
             self.geometry = master_geometry.geometry_std
             self.pairings = master_pairings.pairings_std
 
-        elif self.type == "logical_h":
+        elif self.type == "log_h":
             # Get Geometry and Pairings for logical H final measurement
             self.geometry = master_geometry.geometry_std
             self.pairings = master_pairings.pairings_log_h

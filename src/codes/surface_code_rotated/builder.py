@@ -8,6 +8,7 @@ from src.codes.surface_code_rotated.circuits.reset import SurfaceReset
 from src.codes.surface_code_rotated.circuits.y_rev_switch import YRevSwitchCircuit
 from src.codes.surface_code_rotated.circuits.y_switch import YSwitchCircuit
 from src.codes.surface_code_rotated.data_geometry import MasterGeometry, MasterPairings
+from src.codes.surface_code_rotated.get_flows import YBasisGetCircuitFlows
 from src.codes.surface_code_rotated.get_stab_pairings import SurfacePairings
 from src.codes.surface_code_rotated.surface_geom import SurfaceGeometry
 from src.core.base_class_builder import BaseClassBuilder
@@ -63,6 +64,9 @@ class SurfaceBuilder(BaseClassBuilder):
         self.logical_h = logical_h
         self.noise = noise
 
+        # Setting Up Builder Parameters
+        self.y_sections_required = state_init in {"+i", "-i"}
+
         # Initialize Geometries for standard and y-basis
         self.master_geometry = MasterGeometry(
             geometry_std=SurfaceGeometry(
@@ -114,124 +118,145 @@ class SurfaceBuilder(BaseClassBuilder):
         # Initialize Empty Circuit
         self.full_circuit = stim.Circuit()
 
-        ######################
+        # Adding Setup Resets
+        self.full_circuit += self._adding_setup_resets()
+
+        # Adding Initialiazion Circuit
+        self.full_circuit += self._adding_initilization()
+
+        # Addings Repetion Circuit
+        self.full_circuit += self._adding_repetition()
+
+        # Adding Conditional Circuits depending on Y Basis or Transversal H
+        if self.y_sections_required:
+            self.full_circuit += self._adding_y_basis_sections()
+        elif self.logical_h is True:
+            self.full_circuit += self._adding_logical_h_sections()
+
+        # Adding Final Measurement Circuit -> Not for Y Basis
+        if not self.y_sections_required:
+            self.full_circuit += self._adding_final_measurement()
+
+        # Adding Noise if specified
+        self.full_circuit = self._apply_noise(self.full_circuit)
+
+        return self.full_circuit, self.rec_list
+
+    def _adding_setup_resets(self) -> stim.Circuit:
         # Adding Reset Circuit
-        ######################
         reset_circ = SurfaceReset(
             master_geometry=self.master_geometry,
-            type="standard"
-            if self.logical_h is False and self.state_init not in {"+i", "-i"}
-            else "log_h"
-            if self.logical_h
-            else "ybasis",
+            type="standard" if self.state_init not in {"+i", "-i"} else "y_basis",
         )
-        self.full_circuit += reset_circ.build_circuit()
 
-        ##############################
-        # Adding Initilization Circuit
-        ##############################
+        return reset_circ.build_circuit()
 
+    def _adding_initilization(self) -> stim.Circuit:
         # Init Circuit depending on Y Basis or Standard
         init_circ = SurfaceInitialization(
             master_geometry=self.master_geometry,
             master_pairings=self.master_pairings,
-            type="standard"
-            if self.logical_h is False and self.state_init not in {"+i", "-i"}
-            else "log_h_initial"
-            if self.logical_h
-            else "y_initial",
+            type="standard" if self.state_init not in {"+i", "-i"} else "y_basis",
         )
-        self.full_circuit += init_circ.build_circuit()
 
-        ###########################
-        # Adding Repetition Circuit
-        ###########################
+        return init_circ.build_circuit()
 
+    def _adding_repetition(self) -> stim.Circuit:
         # Repetition Circuit depending on Y Basis or Standard
         repet_circ = SurfaceRepetitionCircuit(
             master_geometry=self.master_geometry,
             master_pairings=self.master_pairings,
-            type="y_repetition" if self.state_init in {"+i", "-i"} else "standard",
+            type="y_basis" if self.state_init in {"+i", "-i"} else "standard",
         )
-        self.full_circuit += repet_circ.build_circuit()
+
+        # Setting rec_list
         self.rec_list = repet_circ.rec_list()
 
-        #####################################################
+        return repet_circ.build_circuit()
+
+    def _adding_y_basis_sections(self) -> stim.Circuit:
         # Y BASIS ONLY: Add Switch/Memory/Rev-Switch Circuits
-        #####################################################
+        y_section_circuits = stim.Circuit()
 
-        if self.state_init in {"+i", "-i"}:
-            # Adding Y Switch Circuit
-            y_switch_circ = YSwitchCircuit(
-                master_geometry=self.master_geometry,
-                master_pairings=self.master_pairings,
+        # Adding Y Switch Circuit
+        y_switch_circ = YSwitchCircuit(
+            master_geometry=self.master_geometry,
+            master_pairings=self.master_pairings,
+        )
+        y_section_circuits += y_switch_circ.build_circuit()
+
+        # Adding Y Memory Circuit
+        y_memory_circ = SurfaceRepetitionCircuit(
+            master_geometry=self.master_geometry,
+            master_pairings=self.master_pairings,
+            type="y_memory",
+        )
+        y_section_circuits += y_memory_circ.build_circuit()
+
+        # Updating rec_list
+        self.rec_list += y_memory_circ.rec_list()
+
+        # Adding Y Reverse Switch Circuit
+        y_rev_switch_circ = YRevSwitchCircuit(
+            master_geometry=self.master_geometry,
+            master_pairings=self.master_pairings,
+        )
+        y_section_circuits += y_rev_switch_circ.build_circuit()
+
+        # Getting Logical Flows if Y Log Observable is selected
+        if self.log_obs == "Y":
+            y_flow_getter = YBasisGetCircuitFlows(master_geometry=self.master_geometry)
+            logical_creation_circ = y_flow_getter.get_flows(
+                logical_creation_circ=y_switch_circ.build_circuit(),
+                logical_contraction_circ=y_rev_switch_circ.build_circuit(),
+                circuits_between=[y_memory_circ.build_circuit()],
             )
-            self.full_circuit += y_switch_circ.build_circuit()
+            y_section_circuits += logical_creation_circ
 
-            # Adding Y Memory Circuit
-            y_memory_circ = SurfaceRepetitionCircuit(
-                master_geometry=self.master_geometry,
-                master_pairings=self.master_pairings,
-                type="y_memory",
-            )
-            self.full_circuit += y_memory_circ.build_circuit()
-            self.rec_list += y_memory_circ.rec_list()
+        # Adding another Repetition Circuit after Y Basis Memory for fault tolerance
+        repet_circ_2 = SurfaceRepetitionCircuit(
+            master_geometry=self.master_geometry,
+            master_pairings=self.master_pairings,
+            type="y_basis",
+        )
+        y_section_circuits += repet_circ_2.build_circuit()
 
-            # Adding Y Reverse Switch Circuit
-            y_rev_switch_circ = YRevSwitchCircuit(
-                master_geometry=self.master_geometry,
-                master_pairings=self.master_pairings,
-            )
-            self.full_circuit += y_rev_switch_circ.build_circuit()
+        return y_section_circuits
 
-            # Adding another Repetition Circuit after Y Basis Memory for fault tolerance
-            repet_circ_2 = SurfaceRepetitionCircuit(
-                master_geometry=self.master_geometry,
-                master_pairings=self.master_pairings,
-                type="y_repetition",
-            )
-            self.full_circuit += repet_circ_2.build_circuit()
-
-        ########################################################################
+    def _adding_logical_h_sections(self) -> stim.Circuit:
         # H GATE ONLY: Add Flipped Circuits: Flipped Init and Flipped Repetition
-        ########################################################################
 
-        if self.logical_h is True:
-            # Adding Inital Flipped Circuit
-            flip_init_circ = SurfaceInitialization(
-                master_geometry=self.master_geometry,
-                master_pairings=self.master_pairings,
-                type="log_h_initial",
-            )
-            self.full_circuit += flip_init_circ.build_circuit()
+        h_section_circuits = stim.Circuit()
 
-            # Adding Flipped Repetition Circuit
-            flip_repet_circ = SurfaceRepetitionCircuit(
-                master_geometry=self.master_geometry,
-                master_pairings=self.master_pairings,
-                type="h_repetition",
-            )
-            self.full_circuit += flip_repet_circ.build_circuit()
+        # Adding Inital Flipped Circuit
+        flip_init_circ = SurfaceInitialization(
+            master_geometry=self.master_geometry,
+            master_pairings=self.master_pairings,
+            type="log_h",
+        )
+        h_section_circuits += flip_init_circ.build_circuit()
 
-        #####################################################
+        # Adding Flipped Repetition Circuit
+        flip_repet_circ = SurfaceRepetitionCircuit(
+            master_geometry=self.master_geometry,
+            master_pairings=self.master_pairings,
+            type="log_h",
+        )
+        h_section_circuits += flip_repet_circ.build_circuit()
+
+        return h_section_circuits
+
+    def _adding_final_measurement(self) -> stim.Circuit:
         # Adding Final Measurement Circuit -> Not for Y Basis
-        #####################################################
 
-        if self.state_init not in {"+i", "-i"}:
-            final_meas_circ = FinalMeasureCircuit(
-                master_geometry=self.master_geometry,
-                master_pairings=self.master_pairings,
-                type=("logical_h" if self.logical_h is True else "standard"),
-            )
-            meas_circ, self.rec_list = final_meas_circ.build_final_measurement_circuit()
-            self.full_circuit += meas_circ
+        final_meas_circ = FinalMeasureCircuit(
+            master_geometry=self.master_geometry,
+            master_pairings=self.master_pairings,
+            type=("log_h" if self.logical_h is True else "standard"),
+        )
+        meas_circ, self.rec_list = final_meas_circ.build_final_measurement_circuit()
 
-        ###########################
-        # Adding Noise if specified
-        ###########################
-        self.full_circuit = self._apply_noise(self.full_circuit)
-
-        return self.full_circuit, self.rec_list
+        return meas_circ
 
     def _adding_detectors(self) -> stim.Circuit:
         # Annotate Detectors Automatically
