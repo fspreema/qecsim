@@ -48,7 +48,7 @@ class SurfaceRepetitionCircuit:
             self.stab_z_idx = self.geometry.stab_z_memory
 
             # Set number of rounds
-            self.rounds = int((self.geometry.distance - 1) / 2)
+            self.rounds = self.geometry.distance - 1
 
         elif self.type == "y_basis":
             # Get Geometry and Pairings for standard repetition or y-basis repetition
@@ -61,7 +61,7 @@ class SurfaceRepetitionCircuit:
             self.stab_z_idx = self.geometry.stab_z_idx
 
             # Set number of rounds
-            self.rounds = self.geometry.distance - 1
+            self.rounds = int((self.geometry.distance - 1) / 2)
 
         elif self.type == "log_h":
             # Get Geometry and Pairings for logical H repetition round

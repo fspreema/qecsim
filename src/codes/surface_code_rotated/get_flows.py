@@ -33,7 +33,7 @@ class YBasisGetCircuitFlows:
         # Getting logical y string
         x_idx, y_idx, z_idx = self.geometry.get_logical_observables(
             "Y",
-            fixed_coord=1,
+            fixed_coord=self.geometry.distance * 2 - 1,
         )
 
         # Adding logical z string
@@ -72,5 +72,6 @@ class YBasisGetCircuitFlows:
 
         # Adding measurements to the logical observable
         self.return_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
+        self.return_circuit.append("TICK")
 
         return self.return_circuit

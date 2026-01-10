@@ -76,9 +76,9 @@ class SurfaceGeometry(BaseGeometry):
         # Stabs for H switch in y-basis
         self.stab_switch_apply_h = (
             self._get_specific_indices("X-STAB")
-            + self._get_specific_indices("X-STAB-BOUND-U")
+            + self._get_specific_indices("Z-STAB-BOUND-U")
             + self._get_specific_indices("X-STAB-BOUND-B")
-            + self._get_specific_indices("X-STAB-BOUND-U-H")
+            + self._get_specific_indices("Z-STAB-BOUND-U-H")
         )
 
         # Stabs for memory rounds in y-basis

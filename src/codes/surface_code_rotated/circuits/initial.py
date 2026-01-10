@@ -45,7 +45,7 @@ class SurfaceInitialization:
     def _adding_resets(self):
         # Reset Circuit
         reset_circuit = stim.Circuit()
-        reset_circuit.append("TICK")
+        # reset_circuit.append("TICK")
         reset_circuit.append("R", self.geometry.stab_x_idx + self.geometry.stab_z_idx)
         reset_circuit.append("TICK")
 

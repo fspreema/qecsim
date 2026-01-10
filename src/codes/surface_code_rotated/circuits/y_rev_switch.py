@@ -139,6 +139,5 @@ class YRevSwitchCircuit:
         )
         rev_switch_circuit.append("MY", self.geometry.y_index)
         rev_switch_circuit.append("SHIFT_COORDS", arg=(0, 0, 1))
-        rev_switch_circuit.append("TICK")
 
         return rev_switch_circuit

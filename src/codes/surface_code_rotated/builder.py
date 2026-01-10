@@ -166,7 +166,7 @@ class SurfaceBuilder(BaseClassBuilder):
         repet_circ = SurfaceRepetitionCircuit(
             master_geometry=self.master_geometry,
             master_pairings=self.master_pairings,
-            type="y_basis" if self.state_init in {"+i", "-i"} else "standard",
+            type="standard" if self.state_init not in {"+i", "-i"} else "y_basis",
         )
 
         # Setting rec_list
@@ -196,15 +196,17 @@ class SurfaceBuilder(BaseClassBuilder):
         # Updating rec_list
         self.rec_list += y_memory_circ.rec_list()
 
-        # Adding Y Reverse Switch Circuit
-        y_rev_switch_circ = YRevSwitchCircuit(
-            master_geometry=self.master_geometry,
-            master_pairings=self.master_pairings,
-        )
-        y_section_circuits += y_rev_switch_circ.build_circuit()
-
-        # Getting Logical Flows if Y Log Observable is selected
+        # If logical FLow is Y, add Rev Switch and get flows and repetition round (fault tolerance)
+        # -> For X and Z measurements the measurement is not fault tolerant either way so
+        #    no need to add extra rounds
         if self.log_obs == "Y":
+            # Adding Y Reverse Switch Circuit
+            y_rev_switch_circ = YRevSwitchCircuit(
+                master_geometry=self.master_geometry,
+                master_pairings=self.master_pairings,
+            )
+            y_section_circuits += y_rev_switch_circ.build_circuit()
+
             y_flow_getter = YBasisGetCircuitFlows(master_geometry=self.master_geometry)
             logical_creation_circ = y_flow_getter.get_flows(
                 logical_creation_circ=y_switch_circ.build_circuit(),
@@ -213,13 +215,13 @@ class SurfaceBuilder(BaseClassBuilder):
             )
             y_section_circuits += logical_creation_circ
 
-        # Adding another Repetition Circuit after Y Basis Memory for fault tolerance
-        repet_circ_2 = SurfaceRepetitionCircuit(
-            master_geometry=self.master_geometry,
-            master_pairings=self.master_pairings,
-            type="y_basis",
-        )
-        y_section_circuits += repet_circ_2.build_circuit()
+            # Adding another Repetition Circuit after Y Basis Memory for fault tolerance
+            repet_circ_2 = SurfaceRepetitionCircuit(
+                master_geometry=self.master_geometry,
+                master_pairings=self.master_pairings,
+                type="y_basis",
+            )
+            y_section_circuits += repet_circ_2.build_circuit()
 
         return y_section_circuits
 
