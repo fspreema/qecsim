@@ -80,8 +80,23 @@ class BaseGeometry(ABC):
         data_qubits = {coord: label for coord, label in self.coords.items() if type in label}
         return data_qubits
 
-    def _get_specific_indices(self, type: str) -> list[int]:
+    def _get_specific_indices(
+        self,
+        type: str,
+        valid_coords: dict[complex, str] = None,
+    ) -> list[int]:
         """
         Returns only the qubit indices with label exactly matching the type.
+
+        Args:
+            type (str): Label type to filter for exact matches
+            valid_coords (dict[complex, str], optional): If given, only consider these coordinates
+                instead of all coordinates in self.coords.
         """
-        return [self.q2i[coord] for coord, label in self.coords.items() if label == type]
+
+        if valid_coords is None:
+            source = self.coords
+        else:
+            source = valid_coords
+
+        return [self.q2i[coord] for coord, label in source.items() if label == type]

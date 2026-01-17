@@ -1,202 +1,137 @@
-from collections.abc import Mapping
-
 import stim
 
+from src.codes.lattice_surgery.data_geometry import MasterPairings
+from src.codes.lattice_surgery.surgery_geom import SurgeryGeometry
 from src.core.cx_builder import cx_builder
-from src.core.data_models import (
-    ConfigLatticeSurgery as Config,
-    LatticeContext,
-    NoiseModel,
-    PatchAncilla,
-    PatchControl,
-    PatchSurgery,
-    PatchTarget,
-)
 
 Coord = complex
 
-__all__ = ["initial"]
+__all__ = ["SurgeryInitialization"]
 
 
-def initial(
-    *,
-    lct: LatticeContext,
-    patches: Mapping[str, PatchAncilla | PatchTarget | PatchControl | PatchSurgery],
-    cfg: Config,
-    noise: NoiseModel,
-) -> stim.Circuit:
-    #################################################
-    # Exporting all necessary values from Dataclasses
-    #################################################
+class SurgeryInitialization:
+    def __init__(self, geometry: SurgeryGeometry, master_pairings: MasterPairings):
+        self.geometry = geometry
+        self.stab_to_data = master_pairings.std_pairings.stab_to_data
 
-    # -Loading in Patches
-    ancilla_patch = patches["ancilla"]
-    target_patch = patches["target"]
-    control_patch = patches["control"]
+    def build_circuit(self) -> stim.Circuit:
+        circuit = stim.Circuit()
 
-    # -Retrieving Global Infomration
-    q2i = lct.q2i
-    distance = cfg.distance
-    control_state_init = cfg.control_state_init
-    target_state_init = cfg.target_state_init
-    stab_to_data = lct.stab_to_data
+        # Adding Initializations
+        circuit += self._adding_ancilla_initializations()
+        circuit += self._adding_control_target_initializations()
 
-    rounds = distance
+        # Adding Init Repeat Block
+        circuit += self._adding_repeat_block()
 
-    # -Retrieving Data Coords
-    data_ancilla = ancilla_patch.data
-    data_control = control_patch.data
-    data_target = target_patch.data
+        return circuit
 
-    # -Retrieving Index from Stabilizers of the Lattices
-    x_stab_index_ancilla = ancilla_patch.x_stab
-    z_stab_index_ancilla = ancilla_patch.z_stab
-    x_stab_boundary_b_index_ancilla = ancilla_patch.x_bdy_b
-    x_stab_index_control = control_patch.x_stab
-    z_stab_index_control = control_patch.z_stab
-    x_stab_index_target = target_patch.x_stab
-    z_stab_index_target = target_patch.z_stab
+    def _adding_ancilla_initializations(self):
+        # Initialization Circuit
+        anc_init_circuit = stim.Circuit()
 
-    # All Stabilizers from the Target and Control Lattice
-    control_target_stabs = (
-        x_stab_index_control + x_stab_index_target + z_stab_index_control + z_stab_index_target
-    )
+        # Adding h gate for X stabilizers -> Filtering out double coords
+        anc_init_circuit.append("H", self.geometry.combined_x_stab_idx_filtered)
+        anc_init_circuit.append("TICK")
 
-    ########################
-    # Define Initial Circuit
-    ########################
-
-    initial_circuit = stim.Circuit()
-
-    """
-    Looking at every state preperation seperatly seems to be inefficient
-    ->  If not all Operators only once used one gets an incorrect formatting in the 
-        timeslice view because of the Operations being in different timeslices in each TICK!
-    """
-    ########################################################################
-    # Inilizing Ancilla in Plus (Reset) and Control/ Target in desired State
-    ########################################################################
-
-    init_patterns = {
-        (a, b): [("RX", data_ancilla)]
-        for a in ["Z0", "Z1", "X+", "X-", "Y+", "Y-"]
-        for b in ["Z0", "Z1", "X+", "X-", "Y+", "Y-"]
-    }
-
-    # Apply the initialization pattern
-    key = (control_state_init, target_state_init)
-
-    if key not in init_patterns:
-        raise ValueError(f"Invalid basis combination: {key}")
-
-    for gate, qubits in init_patterns[key]:
-        initial_circuit.append(gate, qubits)
-
-    # -------Adding Before Round Data Depol.------------
-    if noise.before_round_depol > 0:
-        initial_circuit.append(
-            "DEPOLARIZE1",
-            data_ancilla + data_control + data_target,
-            noise.before_round_depol,
+        # CX Operations for Ancilla qubits
+        cx_builder(
+            q2i=self.geometry.q2i,
+            stab_to_data=self.stab_to_data,
+            circuit=anc_init_circuit,
         )
-    # --------------------------------------------------
 
-    initial_circuit.append("TICK")
+        # Basis Change and Measurement of Ancilla Stabilizers
+        anc_init_circuit.append("TICK")
+        anc_init_circuit.append("H", self.geometry.anc_x_stb_idx)
+        anc_init_circuit.append("TICK")
+        anc_init_circuit.append("M", self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx)
+        anc_init_circuit.append("SHIFT_COORDS", arg=(0, 0, 1))
+        anc_init_circuit.append("TICK")
 
-    # Adding h gate for X stabilizers -> Filtering out double coords
-    combined_x_stab: list = []
-    for coords in x_stab_index_ancilla + x_stab_index_control + x_stab_index_target:
-        if coords not in combined_x_stab:
-            combined_x_stab.append(coords)
+        return anc_init_circuit
 
-    initial_circuit.append("H", combined_x_stab)
-    initial_circuit.append("TICK")
+    def _adding_control_target_initializations(self):
+        # Initialization Circuit
+        ct_init_circuit = stim.Circuit()
 
-    # CX Operations for Ancilla qubits
-    cx_builder(
-        q2i=q2i,
-        stab_to_data=stab_to_data,
-        circuit=initial_circuit,
-    )
+        # Resetting Boundary Stabilizers which are shared with Target/ Control
+        ct_init_circuit.append("R", self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx)
+        ct_init_circuit.append("TICK")
+        ct_init_circuit.append("H", self.geometry.anc_x_bdy_b_stb_idx)
 
-    # Retreive Boundary + Normal Stabilizers Ancilla
-    # (Basis change and Measurement -> Measurement only in the x Basis UPDATE!!!!!)
-    initial_circuit.append("H", x_stab_index_ancilla)
-    initial_circuit.append("TICK")
+        # CX Operations for Control and Target qubits
+        cx_builder(
+            q2i=self.geometry.q2i,
+            stab_to_data=self.stab_to_data,
+            circuit=ct_init_circuit,
+            orders=("5-CX", "6-CX"),
+        )
 
-    initial_circuit.append("M", x_stab_index_ancilla + z_stab_index_ancilla)
-    initial_circuit.append("TICK")
+        # Basis Change and Measurement of Control and Target Stabilizers
+        ct_init_circuit.append("TICK")
+        ct_init_circuit.append(
+            "H",
+            self.geometry.control_x_stb_idx + self.geometry.target_x_stb_idx,
+        )
+        ct_init_circuit.append("TICK")
+        ct_init_circuit.append("M", self.geometry.control_target_all_stab_idx)
+        ct_init_circuit.append("TICK")
+        ct_init_circuit.append("R", self.geometry.control_target_all_stab_idx)
 
-    initial_circuit.append("R", x_stab_index_ancilla + z_stab_index_ancilla)
-    initial_circuit.append("TICK")
+        return ct_init_circuit
 
-    initial_circuit.append("H", x_stab_boundary_b_index_ancilla)
-    initial_circuit.append("TICK")
+    def _adding_repeat_block(self):
+        rep_init_circuit = stim.Circuit()
 
-    # Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
-    cx_builder(
-        q2i=q2i,
-        stab_to_data=stab_to_data,
-        circuit=initial_circuit,
-        orders=("5-CX", "6-CX"),
-    )
+        # Adding reset from initial round
+        rep_init_circuit.append("TICK")
+        rep_init_circuit.append("R", self.geometry.control_target_all_stab_idx)
 
-    # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
-    initial_circuit.append("H", x_stab_index_control + x_stab_index_target)
-    initial_circuit.append("TICK")
+        rep_init_circuit.append("TICK")
+        rep_init_circuit.append("H", self.geometry.combined_x_stab_idx_filtered)
+        rep_init_circuit.append("TICK")
 
-    initial_circuit.append("M", control_target_stabs)
+        # CX Operations for Ancilla qubits
+        cx_builder(
+            q2i=self.geometry.q2i,
+            stab_to_data=self.stab_to_data,
+            circuit=rep_init_circuit,
+        )
 
-    ###########################################
-    # Adding Repeat Block
-    ###########################################
+        # Retreive Boundary + Normal Stabilizers Ancilla
+        # I.e. Basis change and measurement of ancilla
+        rep_init_circuit.append("H", self.geometry.anc_x_stb_idx)
+        rep_init_circuit.append("TICK")
 
-    initial_repeat_circuit = stim.Circuit()
+        rep_init_circuit.append(
+            "M",
+            self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
+        )
+        rep_init_circuit.append("TICK")
+        rep_init_circuit.append(
+            "R",
+            self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
+        )
+        rep_init_circuit.append("TICK")
+        rep_init_circuit.append("H", self.geometry.anc_x_bdy_b_stb_idx)
+        rep_init_circuit.append("TICK")
 
-    # Adding reset from initial round
-    initial_repeat_circuit.append("TICK")
-    initial_repeat_circuit.append("R", control_target_stabs)
+        # Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
+        cx_builder(
+            q2i=self.geometry.q2i,
+            stab_to_data=self.stab_to_data,
+            circuit=rep_init_circuit,
+            orders=("5-CX", "6-CX"),
+        )
 
-    initial_repeat_circuit.append("TICK")
-    initial_repeat_circuit.append("H", combined_x_stab)
+        # Retreive Boundary + Normal Stabilizers from Target and Control
+        # (Basis Change + Measurement):
+        rep_init_circuit.append(
+            "H",
+            self.geometry.control_x_stb_idx + self.geometry.target_x_stb_idx,
+        )
+        rep_init_circuit.append("TICK")
+        rep_init_circuit.append("M", self.geometry.control_target_all_stab_idx)
 
-    initial_repeat_circuit.append("TICK")
-
-    # CX Operations for Ancilla qubits
-    cx_builder(
-        q2i=q2i,
-        stab_to_data=stab_to_data,
-        circuit=initial_repeat_circuit,
-    )
-
-    # Retreive Boundary + Normal Stabilizers Ancilla
-    # I.e. Basis change and measurement of ancilla
-    initial_repeat_circuit.append("H", x_stab_index_ancilla)
-    initial_repeat_circuit.append("TICK")
-
-    initial_repeat_circuit.append("M", x_stab_index_ancilla + z_stab_index_ancilla)
-    initial_repeat_circuit.append("TICK")
-
-    initial_repeat_circuit.append("R", x_stab_index_ancilla + z_stab_index_ancilla)
-    initial_repeat_circuit.append("TICK")
-
-    initial_repeat_circuit.append("H", x_stab_boundary_b_index_ancilla)
-    initial_repeat_circuit.append("TICK")
-
-    # Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
-    cx_builder(
-        q2i=q2i,
-        stab_to_data=stab_to_data,
-        circuit=initial_repeat_circuit,
-        orders=("5-CX", "6-CX"),
-    )
-
-    # Retreive Boundary + Normal Stabilizers from Target and Control (Basis Change + Measurement):
-    initial_repeat_circuit.append("H", x_stab_index_control + x_stab_index_target)
-    initial_repeat_circuit.append("TICK")
-
-    initial_repeat_circuit.append("M", control_target_stabs)
-
-    initial_circuit += initial_repeat_circuit * (rounds - 1)
-
-    return initial_circuit
+        return rep_init_circuit * (self.geometry.distance - 1)

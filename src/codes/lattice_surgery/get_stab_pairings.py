@@ -405,3 +405,24 @@ class LatticeSurgeryPairings(
             self.get_schedule_standard()
 
         return self.stab_to_data
+
+    def get_specific_region(self, patch_coords: dict[complex, str]) -> dict[Pair, str]:
+        """
+        Returns the CX-Schedule {(data_coord, stab_coord): order} for a specific
+        region of the lattice for the standard pairing case.
+
+        Args:
+            patch_region: One of 'control', 'target', 'ancilla'
+        """
+
+        # Initlizing Dict
+        self.stab_to_data: dict[Pair, str] = {}
+
+        # Running the Functions to populate the Schedule
+        self.get_schedule_standard()
+
+        return {
+            pair: order
+            for pair, order in self.stab_to_data.items()
+            if pair[0] in patch_coords or pair[1] in patch_coords
+        }

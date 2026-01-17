@@ -12,6 +12,8 @@ class SurgeryGeometry(BaseGeometry):
     def __init__(
         self,
         distance: int,
+        control_state_init: str,
+        target_state_init: str,
     ):
         """
         Initializes Geometry Class for Lattice Surgery.
@@ -23,8 +25,24 @@ class SurgeryGeometry(BaseGeometry):
             Control (Bot-Left) | (Empty/Surgery)
         """
 
+        # Check valid State Initializations
+        valid_states = ["+", "-", "+i", "-i", "0", "1"]
+        if control_state_init not in valid_states:
+            raise ValueError(
+                f"Invalid control_state_init: {control_state_init}. "
+                f"Valid options are: {valid_states}",
+            )
+
+        if target_state_init not in valid_states:
+            raise ValueError(
+                f"Invalid target_state_init: {target_state_init}. "
+                f"Valid options are: {valid_states}",
+            )
+
         # Initialize Parameters
         self.distance = distance
+        self.control_state_init = control_state_init
+        self.target_state_init = target_state_init
         self.offset_ancilla = 0 + 0j
         self.offset_target = (self.distance * 2) + 0j
         self.offset_control = 0 + (self.distance * 2) * 1j
@@ -32,9 +50,109 @@ class SurgeryGeometry(BaseGeometry):
         self.start_stab_x_target = False
         self.start_stab_x_control = False
         self.type = "Surgery"
-        self.coords = self.get_coords()
 
-    def get_coords(self) -> dict[complex, str]:
+        # Get Coordinates and Indices
+        self.coords = self.get_coords()
+        self.q2i = self._get_q2i()
+        self.i2q = self._get_i2q()
+
+        # Get Patch Specific Coordinates
+        self.coords_ancilla = self.get_coords(specific_coord="ancilla")
+        self.coords_target = self.get_coords(specific_coord="target")
+        self.coords_control = self.get_coords(specific_coord="control")
+
+        # Getting Data Qubit Indices
+        self.anc_data_idx = self._get_specific_indices("DATA", self.coords_ancilla)
+        self.target_data_idx = self._get_specific_indices("DATA", self.coords_target)
+        self.control_data_idx = self._get_specific_indices("DATA", self.coords_control)
+
+        # Get Stabilizers for ancilla
+        self.anc_x_stb_idx = (
+            self._get_specific_indices("X-STAB", self.coords_ancilla)
+            + self._get_specific_indices("X-STAB-BOUND-A-A", self.coords_ancilla)
+            + self._get_specific_indices("X-STAB-BOUND-B-A", self.coords_ancilla)
+        )
+        self.anc_z_stb_idx = (
+            self._get_specific_indices("Z-STAB", self.coords_ancilla)
+            + self._get_specific_indices("Z-STAB-BOUND-L-A", self.coords_ancilla)
+            + self._get_specific_indices("Z-STAB-BOUND-R-A", self.coords_ancilla)
+        )
+        self.anc_x_bdy_b_stb_idx = self._get_specific_indices(
+            "X-STAB-BOUND-B-A",
+            self.coords_ancilla,
+        )
+        self.anc_z_bdy_r_stb_idx = self._get_specific_indices(
+            "Z-STAB-BOUND-R-A",
+            self.coords_ancilla,
+        )
+
+        # Get Stabilizers for Control
+        self.control_x_stb_idx = (
+            self._get_specific_indices("X-STAB", self.coords_control)
+            + self._get_specific_indices("X-STAB-BOUND-A-C", self.coords_control)
+            + self._get_specific_indices("X-STAB-BOUND-B-C", self.coords_control)
+        )
+        self.control_z_stb_idx = (
+            self._get_specific_indices("Z-STAB", self.coords_control)
+            + self._get_specific_indices("Z-STAB-BOUND-L-C", self.coords_control)
+            + self._get_specific_indices("Z-STAB-BOUND-R-C", self.coords_control)
+        )
+
+        # Get Stabilizers for Target
+        self.target_x_stb_idx = (
+            self._get_specific_indices("X-STAB", self.coords_target)
+            + self._get_specific_indices("X-STAB-BOUND-A-T", self.coords_target)
+            + self._get_specific_indices("X-STAB-BOUND-B-T", self.coords_target)
+        )
+        self.target_z_stb_idx = (
+            self._get_specific_indices("Z-STAB", self.coords_target)
+            + self._get_specific_indices("Z-STAB-BOUND-L-T", self.coords_target)
+            + self._get_specific_indices("Z-STAB-BOUND-R-T", self.coords_target)
+        )
+
+        # Get Stabilizers for Surgery
+        self.surgery_x_m_stb_idx = self._get_specific_indices(
+            "X-STAB-SURGERY-M",
+            self.coords_surgery,
+        )
+        self.surgery_x_b_stb_idx = self._get_specific_indices(
+            "X-STAB-SURGERY-B",
+            self.coords_surgery,
+        )
+        self.surgery_z_l_stb_idx = self._get_specific_indices(
+            "Z-STAB-SURGERY-L",
+            self.coords_surgery,
+        )
+        self.surgery_z_m_stb_idx = self._get_specific_indices(
+            "Z-STAB-SURGERY-M",
+            self.coords_surgery,
+        )
+
+        # Additional Stabilizer Indices Definitions that are needed
+        self.control_target_all_stab_idx = (
+            self.control_x_stb_idx
+            + self.control_z_stb_idx
+            + self.target_x_stb_idx
+            + self.target_z_stb_idx
+        )
+
+        # Using set to avoid double indices
+        self.combined_x_stab_idx_filtered = self._get_filtered_x_stabilizers()
+        self.combined_x_stab_idx_filtered_AT = self._get_filtered_x_stabilizers(merging_type="AT")
+
+        # Combining all stabilizers for easier reset/ measurement
+        self.all_stab_idx = list(
+            set(
+                self.anc_x_stb_idx
+                + self.anc_z_stb_idx
+                + self.control_x_stb_idx
+                + self.control_z_stb_idx
+                + self.target_x_stb_idx
+                + self.target_z_stb_idx,
+            ),
+        )
+
+    def get_coords(self, specific_coord=None) -> dict[complex, str]:
         """
         Returns all qubit coordinates with their labels
 
@@ -69,12 +187,168 @@ class SurgeryGeometry(BaseGeometry):
         # Add Boundary and Surgery Stabilizers
         self._get_boundary_labels()
 
-        # Full Coordinate Dictionary
-        full_coords = (
-            self.coords_ancilla | self.coords_target | self.coords_control | self.coords_surgery
-        )
+        if specific_coord is not None:
+            # Full Coordinate Dictionary
+            return_coords = (
+                self.coords_ancilla | self.coords_target | self.coords_control | self.coords_surgery
+            )
+        elif specific_coord == "ancilla":
+            # Get only Ancilla Coordinates
+            return_coords = self.coords_ancilla
+        elif specific_coord == "target":
+            # Get only Target Coordinates
+            return_coords = self.coords_target
+        elif specific_coord == "control":
+            # Get only Control Coordinates
+            return_coords = self.coords_control
+        else:
+            raise ValueError("specific_coord must be one of: None, 'ancilla', 'target', 'control'")
 
-        return full_coords
+        return return_coords
+
+    def _get_filtered_x_stabilizers(self, merging_type=None) -> list[int]:
+        """
+        Returns the filtered list of X stabilizer indices depending on the merging type
+        -> If no merging type is given, returns filtered list for initialization
+        -> If AT merging is selected, additional surgery stabilizers are added
+        """
+
+        if merging_type == "AT":
+            combined_x_stab_idx = (
+                self.anc_x_stb_idx
+                + self.control_x_stb_idx
+                + self.target_x_stb_idx
+                + self.surgery_x_b_stb_idx
+                + self.surgery_x_m_stb_idx
+            )
+        elif merging_type in {None, "AC"}:
+            combined_x_stab_idx = (
+                self.anc_x_stb_idx + self.control_x_stb_idx + self.target_x_stb_idx
+            )
+        else:
+            raise ValueError("merging_type must be one of: None, 'AC', 'AT'")
+
+        # Using set to avoid double indices
+        filtered_x_stab_idx = list(set(combined_x_stab_idx))
+
+        return filtered_x_stab_idx
+
+    def get_combined_xz_stabs_merging_lattice(
+        self,
+        merging_type=None,
+        split_type=None,
+    ) -> list[int]:
+        """
+        Returns the combined list of X and Z stabilizer coordinates depending on the merging type
+        """
+
+        if merging_type == "AC" or split_type == "AC":
+            # Adding h gate for X stabilizers only on merging lattices
+            # -> Filtering out double coords in big lattice
+            combined_x_stab_merging_lattices = self.anc_x_stb_idx + self.control_x_stb_idx
+            combined_z_stab_merging_lattices = (
+                self.anc_z_stb_idx
+                + self.control_z_stb_idx
+                + self.surgery_z_l_stb_idx
+                + self.surgery_z_m_stb_idx
+            )
+
+        elif merging_type == "AT" or split_type == "AT":
+            # Adding h gate for X stabilizers only on merging lattices
+            # -> Filtering out double coords in big lattice
+            combined_x_stab_merging_lattices = (
+                self.anc_x_stb_idx
+                + self.target_x_stb_idx
+                + self.surgery_x_b_stb_idx
+                + self.surgery_x_m_stb_idx
+            )
+            combined_z_stab_merging_lattices = self.anc_z_stb_idx + self.target_z_stb_idx
+
+        else:
+            raise ValueError("merging_type must be one of: 'AC', 'AT'")
+
+        # Using set to avoid double indices
+        filtered_x_stab_idx = list(set(combined_x_stab_merging_lattices))
+        filtered_z_stab_idx = list(set(combined_z_stab_merging_lattices))
+
+        return filtered_x_stab_idx, filtered_z_stab_idx
+
+    def get_logical_strings(
+        self,
+        shift_cx_for_y: bool = False,
+        shift_tz_for_y: bool = False,
+        shift_tx_for_y: bool = False,
+        shift_cz_for_y: bool = False,
+    ) -> dict[str, list[int]]:
+        """
+        Args:
+            q2i: Mapping from complex coordinates to qubit indices
+            distance: Code distance
+
+        Returns:
+            Dictionary with keys:
+                - 'a_z': Ancilla Z-logical indices
+                - 't_x': Target X-logical indices
+                - 't_z': Target Z-logical indices
+                - 't_y': Target Y-logical indices
+                - 'c_x': Control X-logical indices
+                - 'c_z': Control Z-logical indices
+                - 'c_y': Control Y-logical indices
+        """
+
+        # Control Y logical observable components
+        # Y is at bottom right corner of control region: (distance*2-1, distance*4-1)
+        c_y_z_string = [
+            self.q2i[real + (self.distance * 4 - 1) * 1j]
+            for real in range(1, self.distance * 2 - 1, 2)
+        ]
+        c_y_corner = [self.q2i[self.distance * 2 - 1 + (self.distance * 4 - 1) * 1j]]
+        c_y_x_string = [
+            self.q2i[(self.distance * 2 - 1) + imag * 1j]
+            for imag in range(self.distance * 2 + 1, self.distance * 4 - 1, 2)
+        ]
+
+        # Target Y logical observable components
+        # Y is at bottom right corner of target region: (distance*4-1, distance*2-1)
+        t_y_z_string = [
+            self.q2i[real + (self.distance * 2 - 1) * 1j]
+            for real in range(self.distance * 2 + 1, self.distance * 4 - 1, 2)
+        ]
+        t_y_corner = [self.q2i[self.distance * 4 - 1 + (self.distance * 2 - 1) * 1j]]
+        t_y_x_string = [
+            self.q2i[(self.distance * 4 - 1) + imag * 1j]
+            for imag in range(1, self.distance * 2 - 1, 2)
+        ]
+
+        # Offsets for conditional shifts in Y-including flows (symmetric for both directions)
+        cx_shift_real = (self.distance * 2 - 1) if shift_cx_for_y else 1
+        tz_shift_imag = (self.distance * 2 - 1) if shift_tz_for_y else 1
+        tx_shift_real = (self.distance * 4 - 1) if shift_tx_for_y else (self.distance * 2 + 1)
+        cz_shift_imag = (self.distance * 4 - 1) if shift_cz_for_y else (self.distance * 2 + 1)
+
+        return {
+            "a_z": [self.q2i[real + 1j] for real in range(1, self.distance * 2, 2)],
+            "t_x": [self.q2i[tx_shift_real + imag * 1j] for imag in range(1, self.distance * 2, 2)],
+            "t_z": [
+                self.q2i[real + tz_shift_imag * 1j]
+                for real in range(self.distance * 2 + 1, self.distance * 4, 2)
+            ],
+            "t_y": {
+                "z_string": t_y_z_string,
+                "y_corner": t_y_corner,
+                "x_string": t_y_x_string,
+            },
+            "c_x": [
+                self.q2i[cx_shift_real + imag * 1j]
+                for imag in range(self.distance * 2 + 1, self.distance * 4, 2)
+            ],
+            "c_z": [self.q2i[real + cz_shift_imag * 1j] for real in range(1, self.distance * 2, 2)],
+            "c_y": {
+                "z_string": c_y_z_string,
+                "y_corner": c_y_corner,
+                "x_string": c_y_x_string,
+            },
+        }
 
     def _get_central_labels(
         self,

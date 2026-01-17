@@ -1,131 +1,14 @@
 import stim
 
-from src.codes.lattice_surgery.data_geometry import MasterPairings
-from src.codes.lattice_surgery.surgery_geom import SurgeryGeometry
-
-__all__ = ["SurgeryFinalMeasure"]
-
-
-class SurgeryFinalMeasure:
-    def __init__(
-        self,
-        geometry: SurgeryGeometry,
-        master_pairings: MasterPairings,
-        flow: str,
-    ):
-        # Preliminary Setup
-        self.geometry = geometry
-        self.master_pairings = master_pairings
-        self.flow = flow
-
-    def build_circuit(self) -> stim.Circuit:
-        # Init return Circuit
-        return_circuit = stim.Circuit()
-
-        # Build Final Measurement Circuit
-        return_circuit += self._apply_measurements()
-        return_circuit += self._apply_logical_observables()
-
-        return return_circuit
-
-    def _validate_flow_selection(self, flow: str, patch: str):
-        # Creating Dictionary of valid flows in combination with init states
-        valid_flows_control = {
-            "X+": {"XI -> XX", "XX -> XI", "IX -> IX"},
-            "X-": {"XI -> XX", "XX -> XI", "IX -> IX"},
-            "Z0": {"IZ -> ZZ", "ZZ -> IZ", "ZI -> ZI", "ZX -> ZX", "IX -> IX"},
-            "Z1": {"IZ -> ZZ", "ZZ -> IZ", "ZI -> ZI", "ZX -> ZX", "IX -> IX"},
-        }
-        valid_flows_target = {
-            "X+": {"XI -> XX", "XX -> XI", "IX -> IX", "ZI -> ZI", "ZX -> ZX"},
-            "X-": {"XI -> XX", "XX -> XI", "IX -> IX", "ZI -> ZI", "ZX -> ZX"},
-            "Z0": {"IZ -> ZZ", "ZZ -> IZ", "ZI -> ZI"},
-            "Z1": {"IZ -> ZZ", "ZZ -> IZ", "ZI -> ZI"},
-        }
-
-        if patch == "control" and flow in valid_flows_control.get(
-            self.geometry.control_state_init,
-            set(),
-        ):
-            return True
-        elif patch == "target" and flow in valid_flows_target.get(
-            self.geometry.target_state_init,
-            set(),
-        ):
-            return True
-        else:
-            return False
-
-    def _get_measurements_for_flow(self, flow: str):
-        # Creating Dictionary of measurement operations per flow
-        flow_measurements = {
-            "XI -> XX": ["c_x", "t_x"],
-            "XX -> XI": ["c_x"],
-            "IX -> IX": ["t_x"],
-            "IZ -> ZZ": ["c_z", "t_z"],
-            "ZZ -> IZ": ["c_z"],
-            "ZI -> ZI": ["t_z"],
-            "ZX -> ZX": ["c_z", "t_x"],
-        }
-
-        return flow_measurements.get(flow, [])
-
-    def _apply_measurements(self):
-        # Init measure Circuit
-        measure_circuit = stim.Circuit()
-        measure_circuit.append("TICK")
-
-        if self.geometry.control_state_init in {"X+", "X-"}:
-            measure_circuit.append("MX", self.geometry.control_data_idx)
-
-        elif self.geometry.control_state_init in {"Z0", "Z1"}:
-            measure_circuit.append("MZ", self.geometry.control_data_idx)
-
-        if self.geometry.target_state_init in {"X+", "X-"}:
-            measure_circuit.append("MX", self.geometry.target_data_idx)
-
-        elif self.geometry.target_state_init in {"Z0", "Z1"}:
-            measure_circuit.append("MZ", self.geometry.target_data_idx)
-
-        return measure_circuit
-
-    def _apply_logical_observables(self):
-        # Init Observable Circuit
-        observable_circuit = stim.Circuit()
-
-        # Checking validity of flow selection
-        if not self._validate_flow_selection(self.flow, "control"):
-            raise ValueError("Invalid flow selected for control patch initial state!")
-        if not self._validate_flow_selection(self.flow, "target"):
-            raise ValueError("Invalid flow selected for target patch initial state!")
-
-        # Get indices of logical operator (can be on both patches) depending on flow
-        all_logical_strings = self.geometry.get_logical_strings()
-        flow_measurements = self._get_measurements_for_flow(self.flow)
-
-        logical_string = [all_logical_strings[i] for i in flow_measurements]
-        logical_string_set = set(logical_string)
-
-        tar_rec = []
-
-        for rec_pos, index in enumerate(
-            self.geometry.control_data_idx + self.geometry.target_data_idx,
-        ):
-            if index in logical_string_set:
-                tar_rec.append(rec_pos)
-
-        observable_circuit.append(
-            "OBSERVABLE_INCLUDE",
-            [
-                stim.target_rec(
-                    -len(self.geometry.control_data_idx + self.geometry.target_data_idx) + k,
-                )
-                for k in tar_rec
-            ],
-            0,
-        )
-
-        return observable_circuit
+from src.codes.lattice_surgery.Legacy.logical_strings import get_logical_strings
+from src.core.data_models import (
+    ConfigLatticeSurgery as Config,
+    LatticeContext,
+    PatchAncilla,
+    PatchControl,
+    PatchSurgery,
+    PatchTarget,
+)
 
 
 def final_m(

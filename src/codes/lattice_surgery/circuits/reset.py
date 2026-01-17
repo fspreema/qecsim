@@ -1,627 +1,213 @@
-from collections.abc import Mapping
-
 import stim
 
-from src.codes.lattice_surgery.logical_strings import get_logical_strings
-from src.codes.surface_code_rotated.circuits.reset import reset as y_reset
-
-# Import Part of Y Surface Code Init
-from src.codes.surface_code_rotated.circuits.y_initial import y_initial
-from src.codes.surface_code_rotated.circuits.y_repetition import y_repetition_circ
-from src.codes.surface_code_rotated.circuits.y_switch import y_switch_circ
+from src.codes.lattice_surgery.surgery_geom import SurgeryGeometry
+from src.codes.surface_code_rotated.circuits.initial import SurfaceInitialization
+from src.codes.surface_code_rotated.circuits.repetition import SurfaceRepetitionCircuit
+from src.codes.surface_code_rotated.circuits.reset import SurfaceReset
+from src.codes.surface_code_rotated.circuits.y_switch import YSwitchCircuit
+from src.codes.surface_code_rotated.data_geometry import (
+    MasterGeometry,
+    MasterPairings,
+)
 from src.codes.surface_code_rotated.get_stab_pairings import SurfacePairings
 from src.codes.surface_code_rotated.surface_geom import SurfaceGeometry
-from src.core.data_models import (
-    ConfigLatticeSurgery as Config,
-    ConfigSurface as SurfaceConfig,
-    Context,
-    LatticeContext,
-    NoiseModel,
-    Patch,
-    PatchAncilla,
-    PatchControl,
-    PatchSurgery,
-    PatchTarget,
-)
 
-Coord = complex
-Label = str
-Index = int
-Pair = tuple[Coord, Coord]
-
-__all__ = ["reset"]
+__all__ = ["SurgeryReset"]
 
 
-def reset(
-    *,
-    lct: LatticeContext,
-    patches: Mapping[str, PatchAncilla | PatchTarget | PatchControl | PatchSurgery],
-    cfg: Config,
-    noise: NoiseModel,
-) -> stim.Circuit:
-    #################################################
-    # Exporting all necessary values from Dataclasses
-    #################################################
+class SurgeryReset:
+    def __init__(self, geometry: SurgeryGeometry):
+        # Perliminary Setup
+        self.geometry = geometry
+        self.control_state_init = geometry.control_state_init
+        self.target_state_init = geometry.target_state_init
 
-    # -Loading in Patches
-    ancilla_patch = patches["ancilla"]
-    target_patch = patches["target"]
-    control_patch = patches["control"]
+        # Getting Y-Basis Stab to Data Infotmation
 
-    # -Retrieving Global Infomration
-    q2i = lct.q2i
-    i2q = lct.i2q
-    distance = cfg.distance
-    control_state_init = cfg.control_state_init
-    target_state_init = cfg.target_state_init
-    stab_to_data = lct.stab_to_data
+    def build_circuit(self) -> stim.Circuit:
+        circuit = stim.Circuit()
 
-    # -Retrieving Data Coords
-    data_control = control_patch.data
-    data_target = target_patch.data
+        # Adding Coords
+        circuit += self._adding_coords()
 
-    # -Retrieving Index from Stabilizers of the Lattices
-    x_stab_index_ancilla = ancilla_patch.x_stab
-    z_stab_index_ancilla = ancilla_patch.z_stab
-    x_stab_boundary_b_index_ancilla = ancilla_patch.x_bdy_b
-    z_stab_boundary_r_index_ancilla = ancilla_patch.z_bdy_r
-    x_stab_index_control = control_patch.x_stab
-    z_stab_index_control = control_patch.z_stab
-    x_stab_index_target = target_patch.x_stab
-    z_stab_index_target = target_patch.z_stab
+        # Adding Resets
+        reset_circuit, flow_circuit = self._adding_resets()
+        circuit += reset_circuit
 
-    # ----------------------------------------------
-    # Creating List of all Stabilizers (No Double!)
-    # ----------------------------------------------
+        # Adding Y-Creation Flows if relevant
+        if self.control_state_init in {"+i", "-i"} or self.target_state_init in {"+i", "-i"}:
+            circuit += self._getting_y_observable(flow_circuit)
 
-    all_stabs_not_double = []
+        return circuit
 
-    # Setting double counter
-    counter_x = 0
-    counter_z = 0
+    def _adding_coords(self):
+        coord_circuit = stim.Circuit()
 
-    for index in (
-        x_stab_index_ancilla
-        + z_stab_index_ancilla
-        + x_stab_index_control
-        + z_stab_index_control
-        + x_stab_index_target
-        + z_stab_index_target
-    ):
-        # Double Values possible
-        if index in x_stab_boundary_b_index_ancilla:
-            # Value already appended?
-            if counter_x == 0:
-                all_stabs_not_double.append(index)
-                counter_x += 1
+        # Appending Coords
+        for q, i in self.geometry.q2i.items():
+            coord_circuit.append("QUBIT_COORDS", [i], [q.real, q.imag])
 
-        elif index in z_stab_boundary_r_index_ancilla:
-            # Value already appended?
-            if counter_z == 0:
-                all_stabs_not_double.append(index)
-                counter_z += 1
+        return coord_circuit
 
+    def _adding_resets(self):
+        # Init Reset Circuit
+        reset_circuit = stim.Circuit()
+        flow_circuit = stim.Circuit()
+
+        # 1. Reset Ancilla Stabilizers (Always needed)
+        reset_circuit.append("RX", self.geometry.anc_x_stb_idx)
+
+        # 2. Control Patch
+        if self.control_state_init in {"+i", "-i"}:
+            return_circuit, flow_creation_circuit = self._build_y_patch(
+                patch_type="control",
+                state_init=self.control_state_init,
+            )
+            reset_circuit += return_circuit
+            flow_circuit += flow_creation_circuit
         else:
-            all_stabs_not_double.append(index)
-
-    # ------------------------------------------------------
-    # Creating list of Logical X/Z string and their indices
-    # ------------------------------------------------------
-    """
-    -> Used for swithcing of the state in a given basis
-    """
-
-    log_strings = get_logical_strings(q2i, distance)
-    t_log_obs_z_index = log_strings["t_z"]
-    t_log_obs_x_index = log_strings["t_x"]
-    c_log_obs_z_index = log_strings["c_z"]
-    c_log_obs_x_index = log_strings["c_x"]
-
-    ########################
-    # Define Initial Circuit
-    ########################
-
-    reset_circuit = stim.Circuit()
-
-    # Appending Coords
-    for q, i in q2i.items():
-        reset_circuit.append("QUBIT_COORDS", [i], [q.real, q.imag])
-
-    """
-    Looking at every state preperation seperatly seems to be inefficient
-    ->  If not all Operators only once used one gets an incorrect formatting in the 
-        timeslice view because of the Operations being in different timeslices in each TICK!
-    """
-    ########################################################################
-    # Inilizing Ancilla in Plus (Reset) and Control/ Target in desired State
-    ########################################################################
-
-    init_patterns = {
-        ("Z0", "Z0"): [("R", data_control + data_target + all_stabs_not_double)],
-        ("Z0", "Z1"): [
-            ("R", data_control + data_target + all_stabs_not_double),
-            ("X", t_log_obs_x_index),
-        ],
-        ("Z0", "X+"): [("RX", data_target), ("R", data_control + all_stabs_not_double)],
-        ("Z0", "X-"): [
-            ("RX", data_target),
-            ("R", data_control + all_stabs_not_double),
-            ("Z", t_log_obs_z_index),
-        ],
-        ("Z1", "Z0"): [
-            ("R", data_control + data_target + all_stabs_not_double),
-            ("X", c_log_obs_x_index),
-        ],
-        ("Z1", "Z1"): [
-            ("R", data_control + data_target + all_stabs_not_double),
-            ("X", c_log_obs_x_index + t_log_obs_x_index),
-        ],
-        ("Z1", "X+"): [
-            ("RX", data_target),
-            ("R", data_control + all_stabs_not_double),
-            ("X", c_log_obs_x_index),
-        ],
-        ("Z1", "X-"): [
-            ("RX", data_target),
-            ("R", data_control + all_stabs_not_double),
-            ("X", c_log_obs_x_index),
-            ("Z", t_log_obs_z_index),
-        ],
-        ("X+", "Z0"): [("RX", data_control), ("R", data_target + all_stabs_not_double)],
-        ("X+", "Z1"): [
-            ("RX", data_control),
-            ("R", data_target + all_stabs_not_double),
-            ("X", t_log_obs_x_index),
-            ("Z", c_log_obs_z_index),
-        ],
-        ("X+", "X+"): [("RX", data_control + data_target), ("R", all_stabs_not_double)],
-        ("X+", "X-"): [
-            ("RX", data_control + data_target),
-            ("R", all_stabs_not_double),
-            ("Z", t_log_obs_z_index),
-        ],
-        ("X-", "Z0"): [
-            ("RX", data_control),
-            ("R", data_target + all_stabs_not_double),
-            ("Z", c_log_obs_z_index),
-        ],
-        ("X-", "Z1"): [
-            ("RX", data_control),
-            ("R", data_target + all_stabs_not_double),
-            ("X", t_log_obs_x_index),
-            ("Z", c_log_obs_z_index),
-        ],
-        ("X-", "X+"): [
-            ("RX", data_control + data_target),
-            ("R", all_stabs_not_double),
-            ("Z", c_log_obs_z_index),
-        ],
-        ("X-", "X-"): [
-            ("RX", data_control + data_target),
-            ("R", all_stabs_not_double),
-            ("Z", c_log_obs_z_index + t_log_obs_z_index),
-        ],
-    }
-
-    y_patterns = {
-        ("Y+", "Z0"): [("R", data_target + x_stab_index_target + z_stab_index_target)],
-        ("Y+", "Z1"): [
-            ("R", data_target + x_stab_index_target + z_stab_index_target),
-            ("X", t_log_obs_x_index),
-        ],
-        ("Y+", "X+"): [("RX", data_target), ("R", x_stab_index_target + z_stab_index_target)],
-        ("Y+", "X-"): [
-            ("RX", data_target),
-            ("R", x_stab_index_target + z_stab_index_target),
-            ("Z", t_log_obs_z_index),
-        ],
-        ("Y-", "Z0"): [("R", data_target + x_stab_index_target + z_stab_index_target)],
-        ("Y-", "Z1"): [
-            ("R", data_target + x_stab_index_target + z_stab_index_target),
-            ("X", t_log_obs_x_index),
-        ],
-        ("Y-", "X+"): [("RX", data_target), ("R", x_stab_index_target + z_stab_index_target)],
-        ("Y-", "X-"): [
-            ("RX", data_target),
-            ("R", x_stab_index_target + z_stab_index_target),
-            ("Z", t_log_obs_z_index),
-        ],
-        ("X+", "Y+"): [("RX", data_control), ("R", x_stab_index_control + z_stab_index_control)],
-        ("X-", "Y+"): [
-            ("RX", data_control),
-            ("R", x_stab_index_control + z_stab_index_control),
-            ("Z", c_log_obs_z_index),
-        ],
-        ("X+", "Y-"): [("RX", data_control), ("R", x_stab_index_control + z_stab_index_control)],
-        ("X-", "Y-"): [
-            ("RX", data_control),
-            ("R", x_stab_index_control + z_stab_index_control),
-            ("Z", c_log_obs_z_index),
-        ],
-        ("Z0", "Y+"): [("R", data_control + x_stab_index_control + z_stab_index_control)],
-        ("Z1", "Y+"): [
-            ("R", data_control + x_stab_index_control + z_stab_index_control),
-            ("X", c_log_obs_x_index),
-        ],
-        ("Z0", "Y-"): [("R", data_control + x_stab_index_control + z_stab_index_control)],
-        ("Z1", "Y-"): [
-            ("R", data_control + x_stab_index_control + z_stab_index_control),
-            ("X", c_log_obs_x_index),
-        ],
-    }
-
-    # Apply the initialization pattern
-    key = (control_state_init, target_state_init)
-
-    if key in init_patterns:
-        for gate, qubits in init_patterns[key]:
-            reset_circuit.append(gate, qubits)
-
-        reset_circuit.append("TICK")
-        return reset_circuit
-
-    elif key in y_patterns or key in {("Y+", "Y-"), ("Y-", "Y+"), ("Y+", "Y+"), ("Y-", "Y-")}:
-        if key in y_patterns:
-            for gate, qubits in y_patterns[key]:
-                reset_circuit.append(gate, qubits)
-
-        # Check if both control and target are Y-basis
-        both_y = key[0] in {"Y+", "Y-"} and key[1] in {"Y+", "Y-"}
-
-        if both_y:
-            # Handle both control and target in Y basis
-            # Build lattices for both control and target
-
-            y_geometry_control = SurfaceGeometry(
-                distance=distance,
-                offset=0 + (distance * 2) * 1j,
-                starting_stabilizer_x=False,
-                y_basis=True,
-            )
-            qubit_coords_control: dict[Coord, Label] = y_geometry_control.coords
-
-            y_geometry_target = SurfaceGeometry(
-                distance=distance,
-                offset=(distance * 2) + 0j,
-                starting_stabilizer_x=False,
-                y_basis=True,
-            )
-            qubit_coords_target: dict[Coord, Label] = y_geometry_target.coords
-
-            # Define configs for control and target
-            cfg_y_control = SurfaceConfig(
-                distance=distance,
-                state_init="+i" if key[0] == "Y+" else "-i",
-                obs="Y",
-                rounds=distance,
-            )
-            cfg_y_target = SurfaceConfig(
-                distance=distance,
-                state_init="+i" if key[1] == "Y+" else "-i",
-                obs="Y",
-                rounds=distance,
+            reset_circuit += self._build_std_patch(
+                patch_type="control",
+                state_init=self.control_state_init,
             )
 
-        elif key[1] in {"Y+", "Y-"}:
-            # Only target is Y-basis
-            y_geometry_target = SurfaceGeometry(
-                distance=distance,
-                offset=(distance * 2) + 0j,
-                starting_stabilizer_x=False,
-                y_basis=True,
+        # 3. Target Patch
+        if self.target_state_init in {"+i", "-i"}:
+            return_circuit, flow_creation_circuit = self._build_y_patch(
+                patch_type="target",
+                state_init=self.target_state_init,
             )
-
-            qubit_coords: dict[Coord, Label] = y_geometry_target.coords
-            curr_offset = (distance * 2) + 0j
-
-            cfg_y = SurfaceConfig(
-                distance=distance,
-                state_init="+i" if key[1] == "Y+" else "-i",
-                obs="Y",
-                rounds=distance,
-            )
-
-        elif key[0] in {"Y+", "Y-"}:
-            # Only control is Y-basis
-            y_geometry_control = SurfaceGeometry(
-                distance=distance,
-                offset=0 + (distance * 2) * 1j,
-                starting_stabilizer_x=False,
-                y_basis=True,
-            )
-
-            qubit_coords: dict[Coord, Label] = y_geometry_control.coords
-            curr_offset = 0 + (distance * 2) * 1j
-
-            cfg_y = SurfaceConfig(
-                distance=distance,
-                state_init="+i" if key[0] == "Y+" else "-i",
-                obs="Y",
-                rounds=distance,
-            )
-
-        if both_y:
-            # Build circuits for both control and target
-            build_y_circ = stim.Circuit()
-
-            # Process control patch
-            # Pairing Information for normal y basis rounds
-            offset_control = 0 + (distance * 2) * 1j
-            control_pairings = SurfacePairings(
-                patch=qubit_coords_control,
-                distance=distance,
-                y_basis=True,
-                offset=offset_control,
-            )
-            stab_to_data_control = control_pairings.get_schedule()
-
-            # Pairing Information for switch rounds
-            control_pairings_switch_xzy = SurfacePairings(
-                patch=qubit_coords_control,
-                distance=distance,
-                y_basis=True,
-                y_switch=True,
-                offset=offset_control,
-            )
-            stab_to_data_switch_control, stab_to_data_xcy_control = (
-                control_pairings_switch_xzy.get_schedule()
-            )
-
-            # Pairing Information for memory rounds
-            control_pairings_memory = SurfacePairings(
-                patch=qubit_coords_control,
-                distance=distance,
-                y_basis=True,
-                y_memory=True,
-                offset=offset_control,
-            )
-            stab_to_data_memory_control = control_pairings_memory.get_schedule()
-
-            lct_y_control = Context(
-                q2i=q2i,
-                i2q=i2q,
-                stab_to_data=stab_to_data_control,
-                stab_to_data_modified=stab_to_data_switch_control,
-                stab_to_data_modified2=stab_to_data_xcy_control,
-                stab_to_data_modified3=stab_to_data_memory_control,
-            )
-
-            patches_control: dict[str, Patch] = {
-                "patch": Patch.from_coords(qubit_coords_control, q2i),
-            }
-
-            build_y_circ += y_reset(
-                lct=lct_y_control,
-                patches=patches_control,
-                cfg=cfg_y_control,
-                skip_coords=True,
-                offset=offset_control,
-            ).circuit
-
-            build_y_circ += y_initial(
-                lct=lct_y_control,
-                patch=patches_control["patch"],
-                offset=offset_control,
-            ).circuit
-
-            rep_circ_control = y_repetition_circ(
-                lct=lct_y_control,
-                patch=patches_control["patch"],
-                cfg=cfg_y_control,
-                offset=offset_control,
-                noise=noise,
-            ).circuit
-
-            switch_circ_control = y_switch_circ(
-                lct=lct_y_control,
-                patch=patches_control["patch"],
-                offset=offset_control,
-                cfg=cfg_y_control,
-            ).circuit
-
-            build_y_circ += rep_circ_control
-            build_y_circ += switch_circ_control
-
-            # Process target patch
-            # Pairing Information for normal y basis rounds
-            offset_target = (distance * 2) + 0j
-            target_pairings = SurfacePairings(
-                patch=qubit_coords_target,
-                distance=distance,
-                y_basis=True,
-                offset=offset_target,
-            )
-            stab_to_data_target = target_pairings.get_schedule()
-
-            # Pairing Information for switch rounds
-            target_pairings_switch_xzy = SurfacePairings(
-                patch=qubit_coords_target,
-                distance=distance,
-                y_basis=True,
-                y_switch=True,
-                offset=offset_target,
-            )
-            stab_to_data_switch_target, stab_to_data_xcy_target = (
-                target_pairings_switch_xzy.get_schedule()
-            )
-
-            # Pairing Information for memory rounds
-            target_pairings_memory = SurfacePairings(
-                patch=qubit_coords_target,
-                distance=distance,
-                y_basis=True,
-                y_memory=True,
-                offset=offset_target,
-            )
-            stab_to_data_memory_target = target_pairings_memory.get_schedule()
-
-            lct_y_target = Context(
-                q2i=q2i,
-                i2q=i2q,
-                stab_to_data=stab_to_data_target,
-                stab_to_data_modified=stab_to_data_switch_target,
-                stab_to_data_modified2=stab_to_data_xcy_target,
-                stab_to_data_modified3=stab_to_data_memory_target,
-            )
-
-            patches_target: dict[str, Patch] = {
-                "patch": Patch.from_coords(qubit_coords_target, q2i),
-            }
-
-            build_y_circ += y_reset(
-                lct=lct_y_target,
-                patches=patches_target,
-                cfg=cfg_y_target,
-                skip_coords=True,
-                offset=offset_target,
-            ).circuit
-
-            build_y_circ += y_initial(
-                lct=lct_y_target,
-                patch=patches_target["patch"],
-                offset=offset_target,
-            ).circuit
-
-            rep_circ_target = y_repetition_circ(
-                lct=lct_y_target,
-                patch=patches_target["patch"],
-                cfg=cfg_y_target,
-                offset=offset_target,
-                noise=noise,
-            ).circuit
-
-            switch_circ_target = y_switch_circ(
-                lct=lct_y_target,
-                patch=patches_target["patch"],
-                offset=offset_target,
-                cfg=cfg_y_target,
-            ).circuit
-
-            build_y_circ += rep_circ_target
-            build_y_circ += switch_circ_target
-
-            flow_circ = stim.Circuit()
-            flow_circ += rep_circ_control
-            flow_circ += switch_circ_control
-            flow_circ += rep_circ_target
-            flow_circ += switch_circ_target
-
-            return reset_circuit, build_y_circ
-
+            reset_circuit += return_circuit
+            flow_circuit += flow_creation_circuit
         else:
-            # Single Y-basis patch (either control or target)
-            pairings = SurfacePairings(
-                patch=qubit_coords,
-                y_basis=True,
-                distance=distance,
-                offset=curr_offset,
-            )
-            stab_to_data: dict[tuple[Coord, Coord], str] = pairings.get_schedule()
-
-            # Get Scheudle for switch rounds
-            pairings_switch_xzy = SurfacePairings(
-                patch=qubit_coords,
-                y_basis=True,
-                y_switch=True,
-                distance=distance,
-                offset=curr_offset,
-            )
-            stab_to_data_switch, stab_to_data_xcy = pairings_switch_xzy.get_schedule()
-
-            # Get Schedule for memory rounds
-            pairings_memory = SurfacePairings(
-                patch=qubit_coords,
-                y_basis=True,
-                y_memory=True,
-                distance=distance,
-                offset=curr_offset,
-            )
-            stab_to_data_memory: dict[tuple[Coord, Coord], str] = pairings_memory.get_schedule()
-
-            lct_y = Context(
-                q2i=q2i,
-                i2q=i2q,
-                stab_to_data=stab_to_data,
-                stab_to_data_modified=stab_to_data_switch,
-                stab_to_data_modified2=stab_to_data_xcy,
-                stab_to_data_modified3=stab_to_data_memory,
+            reset_circuit += self._build_std_patch(
+                patch_type="target",
+                state_init=self.target_state_init,
             )
 
-            # Building Patch
-            patches: dict[str, Patch] = {
-                "patch": Patch.from_coords(qubit_coords, q2i),
-            }
+        return reset_circuit, flow_circuit
 
-            build_y_circ = stim.Circuit()
+    def _build_std_patch(self, patch_type: str, state_init: str) -> stim.Circuit:
+        circ = stim.Circuit()
+        log_strings = self.geometry._get_logical_strings()
 
-            # Building needed circuits
-            build_y_circ += y_reset(
-                lct=lct_y,
-                patches=patches,
-                cfg=cfg_y,
-                skip_coords=True,
-                offset=curr_offset,
-            ).circuit
+        if patch_type == "control":
+            data_idx = self.geometry.control_data_idx
+            log_z = log_strings["c_z"]
+            log_x = log_strings["c_x"]
+        else:  # target
+            data_idx = self.geometry.target_data_idx
+            log_z = log_strings["t_z"]
+            log_x = log_strings["t_x"]
 
-            build_y_circ += y_initial(
-                lct=lct_y,
-                patch=patches["patch"],
-                offset=curr_offset,
-            ).circuit
+        # 1. Physical Reset
+        if state_init in {"+", "-"}:
+            circ.append("RX", data_idx)
+        else:
+            circ.append("R", data_idx)
 
-            rep_circ = y_repetition_circ(
-                lct=lct_y,
-                patch=patches["patch"],
-                cfg=cfg_y,
-                offset=curr_offset,
-                noise=noise,
-            ).circuit
+        # 2. Logical Operators for state prep
+        if state_init == "-":
+            circ.append("Z", log_z)
+        elif state_init == "1":
+            circ.append("X", log_x)
 
-            switch_circ = y_switch_circ(
-                lct=lct_y,
-                patch=patches["patch"],
-                offset=curr_offset,
-                cfg=cfg_y,
-            ).circuit
+        return circ
 
-            build_y_circ += rep_circ
-            build_y_circ += switch_circ
+    def _build_y_patch(self, patch_type: str, state_init: str) -> stim.Circuit:
+        if patch_type == "control":
+            offset = 0 + (self.geometry.distance * 2) * 1j
+        else:  # target
+            offset = (self.geometry.distance * 2) + 0j
 
-            flow_circ = stim.Circuit()
-            flow_circ += rep_circ
-            flow_circ += switch_circ
+        # Create Y-basis Geometry for the patch
+        patch_geom_y = SurfaceGeometry(
+            distance=self.geometry.distance,
+            offset=offset,
+            starting_stabilizer_x=False,
+            y_basis=True,
+        )
+        # OVERRIDE q2i with the global surgery q2i
+        patch_geom_y.q2i = self.geometry.q2i
+        patch_geom_y.state_init = state_init
 
-        #############################################
-        # Adding Logical Y-Observables-Creation-Flow:
-        #############################################
+        # Create Y-basis Pairings
+        patch_pairings_y = SurfacePairings(
+            patch=patch_geom_y.coords,
+            distance=self.geometry.distance,
+            y_basis=True,
+            offset=offset,
+        )
 
-        """
-        In the following the Y Observable is created depending on which qubit is in Y basis
-        """
+        # Create Y-Switch Pairings
+        patch_pairings_y_switch = SurfacePairings(
+            patch=patch_geom_y.coords,
+            distance=self.geometry.distance,
+            y_basis=True,
+            y_switch=True,
+            offset=offset,
+        )
+
+        # Wrap in Master Objects
+        master_geom = MasterGeometry(
+            geometry_std=None,  # Not used for y_basis type
+            geometry_ybasis=patch_geom_y,
+        )
+        master_pairings = MasterPairings(
+            pairings_std=None,
+            pairings_ybasis=patch_pairings_y,
+            pairings_ymemory=None,
+            pairings_yswitch=patch_pairings_y_switch,
+            pairings_log_h=None,
+        )
+
+        patch_circuit = stim.Circuit()
+
+        # 1. Data Qubits Reset
+        resetter = SurfaceReset(master_geom, type="y_basis")
+        patch_circuit += resetter._adding_resets()
+
+        # 2. Stabilizer Resets + Initialization Circuit
+        initer = SurfaceInitialization(master_geom, master_pairings, type="y_basis")
+        patch_circuit += initer.build_circuit()
+
+        # 3. Y-Memory Repetition
+        rep = SurfaceRepetitionCircuit(master_geom, master_pairings, type="y_basis")
+        repetition_circuit = rep.build_circuit()
+        patch_circuit += repetition_circuit
+
+        # 4. Y-Switch
+        switch = YSwitchCircuit(master_geom, master_pairings)
+        switch_circuit = switch.build_circuit()
+        patch_circuit += switch_circuit
+
+        # Defining Flow Circuit for Logical Y Creation
+        flow_circuit = stim.Circuit()
+        flow_circuit += repetition_circuit
+        flow_circuit += switch_circuit
+
+        return patch_circuit, flow_circuit
+
+    def _getting_y_observable(self, circuit: stim.Circuit):
+        # Init return circuit
+        observable_circuit = stim.Circuit()
+
+        # Getting Logical Strings
+        log_strings = self.geometry.get_logical_strings()
 
         # 1) Control Flow:
-        if key[0] in {"Y+", "Y-"}:
-            logical_x_string = []
-            logical_z_string = []
-            logical_y_string = distance * 2 - 1 + (distance * 4 - 1) * 1j
-
-            # Finding logical Strings for x and z
-            for imag in range(1, (distance * 2) - 1, 2):
-                logical_x_string.append(q2i[distance * 2 - 1 + (imag + distance * 2) * 1j])
-
-            for real in range(1, (distance * 2) - 1, 2):
-                logical_z_string.append(q2i[real + (distance * 4 - 1) * 1j])
-
-            # Adding logical z string
+        if self.control_state_init in {"+i", "-i"}:
+            # Getting Logical Y Pauli Strings for Control
+            y_corner = [log_strings["c_y"]["y_corner"]][0]
             logical_xyz_string = "*".join(
-                [f"Z{idz}" for j, idz in enumerate(logical_z_string)]
-                + [f"Y{q2i[logical_y_string]}"]
-                + [f"X{idx}" for j, idx in enumerate(logical_x_string)],
+                [f"Z{idz}" for j, idz in enumerate(log_strings["c_y"]["z_string"])]
+                + [f"Y{y_corner}"]
+                + [f"X{idx}" for j, idx in enumerate(log_strings["c_y"]["x_string"])],
             )
 
             logical_creation = f"{1} -> {logical_xyz_string}"
 
-            (logical_creation_rec,) = flow_circ.solve_flow_measurements(
+            (logical_creation_rec,) = circuit.solve_flow_measurements(
                 [stim.Flow(logical_creation)],
             )
 
@@ -629,34 +215,28 @@ def reset(
             rec_pos = []
 
             for index_creation in logical_creation_rec:
-                current_rec_crea = flow_circ.num_measurements - index_creation
+                current_rec_crea = circuit.num_measurements - index_creation
                 rec_pos.append(-current_rec_crea)
 
-            build_y_circ.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
+            observable_circuit.append(
+                "OBSERVABLE_INCLUDE",
+                [stim.target_rec(k) for k in rec_pos],
+                0,
+            )
 
         # 2) Target Flow:
-        elif key[1] in {"Y+", "Y-"}:
-            logical_x_string = []
-            logical_z_string = []
-            logical_y_string = distance * 4 - 1 + (distance * 2 - 1) * 1j
-
-            # Finding logical Strings for x and z
-            for imag in range(1, (distance * 2) - 1, 2):
-                logical_x_string.append(q2i[distance * 4 - 1 + imag * 1j])
-
-            for real in range(1, (distance * 2) - 1, 2):
-                logical_z_string.append(q2i[real + distance * 2 + (distance * 2 - 1) * 1j])
-
-            # Adding logical z string
+        if self.target_state_init in {"+i", "-i"}:
+            # Getting Logical Y Pauli Strings for Control
+            y_corner = [log_strings["t_y"]["y_corner"]][0]
             logical_xyz_string = "*".join(
-                [f"Z{idz}" for j, idz in enumerate(logical_z_string)]
-                + [f"Y{q2i[logical_y_string]}"]
-                + [f"X{idx}" for j, idx in enumerate(logical_x_string)],
+                [f"Z{idz}" for j, idz in enumerate(log_strings["t_y"]["z_string"])]
+                + [f"Y{y_corner}"]
+                + [f"X{idx}" for j, idx in enumerate(log_strings["t_y"]["x_string"])],
             )
 
             logical_creation = f"{1} -> {logical_xyz_string}"
 
-            (logical_creation_rec,) = flow_circ.solve_flow_measurements(
+            (logical_creation_rec,) = circuit.solve_flow_measurements(
                 [stim.Flow(logical_creation)],
             )
 
@@ -664,9 +244,13 @@ def reset(
             rec_pos = []
 
             for index_creation in logical_creation_rec:
-                current_rec_crea = flow_circ.num_measurements - index_creation
+                current_rec_crea = circuit.num_measurements - index_creation
                 rec_pos.append(-current_rec_crea)
 
-            build_y_circ.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
+            observable_circuit.append(
+                "OBSERVABLE_INCLUDE",
+                [stim.target_rec(k) for k in rec_pos],
+                0,
+            )
 
-        return reset_circuit, build_y_circ
+        return observable_circuit
