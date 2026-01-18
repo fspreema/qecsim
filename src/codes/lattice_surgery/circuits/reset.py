@@ -22,7 +22,7 @@ class SurgeryReset:
         self.control_state_init = geometry.control_state_init
         self.target_state_init = geometry.target_state_init
 
-        # Getting Y-Basis Stab to Data Infotmation
+        # Getting Y-Basis Stab to Data Information
 
     def build_circuit(self) -> stim.Circuit:
         circuit = stim.Circuit()
@@ -54,8 +54,8 @@ class SurgeryReset:
         reset_circuit = stim.Circuit()
         flow_circuit = stim.Circuit()
 
-        # 1. Reset Ancilla Stabilizers (Always needed)
-        reset_circuit.append("RX", self.geometry.anc_x_stb_idx)
+        # 1. Reset Ancilla Data Qubits into X Basis and Stabs in Z Basis of Ancilla Patch
+        reset_circuit.append("RX", self.geometry.anc_data_idx)
 
         # 2. Control Patch
         if self.control_state_init in {"+i", "-i"}:
@@ -85,11 +85,13 @@ class SurgeryReset:
                 state_init=self.target_state_init,
             )
 
+        reset_circuit.append("TICK")
+
         return reset_circuit, flow_circuit
 
     def _build_std_patch(self, patch_type: str, state_init: str) -> stim.Circuit:
         circ = stim.Circuit()
-        log_strings = self.geometry._get_logical_strings()
+        log_strings = self.geometry.get_logical_strings()
 
         if patch_type == "control":
             data_idx = self.geometry.control_data_idx

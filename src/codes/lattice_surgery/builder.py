@@ -6,6 +6,7 @@ from src.codes.lattice_surgery.circuits.merge import SurgeryMerge
 from src.codes.lattice_surgery.circuits.reset import SurgeryReset
 from src.codes.lattice_surgery.circuits.split import SurgerySplit
 from src.codes.lattice_surgery.data_geometry import MasterPairings
+from src.codes.lattice_surgery.get_flows import SurgeryFlowObservables
 from src.codes.lattice_surgery.get_stab_pairings import LatticeSurgeryPairings
 from src.codes.lattice_surgery.surgery_geom import SurgeryGeometry
 from src.core.base_class_builder import BaseClassBuilder
@@ -56,7 +57,11 @@ class SurgeryBuilder(BaseClassBuilder):
         self.noise = noise
 
         # Initilize Geometry
-        self.geometry = SurgeryGeometry(distance=distance)
+        self.geometry = SurgeryGeometry(
+            distance=distance,
+            control_state_init=control_state_init,
+            target_state_init=target_state_init,
+        )
 
         # Initialize Pairings of all types (Standard, AC merging, AT merging, Surgery)
         self.master_pairings = MasterPairings(
@@ -88,9 +93,9 @@ class SurgeryBuilder(BaseClassBuilder):
         return_circuit = stim.Circuit()
 
         # Adding Reset Circuit
-        if self.control_state_init not in {"Y+", "Y-"} and self.target_state_init not in {
-            "Y+",
-            "Y-",
+        if self.control_state_init not in {"+i", "-i"} and self.target_state_init not in {
+            "+i",
+            "-i",
         }:
             reset_circuit = self._adding_reset_circuit()
         else:
@@ -119,13 +124,13 @@ class SurgeryBuilder(BaseClassBuilder):
         return_circuit += flow_circuit
 
         # Adding Solve Flow Observables
-        return_circuit += self._adding_solve_flow_observables()
+        return_circuit += self._adding_solve_flow_observables(flow_circuit=flow_circuit)
 
         # Adding Final Measurement Circuit
         return_circuit += self._adding_final_measurement_circuit()
 
         # Adding Noise Model if applicable
-        return_circuit = self._apply_noise(circuit=return_circuit)
+        return_circuit = self._apply_noise(input_circuit=return_circuit)
 
         return return_circuit
 
@@ -160,7 +165,7 @@ class SurgeryBuilder(BaseClassBuilder):
         split_circuit_builder = SurgerySplit(
             geometry=self.geometry,
             master_pairings=self.master_pairings,
-            splitting_type=type,
+            split_type=type,
         )
         return split_circuit_builder.build_circuit()
 
@@ -168,8 +173,14 @@ class SurgeryBuilder(BaseClassBuilder):
         # Adding Final Measurement Circuit
         final_measure_circuit_builder = SurgeryFinalMeasure(
             geometry=self.geometry,
+            flow=self.flow_observable,
         )
         return final_measure_circuit_builder.build_circuit()
 
-    def _adding_solve_flow_observables(self) -> stim.Circuit:
-        pass
+    def _adding_solve_flow_observables(self, flow_circuit: stim.Circuit) -> stim.Circuit:
+        # Adding Solve Flow Observables Circuit
+        flow_getter = SurgeryFlowObservables(geometry=self.geometry)
+        return flow_getter.get_observable_from_flow(
+            flow_circuit=flow_circuit,
+            flow_type=self.flow_observable,
+        )

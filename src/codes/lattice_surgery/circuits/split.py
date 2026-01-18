@@ -253,7 +253,7 @@ class SurgerySplit:
             * (
                 self.geometry.control_target_all_stab_idx
                 + self.geometry.anc_x_stb_idx
-                + self.geometry.anc_z_stb_idx,
+                + self.geometry.anc_z_stb_idx
             ),
         )
 
@@ -264,7 +264,7 @@ class SurgerySplit:
         # Defining Logical Data Qubit string for all lattices
         #####################################################
 
-        log_strings = self.geometry._get_logical_strings()
+        log_strings = self.geometry.get_logical_strings()
         a_log_obs_z_index = log_strings["a_z"]
         t_log_obs_z_index = log_strings["t_z"]
         c_log_obs_x_index = log_strings["c_x"]

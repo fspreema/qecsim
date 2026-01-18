@@ -2,17 +2,27 @@ import stim
 
 from src.codes.lattice_surgery.surgery_geom import SurgeryGeometry
 
+__all__ = ["SurgeryFlowObservables"]
 
-class YBasisGetCircuitFlows:
+
+class SurgeryFlowObservables:
     def __init__(
         self,
         geometry: SurgeryGeometry,
+    ):
+        # Initialize Geometry
+        self.geometry = geometry
+
+    def get_observable_from_flow(
+        self,
+        flow_circuit: stim.Circuit,
+        flow_type: str,
     ) -> stim.Circuit:
         """
         For a given circuit without final measurement and reset, the needed Measurements can be
-        deterermined by the flow type.
+        determined by the flow type.
 
-        -> These are given as a list of qubit indicies to be measured.
+        -> These are given as a list of qubit indices to be measured.
         -> These are then applied to the circuit as additional measurement
         records to the same observable
 
@@ -20,57 +30,121 @@ class YBasisGetCircuitFlows:
             stim.Circuit: Corrected Circuit with the correct logical observable included
         """
 
-        # Determine if the flow exists and if so what measurements are needed
-        self.return_circuit = stim.Circuit()
-        self.geometry = geometry
+        # Init Return Circuit
+        return_circuit = stim.Circuit()
 
-    def get_flows(
-        self,
-        flow_circ: stim.Circuit,
-        circuits_between: list[stim.Circuit],
-    ) -> stim.Circuit:
-        # Getting logical y string
-        x_idx, y_idx, z_idx = self.geometry.get_logical_observables(
-            "Y",
-            fixed_coord=self.geometry.distance * 2 - 1,
-        )
+        # Get Pauli Strings for Flow
+        pauli_start, pauli_end = self._get_pauli_strings_for_flows(flow_type=flow_type)
 
-        # Adding logical z string
-        logical_xyz_string = "*".join(
-            [f"Z{idz}" for idz in z_idx] + [f"Y{y_idx[0]}"] + [f"X{idx}" for idx in x_idx],
-        )
+        # Construct Full Pauli Strings
+        start_string = self._construct_pauli_string(logical_operator_strings=pauli_start)
+        end_string = self._construct_pauli_string(logical_operator_strings=pauli_end)
 
-        logical_creation = f"{1} -> {logical_xyz_string}"
-        logical_contraction = f"{logical_xyz_string} -> {1}"
-
-        (logical_creation_rec,) = logical_creation_circ.solve_flow_measurements(
-            [stim.Flow(logical_creation)],
-        )
-        (logical_contraction_rec,) = logical_contraction_circ.solve_flow_measurements(
-            [stim.Flow(logical_contraction)],
+        # Determine Flow Measurements
+        (included_measurements,) = flow_circuit.solve_flow_measurements(
+            [
+                stim.Flow(f"{start_string} -> {end_string}"),
+            ],
         )
 
         # Calculating target rec pos
         rec_pos = []
 
-        contraction_records = logical_contraction_circ.num_measurements
-        creation_records = (
-            logical_contraction_circ.num_measurements
-            + logical_creation_circ.num_measurements
-            + sum(circuit.num_measurements for circuit in circuits_between)
-        )
-
-        # Adding the Observable
-        for index_creation in logical_creation_rec:
-            current_rec_crea = creation_records - index_creation
-            rec_pos.append(-current_rec_crea)
-
-        for index_contraction in logical_contraction_rec:
-            current_rec_cont = contraction_records - index_contraction
-            rec_pos.append(-current_rec_cont)
+        for index in included_measurements:
+            current_rec_tar = flow_circuit.num_measurements - index
+            rec_pos.append(-current_rec_tar)
 
         # Adding measurements to the logical observable
-        self.return_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
-        self.return_circuit.append("TICK")
+        return_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
+        return_circuit.append("TICK")
 
-        return self.return_circuit
+        return return_circuit
+
+    def _get_pauli_strings_for_flows(
+        self,
+        flow_type: str,
+    ) -> list[list[str]]:
+        """
+        Returns the Pauli string from the creation and the end of the flow type
+        -> i.e. start -> end of flow
+        -> This describes how the pauli string should begin and propagate through the circuit
+        """
+
+        # Define Dictionary for Flow Types
+        flow_dict = {
+            # Non Mixed Logical Strings
+            "XI -> XX": [["c_x"], ["c_x", "t_x"]],
+            "XX -> XI": [["c_x", "t_x"], ["c_x"]],
+            "IX -> IX": [["t_x"], ["t_x"]],
+            "IZ -> ZZ": [["t_z"], ["c_z", "t_z"]],
+            "ZZ -> IZ": [["c_z", "t_z"], ["t_z"]],
+            "ZI -> ZI": [["c_z"], ["c_z"]],
+            # Mixed Logical Strings
+            "ZX -> ZX": [["c_z", "t_x"], ["c_z", "t_x"]],
+            # Y Logical Strings
+            "YZ -> XY": [["t_z_shifted"], ["c_x_shifted", "t_y"]],
+            "YX -> YI": [["t_x_shifted"], ["c_y"]],
+            "YI -> YX": [[], ["t_x_shifted", "c_y"]],
+            "YY -> XZ": [[], ["c_x", "t_z"]],
+            "IY -> ZY": [[], ["c_z", "t_y"]],
+            "XY -> YZ": [["c_x_shifted"], ["c_y", "t_z_shifted"]],
+        }
+
+        return flow_dict.get(flow_type, [[], []])
+
+    def _construct_pauli_string(self, logical_operator_strings: list[str]) -> str:
+        """
+        Returns the full pauli string from the logical operator strings
+        Args:
+            logical_operator_strings (list[str]): List of logical operator strings
+                e.g. ["c_x", "t_z", "t_x_shifted"]
+        """
+
+        # Get Logical Strings
+        log_strings = self.geometry.get_logical_strings()
+        log_strings_shifted = self.geometry.get_logical_strings(
+            shift_cx_for_y=True,
+            shift_tz_for_y=True,
+            shift_tx_for_y=True,
+            shift_cz_for_y=True,
+        )
+
+        terms = []
+        for key in logical_operator_strings:
+            # Identify basis based on key ending
+
+            if key == []:
+                # Empty List means the flow is created from the Identity
+                return 1
+
+            elif key.endswith("_shifted"):
+                # Determine basis
+                basis = "X" if key.endswith("_x_shifted") else "Z"
+
+                # remove _shifted for lookup
+                key_clean = key[:-8]
+
+                # Get indices from shifted logical strings
+                indices = log_strings_shifted.get(key_clean, [])
+
+                terms.extend(f"{basis}{i}" for i in indices)
+
+            elif key.endswith("_y"):
+                # Get indices
+                indices_x = log_strings[key]["x_string"]
+                index_y = log_strings[key]["y_string"]
+                indices_z = log_strings[key]["z_string"]
+
+                # Format terms
+                terms.extend(f"Z{i}" for i in indices_z)
+                terms.extend(f"Y{i}" for i in index_y)
+                terms.extend(f"X{i}" for i in indices_x)
+
+            else:
+                basis = "X" if key.endswith("_x") else "Z"
+                # Get indices
+                indices = log_strings.get(key, [])
+                # Format terms
+                terms.extend(f"{basis}{i}" for i in indices)
+
+        return "*".join(terms)

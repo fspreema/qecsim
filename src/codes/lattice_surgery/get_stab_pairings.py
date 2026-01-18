@@ -19,7 +19,7 @@ class StandardLatticePairings(BasePairings):
         self.patch = qubit_coords
         self.stab_to_data: dict[Pair, str] = {}
 
-    def get_schedule_standard(self) -> dict[Pair, str]:
+    def generate_pairings(self) -> dict[Pair, str]:
         """
         Returns the CX-Schedule {(data_coord, stab_coord): order} for a given lattice
 
@@ -28,12 +28,12 @@ class StandardLatticePairings(BasePairings):
         """
 
         # Running the Functions to populate the Schedule
-        self._attach_interior_standard()
-        self._attach_boundary_standard()
+        self._attach_interior()
+        self._attach_boundary()
 
         return self.stab_to_data
 
-    def _attach_interior_standard(self):
+    def _attach_interior(self):
         """
         Adds the 4-body CX Schedule for the *interior* stabilizers
         """
@@ -60,7 +60,7 @@ class StandardLatticePairings(BasePairings):
                     ["1-CX", "2-CX", "3-CX", "4-CX"],
                 )
 
-    def _attach_boundary_standard(self):
+    def _attach_boundary(self):
         """
         Adds the 2-body CX Schedule for the *boundary* stabilizers
         """
@@ -181,7 +181,7 @@ class ACMergingLatticePairings(BasePairings):
         self.patch = qubit_coords
         self.stab_to_data: dict[Pair, str] = {}
 
-    def get_schedule_ac(self) -> dict[Pair, str]:
+    def generate_pairings(self) -> dict[Pair, str]:
         """
         Returns the CX-Schedule {(data_coord, stab_coord): order} for a given lattice
 
@@ -190,12 +190,12 @@ class ACMergingLatticePairings(BasePairings):
         """
 
         # Running the Functions to populate the Schedule
-        self._attach_interior_ac()
-        self._attach_boundary_ac()
+        self._attach_interior()
+        self._attach_boundary()
 
         return self.stab_to_data
 
-    def _attach_interior_ac(self):
+    def _attach_interior(self):
         """
         Adds the 4-body CX Schedule for the *interior* stabilizers
         """
@@ -223,7 +223,7 @@ class ACMergingLatticePairings(BasePairings):
                     ["1-CX", "2-CX", "3-CX", "4-CX"],
                 )
 
-    def _attach_boundary_ac(self):
+    def _attach_boundary(self):
         """
         Adds the 2-body CX Schedule for the *boundary* stabilizers
         """
@@ -280,7 +280,7 @@ class ATMergingLatticePairings(BasePairings):
         self.patch = qubit_coords
         self.stab_to_data: dict[Pair, str] = {}
 
-    def get_schedule_at(self) -> dict[Pair, str]:
+    def generate_pairings(self) -> dict[Pair, str]:
         """
         Returns the CX-Schedule {(data_coord, stab_coord): order} for a given lattice
 
@@ -289,12 +289,12 @@ class ATMergingLatticePairings(BasePairings):
         """
 
         # Running the Functions to populate the Schedule
-        self._attach_interior_at()
-        self._attach_boundary_at()
+        self._attach_interior()
+        self._attach_boundary()
 
         return self.stab_to_data
 
-    def _attach_interior_at(self):
+    def _attach_interior(self):
         """
         Adds the 4-body CX Schedule for the *interior* stabilizers
         """
@@ -322,7 +322,7 @@ class ATMergingLatticePairings(BasePairings):
                     ["1-CX", "2-CX", "3-CX", "4-CX"],
                 )
 
-    def _attach_boundary_at(self):
+    def _attach_boundary(self):
         """
         Adds the 2-body CX Schedule for the *boundary* stabilizers
         """
@@ -367,11 +367,7 @@ class ATMergingLatticePairings(BasePairings):
                 )
 
 
-class LatticeSurgeryPairings(
-    StandardLatticePairings,
-    ACMergingLatticePairings,
-    ATMergingLatticePairings,
-):
+class LatticeSurgeryPairings:
     def __init__(
         self,
         qubit_coords: dict[complex, str],
@@ -398,11 +394,29 @@ class LatticeSurgeryPairings(
 
         # Running the Functions to populate the Schedule
         if self.merging and self.merging_type == "AC":
-            self.get_schedule_ac()
+            # Populate using AC Merging Pairings
+            pairings = ACMergingLatticePairings(
+                qubit_coords=self.patch,
+                merging=self.merging,
+                merging_type=self.merging_type,
+            )
+            self.stab_to_data = pairings.generate_pairings()
         elif self.merging and self.merging_type == "AT":
-            self.get_schedule_at()
+            # Populate using AT Merging Pairings
+            pairings = ATMergingLatticePairings(
+                qubit_coords=self.patch,
+                merging=self.merging,
+                merging_type=self.merging_type,
+            )
+            self.stab_to_data = pairings.generate_pairings()
         else:
-            self.get_schedule_standard()
+            # Populate using Standard Pairings
+            pairings = StandardLatticePairings(
+                qubit_coords=self.patch,
+                merging=self.merging,
+                merging_type=self.merging_type,
+            )
+            self.stab_to_data = pairings.generate_pairings()
 
         return self.stab_to_data
 
@@ -418,8 +432,13 @@ class LatticeSurgeryPairings(
         # Initlizing Dict
         self.stab_to_data: dict[Pair, str] = {}
 
-        # Running the Functions to populate the Schedule
-        self.get_schedule_standard()
+        # Populate using Standard Pairings
+        pairings = StandardLatticePairings(
+            qubit_coords=self.patch,
+            merging=self.merging,
+            merging_type=self.merging_type,
+        )
+        self.stab_to_data = pairings.generate_pairings()
 
         return {
             pair: order

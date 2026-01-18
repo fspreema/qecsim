@@ -12,7 +12,7 @@ __all__ = ["SurgeryInitialization"]
 class SurgeryInitialization:
     def __init__(self, geometry: SurgeryGeometry, master_pairings: MasterPairings):
         self.geometry = geometry
-        self.stab_to_data = master_pairings.std_pairings.stab_to_data
+        self.stab_to_data = master_pairings.std_pairings.get_schedule()
 
     def build_circuit(self) -> stim.Circuit:
         circuit = stim.Circuit()

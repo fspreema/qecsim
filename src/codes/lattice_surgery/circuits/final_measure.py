@@ -1,6 +1,5 @@
 import stim
 
-from src.codes.lattice_surgery.data_geometry import MasterPairings
 from src.codes.lattice_surgery.surgery_geom import SurgeryGeometry
 
 __all__ = ["SurgeryFinalMeasure"]
@@ -10,37 +9,77 @@ class SurgeryFinalMeasure:
     def __init__(
         self,
         geometry: SurgeryGeometry,
-        master_pairings: MasterPairings,
         flow: str,
     ):
         # Preliminary Setup
         self.geometry = geometry
-        self.master_pairings = master_pairings
         self.flow = flow
+        self.all_logical_strings = self.geometry.get_logical_strings()
+        self.all_logical_strings_shifted = self.geometry.get_logical_strings(
+            shift_cx_for_y=True,
+            shift_tz_for_y=True,
+            shift_cz_for_y=True,
+            shift_tx_for_y=True,
+        )
 
     def build_circuit(self) -> stim.Circuit:
         # Init return Circuit
         return_circuit = stim.Circuit()
 
         # Build Final Measurement Circuit
-        return_circuit += self._apply_measurements()
-        return_circuit += self._apply_logical_observables()
+        is_y_flow = "Y" in self.flow
+
+        if is_y_flow:
+            pass
+        else:
+            return_circuit += self._apply_non_y_measurements()
+            return_circuit += self._apply_logical_observables()
 
         return return_circuit
 
-    def _validate_flow_selection(self, flow: str, patch: str):
+    def _apply_y_measurements(self):
+        # Define central flow dictionary
+        y_flow_measurements = {
+            "YZ -> XY": [("control", "X", True), ("target", "Y", False)],
+            "YI -> YX": [("control", "Y", False), ("target", "X", False)],
+            "YX -> YI": [("control", "Y", False)],
+            "YY -> XZ": [("control", "X", False), ("target", "Z", False)],
+            "IY -> ZY": [("control", "Z", False), ("target", "Y", False)],
+            "XY -> YZ": [("control", "Y", False), ("target", "Z", False)],
+        }
+
+    def _meassure_patch_operator(self, patch: str, op_type: str, shifted: bool) -> stim.Circuit:
+        """
+        Returns a circuit that measures the logical operator of a given patch.
+        -> Measure exactly along the logical strings of the patch.
+        -> Used for Y basis flows.
+
+        Arguments:
+            patch (str): Which patch to measure ('control' or 'target')
+            op_type (str): Which operator to measure ('X', 'Y', or 'Z')
+            shifted (bool): Whether to use the shifted logical strings or not
+        """
+
+        # Init Measure Circuit
+        measure_circuit = stim.Circuit()
+        measure_circuit.append("TICK")
+
+        if patch == "control":
+            pass
+
+    def _validate_non_y_flow_selection(self, flow: str, patch: str):
         # Creating Dictionary of valid flows in combination with init states
         valid_flows_control = {
-            "X+": {"XI -> XX", "XX -> XI", "IX -> IX"},
-            "X-": {"XI -> XX", "XX -> XI", "IX -> IX"},
-            "Z0": {"IZ -> ZZ", "ZZ -> IZ", "ZI -> ZI", "ZX -> ZX", "IX -> IX"},
-            "Z1": {"IZ -> ZZ", "ZZ -> IZ", "ZI -> ZI", "ZX -> ZX", "IX -> IX"},
+            "+": {"XI -> XX", "XX -> XI", "IX -> IX"},
+            "-": {"XI -> XX", "XX -> XI", "IX -> IX"},
+            "0": {"IZ -> ZZ", "ZZ -> IZ", "ZI -> ZI", "ZX -> ZX", "IX -> IX"},
+            "1": {"IZ -> ZZ", "ZZ -> IZ", "ZI -> ZI", "ZX -> ZX", "IX -> IX"},
         }
         valid_flows_target = {
-            "X+": {"XI -> XX", "XX -> XI", "IX -> IX", "ZI -> ZI", "ZX -> ZX"},
-            "X-": {"XI -> XX", "XX -> XI", "IX -> IX", "ZI -> ZI", "ZX -> ZX"},
-            "Z0": {"IZ -> ZZ", "ZZ -> IZ", "ZI -> ZI"},
-            "Z1": {"IZ -> ZZ", "ZZ -> IZ", "ZI -> ZI"},
+            "+": {"XI -> XX", "XX -> XI", "IX -> IX", "ZI -> ZI", "ZX -> ZX"},
+            "-": {"XI -> XX", "XX -> XI", "IX -> IX", "ZI -> ZI", "ZX -> ZX"},
+            "0": {"IZ -> ZZ", "ZZ -> IZ", "ZI -> ZI"},
+            "1": {"IZ -> ZZ", "ZZ -> IZ", "ZI -> ZI"},
         }
 
         if patch == "control" and flow in valid_flows_control.get(
@@ -56,7 +95,7 @@ class SurgeryFinalMeasure:
         else:
             return False
 
-    def _get_measurements_for_flow(self, flow: str):
+    def _get_non_y_measurements_for_flow(self, flow: str):
         # Creating Dictionary of measurement operations per flow
         flow_measurements = {
             "XI -> XX": ["c_x", "t_x"],
@@ -70,21 +109,20 @@ class SurgeryFinalMeasure:
 
         return flow_measurements.get(flow, [])
 
-    def _apply_measurements(self):
+    def _apply_non_y_measurements(self):
         # Init measure Circuit
         measure_circuit = stim.Circuit()
-        measure_circuit.append("TICK")
 
-        if self.geometry.control_state_init in {"X+", "X-"}:
+        if self.geometry.control_state_init in {"+", "-"}:
             measure_circuit.append("MX", self.geometry.control_data_idx)
 
-        elif self.geometry.control_state_init in {"Z0", "Z1"}:
+        elif self.geometry.control_state_init in {"0", "1"}:
             measure_circuit.append("MZ", self.geometry.control_data_idx)
 
-        if self.geometry.target_state_init in {"X+", "X-"}:
+        if self.geometry.target_state_init in {"+", "-"}:
             measure_circuit.append("MX", self.geometry.target_data_idx)
 
-        elif self.geometry.target_state_init in {"Z0", "Z1"}:
+        elif self.geometry.target_state_init in {"0", "1"}:
             measure_circuit.append("MZ", self.geometry.target_data_idx)
 
         return measure_circuit
@@ -94,24 +132,22 @@ class SurgeryFinalMeasure:
         observable_circuit = stim.Circuit()
 
         # Checking validity of flow selection
-        if not self._validate_flow_selection(self.flow, "control"):
+        if not self._validate_non_y_flow_selection(self.flow, "control"):
             raise ValueError("Invalid flow selected for control patch initial state!")
-        if not self._validate_flow_selection(self.flow, "target"):
+        if not self._validate_non_y_flow_selection(self.flow, "target"):
             raise ValueError("Invalid flow selected for target patch initial state!")
 
         # Get indices of logical operator (can be on both patches) depending on flow
-        all_logical_strings = self.geometry.get_logical_strings()
-        flow_measurements = self._get_measurements_for_flow(self.flow)
+        flow_measurements = self._get_non_y_measurements_for_flow(self.flow)
 
-        logical_string = [all_logical_strings[i] for i in flow_measurements]
-        logical_string_set = set(logical_string)
+        logical_string = [self.all_logical_strings[i] for i in flow_measurements]
 
         tar_rec = []
 
         for rec_pos, index in enumerate(
             self.geometry.control_data_idx + self.geometry.target_data_idx,
         ):
-            if index in logical_string_set:
+            if index in logical_string:
                 tar_rec.append(rec_pos)
 
         observable_circuit.append(
@@ -126,356 +162,3 @@ class SurgeryFinalMeasure:
         )
 
         return observable_circuit
-
-
-def final_m(
-    *,
-    lct: LatticeContext,
-    patches: dict[str, PatchAncilla, PatchControl, PatchTarget, PatchSurgery],
-    cfg: Config,
-    flow: str,
-) -> stim.Circuit:
-    #################################################
-    # Exporting all necessary values from Dataclasses
-    #################################################
-
-    # -Loading in Patches
-    target_patch = patches["target"]
-    control_patch = patches["control"]
-
-    # -Retrieving Global Infomration
-    distance = cfg.distance
-    q2i = lct.q2i
-    control_state_init = cfg.control_state_init
-    target_state_init = cfg.target_state_init
-
-    # -Retrieving Data Coords
-    data_control = control_patch.data
-    data_target = target_patch.data
-
-    # -Get all logical operator strings
-    log_strings_shift = get_logical_strings(
-        q2i,
-        distance,
-        shift_cx_for_y=True,
-        shift_tz_for_y=True,
-        shift_tx_for_y=True,
-        shift_cz_for_y=True,
-    )
-    log_strings = get_logical_strings(q2i, distance)
-
-    ##############################
-    # Initlize Measurement Circuit
-    ##############################
-
-    measure_circuit = stim.Circuit()
-
-    #############################
-    # Meassuring all Data Qubits:
-    #############################
-
-    if control_state_init in {"Y+", "Y-"} or target_state_init in {"Y+", "Y-"}:
-        # Y-including flows are handled per-flow below (measure only logical strings)
-        pass
-    else:
-        if control_state_init in {"X+", "X-"}:
-            measure_circuit.append("TICK")
-            measure_circuit.append("MX", data_control)
-
-        elif control_state_init in {"Z0", "Z1"}:
-            measure_circuit.append("TICK")
-            measure_circuit.append("MZ", data_control)
-
-        if target_state_init in {"X+", "X-"}:
-            measure_circuit.append("TICK")
-            measure_circuit.append("MX", data_target)
-
-        elif target_state_init in {"Z0", "Z1"}:
-            measure_circuit.append("TICK")
-            measure_circuit.append("MZ", data_target)
-
-    ##############################
-    # Defining Logical Observables
-    ##############################
-
-    # -----------------------ONLY-X-----------------------------
-
-    if flow == "X -> XX":
-        if control_state_init in {"X+", "X-"}:
-            if target_state_init in {"X+", "X-"}:
-                # Control stabilized by x logical
-                log_x_ct = log_strings["c_x"] + log_strings["t_x"]
-
-                tar_rec = []
-
-                for rec_pos, index in enumerate(data_control + data_target):
-                    if index in log_x_ct:
-                        tar_rec.append(rec_pos)
-
-                measure_circuit.append(
-                    "OBSERVABLE_INCLUDE",
-                    [stim.target_rec(-len(data_control + data_target) + k) for k in tar_rec],
-                    0,
-                )
-
-    if flow == "XX -> X":
-        if control_state_init in {"X+", "X-"}:
-            if target_state_init in {"X+", "X-"}:
-                # Control stabilized by x logical
-                log_x_c = log_strings["c_x"]
-
-                tar_rec = []
-
-                for rec_pos, index in enumerate(data_control + data_target):
-                    if index in log_x_c:
-                        tar_rec.append(rec_pos)
-
-                measure_circuit.append(
-                    "OBSERVABLE_INCLUDE",
-                    [stim.target_rec(-len(data_control + data_target) + k) for k in tar_rec],
-                    0,
-                )
-
-    elif flow == "X -> X":
-        if control_state_init in {"X+", "X-", "Z0", "Z1"}:
-            if target_state_init in {"X+", "X-"}:
-                # Control stabilized by x logical
-                log_x_t = log_strings["t_x"]
-
-                tar_rec = []
-
-                for rec_pos, index in enumerate(data_control + data_target):
-                    if index in log_x_t:
-                        tar_rec.append(rec_pos)
-
-                measure_circuit.append(
-                    "OBSERVABLE_INCLUDE",
-                    [stim.target_rec(-len(data_control + data_target) + k) for k in tar_rec],
-                    0,
-                )
-
-    # --------------------------ONLY-Z----------------------------
-
-    elif flow == "Z -> ZZ":
-        if control_state_init in {"Z0", "Z1"}:
-            if target_state_init in {"Z0", "Z1"}:
-                # Control stabilized by x logical
-                log_z_ct = log_strings["c_z"] + log_strings["t_z"]
-
-                tar_rec = []
-
-                for rec_pos, index in enumerate(data_control + data_target):
-                    if index in log_z_ct:
-                        tar_rec.append(rec_pos)
-
-                measure_circuit.append(
-                    "OBSERVABLE_INCLUDE",
-                    [stim.target_rec(-len(data_control + data_target) + k) for k in tar_rec],
-                    0,
-                )
-
-    elif flow == "ZZ -> Z":
-        if control_state_init in {"Z0", "Z1"}:
-            if target_state_init in {"Z0", "Z1"}:
-                # Control stabilized by x logical
-                log_z_t = log_strings["t_z"]
-
-                tar_rec = []
-
-                for rec_pos, index in enumerate(data_control + data_target):
-                    if index in log_z_t:
-                        tar_rec.append(rec_pos)
-
-                measure_circuit.append(
-                    "OBSERVABLE_INCLUDE",
-                    [stim.target_rec(-len(data_control + data_target) + k) for k in tar_rec],
-                    0,
-                )
-
-    elif flow == "Z -> Z":
-        if control_state_init in {"Z0", "Z1"}:
-            if target_state_init in {"Z0", "Z1", "X+", "X-"}:
-                # Control stabilized by x logical
-                log_z_c = log_strings["c_z"]
-
-                tar_rec = []
-
-                for rec_pos, index in enumerate(data_control + data_target):
-                    if index in log_z_c:
-                        tar_rec.append(rec_pos)
-
-                measure_circuit.append(
-                    "OBSERVABLE_INCLUDE",
-                    [stim.target_rec(-len(data_control + data_target) + k) for k in tar_rec],
-                    0,
-                )
-
-    # -----------------------ONLY-ZX-MIX-------------------------
-
-    elif flow == "ZX -> ZX":
-        if control_state_init in {"Z0", "Z1"}:
-            if target_state_init in {"X+", "X-"}:
-                # Control stabilized by z logical, Target stabilized by x logical
-                combined_log_xz = log_strings["c_z"] + log_strings["t_x"]
-
-                tar_rec = []
-
-                for rec_pos, index in enumerate(data_control + data_target):
-                    if index in combined_log_xz:
-                        tar_rec.append(rec_pos)
-
-                measure_circuit.append(
-                    "OBSERVABLE_INCLUDE",
-                    [stim.target_rec(-len(data_control + data_target) + k) for k in tar_rec],
-                    0,
-                )
-
-    # -----------------------Y-Included-measurements----------------
-
-    elif flow == "YZ -> XY":
-        # RHS: control X, target Y
-        k_count = 0
-
-        # Control X logical -> measure MX on c_x indices
-        c_x = log_strings_shift["c_x"]
-        measure_circuit.append("MX", c_x)
-        k_count += len(c_x)
-
-        # Target Y logical -> measure MZ on z_string, MY on corner, MX on x_string
-        t_y = log_strings["t_y"]
-        measure_circuit.append("MZ", t_y["z_string"])
-        k_count += len(t_y["z_string"])
-
-        measure_circuit.append("MY", t_y["y_corner"])
-        k_count += len(t_y["y_corner"])
-
-        measure_circuit.append("MX", t_y["x_string"])
-        k_count += len(t_y["x_string"])
-
-        # Include last k_count measurements as the observable
-        measure_circuit.append(
-            "OBSERVABLE_INCLUDE",
-            [stim.target_rec(-i) for i in range(1, k_count + 1)],
-            0,
-        )
-
-    elif flow == "YI -> YX":
-        # RHS: control Y, target X
-        k_count = 0
-
-        # Control Y logical
-        c_y = log_strings["c_y"]
-        measure_circuit.append("MZ", c_y["z_string"])
-        k_count += len(c_y["z_string"])
-
-        measure_circuit.append("MY", c_y["y_corner"])
-        k_count += len(c_y["y_corner"])
-
-        measure_circuit.append("MX", c_y["x_string"])
-        k_count += len(c_y["x_string"])
-
-        # Target X logical
-        t_x = log_strings["t_x"]
-        measure_circuit.append("MX", t_x)
-        k_count += len(t_x)
-
-        measure_circuit.append(
-            "OBSERVABLE_INCLUDE",
-            [stim.target_rec(-i) for i in range(1, k_count + 1)],
-            0,
-        )
-
-    elif flow == "YX -> YI":
-        # RHS: control Y, target I (no target logical measurement)
-        k_count = 0
-
-        # Control Y logical
-        c_y = log_strings["c_y"]
-        measure_circuit.append("MZ", c_y["z_string"])
-        k_count += len(c_y["z_string"])
-
-        measure_circuit.append("MY", c_y["y_corner"])
-        k_count += len(c_y["y_corner"])
-
-        measure_circuit.append("MX", c_y["x_string"])
-        k_count += len(c_y["x_string"])
-
-        measure_circuit.append(
-            "OBSERVABLE_INCLUDE",
-            [stim.target_rec(-i) for i in range(1, k_count + 1)],
-            0,
-        )
-
-    elif flow == "YY -> XZ":
-        # RHS: control X, target Z
-        k_count = 0
-
-        # Control X logical
-        c_x = log_strings["c_x"]
-        measure_circuit.append("MX", c_x)
-        k_count += len(c_x)
-
-        # Target Z logical
-        t_z = log_strings["t_z"]
-        measure_circuit.append("MZ", t_z)
-        k_count += len(t_z)
-
-        measure_circuit.append(
-            "OBSERVABLE_INCLUDE",
-            [stim.target_rec(-i) for i in range(1, k_count + 1)],
-            0,
-        )
-
-    elif flow == "IY -> ZY":
-        # RHS: control Z, target Y
-        k_count = 0
-
-        # Control Z logical
-        c_z = log_strings["c_z"]
-        measure_circuit.append("MZ", c_z)
-        k_count += len(c_z)
-
-        # Target Y logical
-        t_y = log_strings["t_y"]
-        measure_circuit.append("MZ", t_y["z_string"])
-        k_count += len(t_y["z_string"])
-
-        measure_circuit.append("MY", t_y["y_corner"])
-        k_count += len(t_y["y_corner"])
-
-        measure_circuit.append("MX", t_y["x_string"])
-        k_count += len(t_y["x_string"])
-
-        measure_circuit.append(
-            "OBSERVABLE_INCLUDE",
-            [stim.target_rec(-i) for i in range(1, k_count + 1)],
-            0,
-        )
-
-    elif flow == "XY -> YZ":
-        # RHS: control Y, target Z
-        k_count = 0
-
-        # Control Y logical
-        c_y = log_strings["c_y"]
-        measure_circuit.append("MZ", c_y["z_string"])
-        k_count += len(c_y["z_string"])
-
-        measure_circuit.append("MY", c_y["y_corner"])
-        k_count += len(c_y["y_corner"])
-
-        measure_circuit.append("MX", c_y["x_string"])
-        k_count += len(c_y["x_string"])
-
-        # Target Z logical
-        t_z = log_strings["t_z"]
-        measure_circuit.append("MZ", t_z)
-        k_count += len(t_z)
-
-        measure_circuit.append(
-            "OBSERVABLE_INCLUDE",
-            [stim.target_rec(-i) for i in range(1, k_count + 1)],
-            0,
-        )
-
-    return measure_circuit

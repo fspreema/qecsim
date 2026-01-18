@@ -187,7 +187,7 @@ class SurgeryGeometry(BaseGeometry):
         # Add Boundary and Surgery Stabilizers
         self._get_boundary_labels()
 
-        if specific_coord is not None:
+        if specific_coord is None:
             # Full Coordinate Dictionary
             return_coords = (
                 self.coords_ancilla | self.coords_target | self.coords_control | self.coords_surgery
