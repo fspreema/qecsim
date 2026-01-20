@@ -63,6 +63,11 @@ class StandardLatticePairings(BasePairings):
     def _attach_boundary(self):
         """
         Adds the 2-body CX Schedule for the *boundary* stabilizers
+
+        -> Due to the Individual Dicts being merched, the ancilla boundarys to control and target
+           are not included in the dict (Double keys not allowed)
+        -> Therefore the boundarys ...-B-A & ...-R-A are not included here
+        -> Instead, we use ....-A-C & ...-L-T
         """
 
         for coords, string in self.patch.items():
@@ -80,12 +85,22 @@ class StandardLatticePairings(BasePairings):
                     ["1-CX", "2-CX"],
                 )
 
-            elif string == "Z-STAB-BOUND-R-A":
+            elif string == "Z-STAB-BOUND-L-T":
+                # Ancilla
+                # elif string == "Z-STAB-BOUND-R-A":
                 pairs = [(coords, q2), (coords, q4)]
                 self._assign_orders(
                     self.stab_to_data,
                     pairs,
                     ["3-CX", "4-CX"],
+                )
+
+                # Normal Target Pairings
+                pairs = [(coords, q1), (coords, q3)]
+                self._assign_orders(
+                    self.stab_to_data,
+                    pairs,
+                    ["5-CX", "6-CX"],
                 )
 
             elif string == "X-STAB-BOUND-A-A":
@@ -96,7 +111,9 @@ class StandardLatticePairings(BasePairings):
                     ["4-CX", "3-CX"],
                 )
 
-            elif string == "X-STAB-BOUND-B-A":
+            elif string == "X-STAB-BOUND-A-C":
+                # Ancilla
+                # elif string == "X-STAB-BOUND-B-A":
                 pairs = [(q2, coords), (q1, coords)]
                 self._assign_orders(
                     self.stab_to_data,
@@ -104,8 +121,8 @@ class StandardLatticePairings(BasePairings):
                     ["2-CX", "1-CX"],
                 )
 
-            elif string == "Z-STAB-BOUND-L-T":
-                pairs = [(coords, q1), (coords, q3)]
+                # Normal Control Pairings
+                pairs = [(q4, coords), (q3, coords)]
                 self._assign_orders(
                     self.stab_to_data,
                     pairs,
@@ -146,14 +163,6 @@ class StandardLatticePairings(BasePairings):
 
             elif string == "Z-STAB-BOUND-R-C":
                 pairs = [(coords, q2), (coords, q4)]
-                self._assign_orders(
-                    self.stab_to_data,
-                    pairs,
-                    ["5-CX", "6-CX"],
-                )
-
-            elif string == "X-STAB-BOUND-A-C":
-                pairs = [(q4, coords), (q3, coords)]
                 self._assign_orders(
                     self.stab_to_data,
                     pairs,

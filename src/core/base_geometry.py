@@ -52,21 +52,23 @@ class BaseGeometry(ABC):
         Returns the index mapping of lattice points.
         """
 
-        index = {}
-        for idx, coord in enumerate(self.coords.keys()):
-            index[coord] = int(idx)
-        return index
+        q2i: dict[complex, int] = {
+            q: i
+            for i, q in enumerate(
+                sorted(self.coords, key=lambda v: (v.real, v.imag)),
+            )
+        }
+
+        return q2i
 
     def _get_i2q(self) -> dict[int, complex]:
         """
         Returns the coordinate mapping of indices.
         """
 
-        index = {}
-        for idx, coord in enumerate(self.coords.keys()):
-            index[int(idx)] = coord
+        i2q: dict[int, complex] = {i: q for q, i in self.q2i.items()}
 
-        return index
+        return i2q
 
     def _get_specific_coords(self, type: str) -> dict[complex, str]:
         """

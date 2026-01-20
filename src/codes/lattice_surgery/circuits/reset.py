@@ -54,8 +54,8 @@ class SurgeryReset:
         reset_circuit = stim.Circuit()
         flow_circuit = stim.Circuit()
 
-        # 1. Reset Ancilla Data Qubits into X Basis and Stabs in Z Basis of Ancilla Patch
-        reset_circuit.append("RX", self.geometry.anc_data_idx)
+        # 1. Reset Stabilizers in Z Basis of Ancilla Patch
+        reset_circuit.append("RZ", self.geometry.all_stab_idx)
 
         # 2. Control Patch
         if self.control_state_init in {"+i", "-i"}:
@@ -85,6 +85,9 @@ class SurgeryReset:
                 state_init=self.target_state_init,
             )
 
+        # Reset Ancilla Patch Data Qubits in X Basis
+        reset_circuit.append("TICK")
+        reset_circuit.append("RX", self.geometry.anc_data_idx)
         reset_circuit.append("TICK")
 
         return reset_circuit, flow_circuit
@@ -123,11 +126,13 @@ class SurgeryReset:
             offset = (self.geometry.distance * 2) + 0j
 
         # Create Y-basis Geometry for the patch
+        # Logical Obsservable can be arbitrary (I think)
         patch_geom_y = SurfaceGeometry(
             distance=self.geometry.distance,
-            offset=offset,
-            starting_stabilizer_x=False,
+            state_init=state_init,
+            logical_observable="Y",
             y_basis=True,
+            offset=offset,
         )
         # OVERRIDE q2i with the global surgery q2i
         patch_geom_y.q2i = self.geometry.q2i
@@ -200,7 +205,7 @@ class SurgeryReset:
         # 1) Control Flow:
         if self.control_state_init in {"+i", "-i"}:
             # Getting Logical Y Pauli Strings for Control
-            y_corner = [log_strings["c_y"]["y_corner"]][0]
+            y_corner = log_strings["c_y"]["y_corner"][0]
             logical_xyz_string = "*".join(
                 [f"Z{idz}" for j, idz in enumerate(log_strings["c_y"]["z_string"])]
                 + [f"Y{y_corner}"]
@@ -229,7 +234,7 @@ class SurgeryReset:
         # 2) Target Flow:
         if self.target_state_init in {"+i", "-i"}:
             # Getting Logical Y Pauli Strings for Control
-            y_corner = [log_strings["t_y"]["y_corner"]][0]
+            y_corner = log_strings["t_y"]["y_corner"][0]
             logical_xyz_string = "*".join(
                 [f"Z{idz}" for j, idz in enumerate(log_strings["t_y"]["z_string"])]
                 + [f"Y{y_corner}"]

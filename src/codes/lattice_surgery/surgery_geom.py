@@ -49,7 +49,6 @@ class SurgeryGeometry(BaseGeometry):
         self.start_stab_x_ancilla = True
         self.start_stab_x_target = False
         self.start_stab_x_control = False
-        self.type = "Surgery"
 
         # Get Coordinates and Indices
         self.coords = self.get_coords()
@@ -131,8 +130,8 @@ class SurgeryGeometry(BaseGeometry):
         # Additional Stabilizer Indices Definitions that are needed
         self.control_target_all_stab_idx = (
             self.control_x_stb_idx
-            + self.control_z_stb_idx
             + self.target_x_stb_idx
+            + self.control_z_stb_idx
             + self.target_z_stb_idx
         )
 
@@ -189,9 +188,12 @@ class SurgeryGeometry(BaseGeometry):
 
         if specific_coord is None:
             # Full Coordinate Dictionary
+            # Careful: Overlapping Coordinates with different labels!
+            # -> This means that some Coordinates will be overwritten in the dict.
             return_coords = (
                 self.coords_ancilla | self.coords_target | self.coords_control | self.coords_surgery
             )
+
         elif specific_coord == "ancilla":
             # Get only Ancilla Coordinates
             return_coords = self.coords_ancilla

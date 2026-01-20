@@ -102,8 +102,8 @@ class SurgeryFinalMeasure:
             "XX -> XI": ["c_x"],
             "IX -> IX": ["t_x"],
             "IZ -> ZZ": ["c_z", "t_z"],
-            "ZZ -> IZ": ["c_z"],
-            "ZI -> ZI": ["t_z"],
+            "ZZ -> IZ": ["t_z"],
+            "ZI -> ZI": ["c_z"],
             "ZX -> ZX": ["c_z", "t_x"],
         }
 
@@ -112,6 +112,7 @@ class SurgeryFinalMeasure:
     def _apply_non_y_measurements(self):
         # Init measure Circuit
         measure_circuit = stim.Circuit()
+        measure_circuit.append("TICK")
 
         if self.geometry.control_state_init in {"+", "-"}:
             measure_circuit.append("MX", self.geometry.control_data_idx)
@@ -140,7 +141,9 @@ class SurgeryFinalMeasure:
         # Get indices of logical operator (can be on both patches) depending on flow
         flow_measurements = self._get_non_y_measurements_for_flow(self.flow)
 
-        logical_string = [self.all_logical_strings[i] for i in flow_measurements]
+        logical_string = []
+        for i in flow_measurements:
+            logical_string.extend(self.all_logical_strings[i])
 
         tar_rec = []
 

@@ -59,6 +59,7 @@ class SurgeryInitialization:
         ct_init_circuit.append("R", self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx)
         ct_init_circuit.append("TICK")
         ct_init_circuit.append("H", self.geometry.anc_x_bdy_b_stb_idx)
+        ct_init_circuit.append("TICK")
 
         # CX Operations for Control and Target qubits
         cx_builder(
@@ -76,8 +77,6 @@ class SurgeryInitialization:
         )
         ct_init_circuit.append("TICK")
         ct_init_circuit.append("M", self.geometry.control_target_all_stab_idx)
-        ct_init_circuit.append("TICK")
-        ct_init_circuit.append("R", self.geometry.control_target_all_stab_idx)
 
         return ct_init_circuit
 

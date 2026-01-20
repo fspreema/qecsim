@@ -1,0 +1,84 @@
+__all__ = ["MeasurementTracker"]
+
+
+class MeasurementTracker:
+    def __init__(self):
+        """
+        Initializes the MeasurementTracker with no measurements and an empty tag dictionary.
+        """
+
+        self.total_measurements = 0
+        # Tags store: {"tag_name": [indices of measurements associated with this tag]}
+        self.tags: dict[str, list[int]] = {}
+
+    def add_previous_measurements(self, count: int):
+        """
+        Adds a specified number of previous measurements to the total count.
+
+        Args:
+            count (int): Number of previous measurements to add.
+        """
+
+        self.total_measurements += count
+
+    def add_measurements(
+        self,
+        measured_qubits: list[int],
+        specific_qubits: list[int] = None,
+        repeats=1,
+        tag: str = None,
+    ):
+        """
+        Adds measurements for the given qubits to the tracker and optionally tags them.
+
+        Args:
+            measured_qubits (list): List of qubit indices to be measured.
+            specific_qubits (list, optional): Specific qubits out of the measured qubits which
+            should be tracked.
+                -> If None, all measured qubits are tracked.
+            repeats (int, optional): Number of times the measurements are repeated.
+                -> Needed if Measurement is inside a stim repeat block.
+            tag (str, optional): Tag to associate with these measurements.
+        """
+
+        if repeats < 1:
+            raise ValueError("Repeats must be at least 1.")
+
+        if repeats != 1 and tag is not None:
+            raise ValueError("Cannot specify both repeats and tag simultaneously.")
+
+        if tag:
+            if specific_qubits is None:
+                # Track all measured qubits: their positions are simply the full range.
+                tracked_positions = [
+                    self.total_measurements + i + 1 for i in range(len(measured_qubits))
+                ]
+            else:
+                # Map the specified qubit IDs to their positions within measured_qubits
+                tracked_positions = []
+                for pos, qubit in enumerate(measured_qubits):
+                    if qubit in specific_qubits:
+                        tracked_positions.append(self.total_measurements + pos + 1)
+
+            self.tags[tag] = tracked_positions
+
+        self.total_measurements += len(measured_qubits) * repeats
+
+    def get_tagged_measurements(self, tag: str) -> list[int]:
+        """
+        Retrieves the measurement indices associated with the given tag.
+
+        Args:
+            tag (str): The tag for which to retrieve measurement indices.
+
+        Returns:
+            list[int]: List of measurement indices associated with the tag.
+        """
+
+        if tag not in self.tags:
+            raise ValueError(f"Tag '{tag}' not found in MeasurementTracker.")
+
+        indices = self.tags[tag]
+
+        # Generate list of measurement indices for the tag
+        return [-self.total_measurements - 1 + i for i in indices]

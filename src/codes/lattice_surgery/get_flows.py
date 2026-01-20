@@ -50,13 +50,13 @@ class SurgeryFlowObservables:
         # Calculating target rec pos
         rec_pos = []
 
-        for index in included_measurements:
-            current_rec_tar = flow_circuit.num_measurements - index
-            rec_pos.append(-current_rec_tar)
+        # for index in included_measurements:
+        #     current_rec_tar = flow_circuit.num_measurements - index
+        #     rec_pos.append(-current_rec_tar)
 
-        # Adding measurements to the logical observable
-        return_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
-        return_circuit.append("TICK")
+        # # Adding measurements to the logical observable
+        # return_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
+        # return_circuit.append("TICK")
 
         return return_circuit
 
@@ -85,8 +85,8 @@ class SurgeryFlowObservables:
             "YZ -> XY": [["t_z_shifted"], ["c_x_shifted", "t_y"]],
             "YX -> YI": [["t_x_shifted"], ["c_y"]],
             "YI -> YX": [[], ["t_x_shifted", "c_y"]],
-            "YY -> XZ": [[], ["c_x", "t_z"]],
-            "IY -> ZY": [[], ["c_z", "t_y"]],
+            "YY -> XZ": [[], ["c_x_shifted", "t_z_shifted"]],
+            "IY -> ZY": [[], ["c_z_shifted", "t_y"]],
             "XY -> YZ": [["c_x_shifted"], ["c_y", "t_z_shifted"]],
         }
 
@@ -132,7 +132,7 @@ class SurgeryFlowObservables:
             elif key.endswith("_y"):
                 # Get indices
                 indices_x = log_strings[key]["x_string"]
-                index_y = log_strings[key]["y_string"]
+                index_y = log_strings[key]["y_corner"]
                 indices_z = log_strings[key]["z_string"]
 
                 # Format terms

@@ -1,6 +1,7 @@
 import stim
 
 from src.codes.lattice_surgery.data_geometry import MasterPairings
+from src.codes.lattice_surgery.measurement_tracker import MeasurementTracker
 from src.codes.lattice_surgery.surgery_geom import SurgeryGeometry
 from src.core.cx_builder import cx_builder
 
@@ -15,10 +16,12 @@ class SurgeryMerge:
         geometry: SurgeryGeometry,
         master_pairings: MasterPairings,
         merging_type: str,
+        tracker: MeasurementTracker,
     ):
         # Preliminary Setup
         self.geometry = geometry
         self.master_pairings = master_pairings
+        self.tracker = tracker
 
         # Getting Specific Merging Type Info
         self.merging_type = merging_type
@@ -36,6 +39,9 @@ class SurgeryMerge:
             self.combined_x_stab_merging_lattices, self.combined_z_stab_merging_lattices = (
                 self.geometry.get_combined_xz_stabs_merging_lattice(merging_type="AC")
             )
+            self.non_det_stab_indices = (
+                self.geometry.surgery_z_l_stb_idx + self.geometry.surgery_z_m_stb_idx
+            )
 
         elif merging_type == "AT":
             self.stab_to_data_curr_merg = self.master_pairings.at_merge_pairings.get_schedule()
@@ -49,6 +55,9 @@ class SurgeryMerge:
             self.combined_x_stab = self.geometry.combined_x_stab_idx_filtered_AT
             self.combined_x_stab_merging_lattices, self.combined_z_stab_merging_lattices = (
                 self.geometry.get_combined_xz_stabs_merging_lattice(merging_type="AT")
+            )
+            self.non_det_stab_indices = (
+                self.geometry.surgery_x_b_stb_idx + self.geometry.surgery_x_m_stb_idx
             )
 
         else:
@@ -94,6 +103,15 @@ class SurgeryMerge:
             "M",
             self.combined_z_stab_merging_lattices + self.combined_x_stab_merging_lattices,
         )
+
+        # Updating Measurement Tracker
+        self.tracker.add_measurements(
+            measured_qubits=self.combined_z_stab_merging_lattices
+            + self.combined_x_stab_merging_lattices,
+            specific_qubits=self.non_det_stab_indices,
+            tag=f"{self.merging_type}_non_deterministc_measurements",
+        )
+
         merge_init_circuit.append("TICK")
 
         merge_init_circuit.append(
@@ -127,6 +145,11 @@ class SurgeryMerge:
         merge_init_circuit.append(
             "M",
             self.x_stab_index_untouched_circ + self.z_stab_index_untouched_circ,
+        )
+
+        # Updating Measurement Tracker
+        self.tracker.add_measurements(
+            measured_qubits=self.x_stab_index_untouched_circ + self.z_stab_index_untouched_circ,
         )
 
         return merge_init_circuit
@@ -165,6 +188,13 @@ class SurgeryMerge:
         )
         merge_round_circuit.append("TICK")
 
+        # Updating Measurement Tracker
+        self.tracker.add_measurements(
+            measured_qubits=self.combined_z_stab_merging_lattices
+            + self.combined_x_stab_merging_lattices,
+            repeats=self.geometry.distance - 1,
+        )
+
         merge_round_circuit.append(
             "R",
             self.combined_z_stab_merging_lattices + self.combined_x_stab_merging_lattices,
@@ -197,6 +227,12 @@ class SurgeryMerge:
         merge_round_circuit.append(
             "M",
             self.x_stab_index_untouched_circ + self.z_stab_index_untouched_circ,
+        )
+
+        # Updating Measurement Tracker
+        self.tracker.add_measurements(
+            measured_qubits=self.x_stab_index_untouched_circ + self.z_stab_index_untouched_circ,
+            repeats=self.geometry.distance - 1,
         )
 
         return merge_round_circuit * (self.geometry.distance - 1)
