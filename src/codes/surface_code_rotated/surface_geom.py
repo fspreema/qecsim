@@ -16,6 +16,7 @@ class SurfaceGeometry(BaseGeometry):
         logical_observable: str,
         y_basis: bool = False,
         offset: complex = 0 + 0j,
+        q2i: dict[complex, int] = None,
     ):
         """
         Initlizes Geometry Class
@@ -23,8 +24,10 @@ class SurfaceGeometry(BaseGeometry):
             distance : int
             offset : complex, default 0+0j
                 Offset of the block in the overall lattice Layout
+            q2i : dict[complex, int], optional
+                Case where the indices are already defined (e.g. in Lattice Surgery)
+                -> Need to reuse the same indices as in the global lattice
         """
-
         if state_init not in {"1", "0", "+", "-", "+i", "-i"}:
             raise ValueError("state_init must be one of '1', '0', '+', '-', '+i', '-i'")
 
@@ -44,11 +47,17 @@ class SurfaceGeometry(BaseGeometry):
 
         # Get Coordinates and Indices
         self.coords = self.get_coords(self.y_basis)
-        self.q2i = self._get_q2i()
+
+        # If q2i is provided use it, otherwise calculate it
+        if q2i is not None:
+            self.q2i = q2i
+        else:
+            self.q2i = self._get_q2i()
+
         self.i2q = self._get_i2q()
 
         # Setting up y-Index
-        self.y_coord = 1 + 1j + offset
+        self.y_coord = (1 + self.offset.real) + (1 + self.offset.imag) * 1j
         self.y_index = self.q2i.get(self.y_coord, None)
         self.data_idx = self._get_specific_indices("DATA")
 

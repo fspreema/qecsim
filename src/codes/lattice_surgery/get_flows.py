@@ -111,6 +111,10 @@ class SurgeryFlowObservables:
                 e.g. ["c_x", "t_z", "t_x_shifted"]
         """
 
+        # If no logical operator strings are given, return identity
+        if logical_operator_strings == []:
+            return "1"
+
         # Get Logical Strings
         log_strings = self.geometry.get_logical_strings()
         log_strings_shifted = self.geometry.get_logical_strings(
@@ -121,14 +125,10 @@ class SurgeryFlowObservables:
         )
 
         terms = []
+
+        # Identify basis based on key endings
         for key in logical_operator_strings:
-            # Identify basis based on key ending
-
-            if key == []:
-                # Empty List means the flow is created from the Identity
-                return 1
-
-            elif key.endswith("_shifted"):
+            if key.endswith("_shifted"):
                 # Determine basis
                 basis = "X" if key.endswith("_x_shifted") else "Z"
 

@@ -54,15 +54,13 @@ class SurgeryReset:
         reset_circuit = stim.Circuit()
         flow_circuit = stim.Circuit()
 
-        # 1. Reset Stabilizers in Z Basis of Ancilla Patch
-        reset_circuit.append("RZ", self.geometry.all_stab_idx)
-
         # 2. Control Patch
         if self.control_state_init in {"+i", "-i"}:
             return_circuit, flow_creation_circuit = self._build_y_patch(
                 patch_type="control",
                 state_init=self.control_state_init,
             )
+            reset_circuit.append("TICK")
             reset_circuit += return_circuit
             flow_circuit += flow_creation_circuit
         else:
@@ -77,6 +75,7 @@ class SurgeryReset:
                 patch_type="target",
                 state_init=self.target_state_init,
             )
+            reset_circuit.append("TICK")
             reset_circuit += return_circuit
             flow_circuit += flow_creation_circuit
         else:
@@ -92,19 +91,26 @@ class SurgeryReset:
         log_strings = self.geometry.get_logical_strings()
 
         if patch_type == "control":
+            # Control Patch
             data_idx = self.geometry.control_data_idx
+            full_stabs = self.geometry.control_x_stb_idx + self.geometry.control_z_stb_idx
             log_z = log_strings["c_z"]
             log_x = log_strings["c_x"]
-        else:  # target
+        else:
+            # Target Patch
             data_idx = self.geometry.target_data_idx
+            full_stabs = self.geometry.target_x_stb_idx + self.geometry.target_z_stb_idx
             log_z = log_strings["t_z"]
             log_x = log_strings["t_x"]
 
-        # 1. Physical Reset
+        # 1. Physical Qubit Reset
         if state_init in {"+", "-"}:
             circ.append("RX", data_idx)
         else:
             circ.append("R", data_idx)
+
+        # 2. Ancilla Qubit Reset -> Always Z Basis
+        circ.append("RZ", full_stabs)
 
         # 2. Logical Operators for state prep
         if state_init == "-":
@@ -116,21 +122,24 @@ class SurgeryReset:
 
     def _build_y_patch(self, patch_type: str, state_init: str) -> stim.Circuit:
         if patch_type == "control":
+            # Control Patch Offset
             offset = 0 + (self.geometry.distance * 2) * 1j
-        else:  # target
+        else:
+            # Target patch Offset
             offset = (self.geometry.distance * 2) + 0j
 
         # Create Y-basis Geometry for the patch
-        # Logical Obsservable can be arbitrary (I think)
+        # Logical Observable can be arbitrary (I think)
         patch_geom_y = SurfaceGeometry(
             distance=self.geometry.distance,
             state_init=state_init,
             logical_observable="Y",
             y_basis=True,
             offset=offset,
+            q2i=self.geometry.q2i,
         )
+
         # OVERRIDE q2i with the global surgery q2i
-        patch_geom_y.q2i = self.geometry.q2i
         patch_geom_y.state_init = state_init
 
         # Create Y-basis Pairings
@@ -213,12 +222,19 @@ class SurgeryReset:
                 [stim.Flow(logical_creation)],
             )
 
+            # Print Creation Flow
+            print("Control Y Creation Flow Control:", logical_creation_rec)
+
             # Adding the Observable
             rec_pos = []
 
-            for index_creation in logical_creation_rec:
-                current_rec_crea = circuit.num_measurements - index_creation
-                rec_pos.append(-current_rec_crea)
+            # Try to map to negative recs if not, unmodified circuit gets returned
+            try:
+                for index_creation in logical_creation_rec:
+                    current_rec_crea = circuit.num_measurements - index_creation
+                    rec_pos.append(-current_rec_crea)
+            except Exception:
+                print("No valid flow found control, skipping observable inclusion.")
 
             observable_circuit.append(
                 "OBSERVABLE_INCLUDE",
@@ -242,12 +258,19 @@ class SurgeryReset:
                 [stim.Flow(logical_creation)],
             )
 
+            # Print Creation Flow
+            print("Target Y Creation Flow Control:", logical_creation_rec)
+
             # Adding the Observable
             rec_pos = []
 
-            for index_creation in logical_creation_rec:
-                current_rec_crea = circuit.num_measurements - index_creation
-                rec_pos.append(-current_rec_crea)
+            # Try to map to negative recs if not, unmodified circuit gets returned
+            try:
+                for index_creation in logical_creation_rec:
+                    current_rec_crea = circuit.num_measurements - index_creation
+                    rec_pos.append(-current_rec_crea)
+            except Exception:
+                print("No valid flow found for target, skipping observable inclusion.")
 
             observable_circuit.append(
                 "OBSERVABLE_INCLUDE",

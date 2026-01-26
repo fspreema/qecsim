@@ -97,14 +97,7 @@ class SurgeryBuilder(BaseClassBuilder):
         return_circuit = stim.Circuit()
 
         # Adding Reset Circuit
-        if self.control_state_init not in {"+i", "-i"} and self.target_state_init not in {
-            "+i",
-            "-i",
-        }:
-            reset_circuit = self._adding_reset_circuit()
-        else:
-            reset_circuit, y_setup_circuit = self._adding_reset_circuit()
-            flow_circuit += y_setup_circuit
+        reset_circuit = self._adding_reset_circuit()
 
         # Adding Initialization Circuit
         flow_circuit += self._adding_initialization_circuit()
@@ -139,13 +132,13 @@ class SurgeryBuilder(BaseClassBuilder):
         return return_circuit
 
     def _adding_reset_circuit(self) -> stim.Circuit:
-        # Adding Reset Circuit (If Y initilization is selected, this includes the
-        # Y creation flow circuit)
+        # Adding Reset Circuit
         reset_circuit_builder = SurgeryReset(
             geometry=self.geometry,
         )
 
         self.reset_circuit = reset_circuit_builder.build_circuit()
+
         return self.reset_circuit
 
     def _adding_initialization_circuit(self) -> stim.Circuit:

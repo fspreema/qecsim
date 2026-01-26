@@ -30,10 +30,11 @@ class SurgeryInitialization:
         # Initialization Circuit
         anc_init_circuit = stim.Circuit()
 
-        # Resetting Ancilla Data Qubits in X Basis
+        # Resetting Ancilla Data Qubits in X Basis and Stabilizers in Z Basis
         # -> This needs to be in the inital circuit as this is the reset
-        #    that needs to be inside the flow_circuit!
+        #    that needs to be inside the flow_circuit! (At least the Data reset)
         anc_init_circuit.append("TICK")
+        anc_init_circuit.append("RZ", self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx)
         anc_init_circuit.append("RX", self.geometry.anc_data_idx)
         anc_init_circuit.append("TICK")
 
