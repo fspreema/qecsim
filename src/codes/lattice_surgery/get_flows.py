@@ -62,9 +62,13 @@ class SurgeryFlowObservables:
 
         except TypeError:
             print(
-                "No Logical Observable for given Flow Type, circuit "
-                "returned without correct observable",
+                "No Logical Observable for given Flow Type, "
+                "circuit returned without correct observable.",
             )
+            print(
+                "These are the available flows for the current circuit:",
+            )
+            self._debug_print_available_flows(flow_circuit=flow_circuit)
 
         # Adding measurements to the logical observable
         return_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
@@ -159,3 +163,11 @@ class SurgeryFlowObservables:
                 terms.extend(f"{basis}{i}" for i in indices)
 
         return "*".join(terms)
+
+    def _debug_print_available_flows(self, flow_circuit: stim.Circuit):
+        """
+        print all available flows for the current circuit provided
+        """
+
+        for flows in flow_circuit.flow_generators():
+            print(flows)

@@ -30,25 +30,14 @@ class SurgeryFinalMeasure:
         is_y_flow = "Y" in self.flow
 
         if is_y_flow:
-            pass
+            return_circuit += self._apply_y_measurements()
         else:
             return_circuit += self._apply_non_y_measurements()
-            return_circuit += self._apply_logical_observables()
+            return_circuit += self._apply_non_y_logical_observables()
 
         return return_circuit
 
     def _apply_y_measurements(self):
-        # Define central flow dictionary
-        y_flow_measurements = {
-            "YZ -> XY": [("control", "X", True), ("target", "Y", False)],
-            "YI -> YX": [("control", "Y", False), ("target", "X", False)],
-            "YX -> YI": [("control", "Y", False)],
-            "YY -> XZ": [("control", "X", False), ("target", "Z", False)],
-            "IY -> ZY": [("control", "Z", False), ("target", "Y", False)],
-            "XY -> YZ": [("control", "Y", False), ("target", "Z", False)],
-        }
-
-    def _meassure_patch_operator(self, patch: str, op_type: str, shifted: bool) -> stim.Circuit:
         """
         Returns a circuit that measures the logical operator of a given patch.
         -> Measure exactly along the logical strings of the patch.
@@ -60,12 +49,84 @@ class SurgeryFinalMeasure:
             shifted (bool): Whether to use the shifted logical strings or not
         """
 
+        # Define central flow dictionary
+        y_flow_measurements = {
+            "YZ -> XY": [("control", "X", True), ("target", "Y", False)],
+            "YI -> YX": [("control", "Y", False), ("target", "X", False)],
+            "YX -> YI": [("control", "Y", False)],
+            "YY -> XZ": [("control", "X", False), ("target", "Z", False)],
+            "IY -> ZY": [("control", "Z", False), ("target", "Y", False)],
+            "XY -> YZ": [("control", "Y", False), ("target", "Z", False)],
+        }
+
         # Init Measure Circuit
         measure_circuit = stim.Circuit()
         measure_circuit.append("TICK")
 
-        if patch == "control":
-            pass
+        # Get measurements to be applied for the given flow
+        for patch, op_type, shifted in y_flow_measurements.get(self.flow, []):
+            # Apply Measurement based on operator type
+            if op_type == "X":
+                # Logical X Measurement
+                key = "c_x" if patch == "control" else "t_x"
+                target_indices = (
+                    self.all_logical_strings_shifted[key]
+                    if shifted
+                    else self.all_logical_strings[key]
+                )
+
+                measure_circuit.append(
+                    "MX",
+                    target_indices,
+                )
+
+                rec_length = len(target_indices)
+
+            elif op_type == "Y":
+                # Logical Y Measurement
+                key = "c_y" if patch == "control" else "t_y"
+                target_dict = (
+                    self.all_logical_strings_shifted[key]
+                    if shifted
+                    else self.all_logical_strings[key]
+                )
+
+                if target_dict["z_string"]:
+                    measure_circuit.append("MZ", target_dict["z_string"])
+                if target_dict["y_corner"]:
+                    measure_circuit.append("MY", target_dict["y_corner"])
+                if target_dict["x_string"]:
+                    measure_circuit.append("MX", target_dict["x_string"])
+
+                # Getting rec length for OBSERVABLE_INCLUDE
+                rec_length = len(
+                    target_dict["z_string"] + target_dict["y_corner"] + target_dict["x_string"],
+                )
+
+            elif op_type == "Z":
+                # Logical Z Measurement
+                key = "c_z" if patch == "control" else "t_z"
+                target_indices = (
+                    self.all_logical_strings_shifted[key]
+                    if shifted
+                    else self.all_logical_strings[key]
+                )
+
+                measure_circuit.append(
+                    "MZ",
+                    target_indices,
+                )
+
+                rec_length = len(target_indices)
+
+            # Adding OBSERVABLE_INCLUDE for the measured logical operator
+            measure_circuit.append(
+                "OBSERVABLE_INCLUDE",
+                [stim.target_rec(-rec_length + k) for k in range(rec_length)],
+                0,
+            )
+
+        return measure_circuit
 
     def _validate_non_y_flow_selection(self, flow: str, patch: str):
         # Creating Dictionary of valid flows in combination with init states
@@ -128,7 +189,7 @@ class SurgeryFinalMeasure:
 
         return measure_circuit
 
-    def _apply_logical_observables(self):
+    def _apply_non_y_logical_observables(self):
         # Init Observable Circuit
         observable_circuit = stim.Circuit()
 

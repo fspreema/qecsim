@@ -24,7 +24,7 @@ class SurgeryReset:
 
         # Getting Y-Basis Stab to Data Information
 
-    def build_circuit(self) -> stim.Circuit:
+    def build_circuit(self) -> tuple[stim.Circuit, stim.Circuit]:
         circuit = stim.Circuit()
 
         # Adding Coords
@@ -38,9 +38,9 @@ class SurgeryReset:
         if self.control_state_init in {"+i", "-i"} or self.target_state_init in {"+i", "-i"}:
             circuit += self._getting_y_observable(flow_circuit)
 
-        return circuit
+        return circuit, flow_circuit
 
-    def _adding_coords(self):
+    def _adding_coords(self) -> stim.Circuit:
         coord_circuit = stim.Circuit()
 
         # Appending Coords
@@ -49,7 +49,7 @@ class SurgeryReset:
 
         return coord_circuit
 
-    def _adding_resets(self):
+    def _adding_resets(self) -> tuple[stim.Circuit, stim.Circuit]:
         # Init Reset Circuit
         reset_circuit = stim.Circuit()
         flow_circuit = stim.Circuit()
@@ -199,7 +199,7 @@ class SurgeryReset:
 
         return patch_circuit, flow_circuit
 
-    def _getting_y_observable(self, circuit: stim.Circuit):
+    def _getting_y_observable(self, circuit: stim.Circuit) -> stim.Circuit:
         # Init return circuit
         observable_circuit = stim.Circuit()
 

@@ -223,17 +223,10 @@ class SurgerySplit:
 
         split_final_circuit.append("R", self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx)
         split_final_circuit.append("TICK")
-
         split_final_circuit.append("H", self.geometry.anc_x_bdy_b_stb_idx)
         split_final_circuit.append("TICK")
 
-        # Adding Conditional Operations depending on non-deterministic measurements
-        # Corrections appliead after all splits/ merges i.e. in AT split
-        if self.split_type in {"AT"}:
-            split_final_circuit += self._get_conditional_operations()
-
         # Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
-        split_final_circuit.append("TICK")
         cx_builder(
             q2i=self.geometry.q2i,
             stab_to_data=self.master_pairings.std_pairings.get_schedule(),
@@ -254,6 +247,12 @@ class SurgerySplit:
         self.tracker.add_measurements(
             measured_qubits=self.geometry.control_target_all_stab_idx,
         )
+
+        # Adding Conditional Operations depending on non-deterministic measurements
+        # Corrections appliead after all splits/ merges i.e. in AT split
+        if self.split_type in {"AT"}:
+            split_final_circuit.append("TICK")
+            split_final_circuit += self._get_conditional_operations()
 
         return split_final_circuit
 
