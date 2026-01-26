@@ -47,16 +47,27 @@ class SurgeryFlowObservables:
             ],
         )
 
+        # Print Flow Info
+        print("Logical Flow from Circuit:")
+        print(start_string, "->", end_string)
+
         # Calculating target rec pos
         rec_pos = []
 
-        # for index in included_measurements:
-        #     current_rec_tar = flow_circuit.num_measurements - index
-        #     rec_pos.append(-current_rec_tar)
+        # Adding Measurements to the Observable if solution exists
+        try:
+            for index in included_measurements:
+                current_rec_tar = flow_circuit.num_measurements - index
+                rec_pos.append(-current_rec_tar)
 
-        # # Adding measurements to the logical observable
-        # return_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
-        # return_circuit.append("TICK")
+        except TypeError:
+            print(
+                "No Logical Observable for given Flow Type, circuit "
+                "returned without correct observable",
+            )
+
+        # Adding measurements to the logical observable
+        return_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
 
         return return_circuit
 

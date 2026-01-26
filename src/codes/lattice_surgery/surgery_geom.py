@@ -22,7 +22,7 @@ class SurgeryGeometry(BaseGeometry):
         Layout:
             Ancilla (Top-Left) | Target (Top-Right)
             -------------------|-------------------
-            Control (Bot-Left) | (Empty/Surgery)
+            Control (Bot-Left) |      (Empty)
         """
 
         # Check valid State Initializations
@@ -213,6 +213,7 @@ class SurgeryGeometry(BaseGeometry):
         Returns the filtered list of X stabilizer indices depending on the merging type
         -> If no merging type is given, returns filtered list for initialization
         -> If AT merging is selected, additional surgery stabilizers are added
+           (AC has only additional Z surgery stabilizers)
         """
 
         if merging_type == "AT":

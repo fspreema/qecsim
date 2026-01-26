@@ -25,7 +25,6 @@ class MeasurementTracker:
         self,
         measured_qubits: list[int],
         specific_qubits: list[int] = None,
-        repeats=1,
         tag: str = None,
     ):
         """
@@ -36,16 +35,13 @@ class MeasurementTracker:
             specific_qubits (list, optional): Specific qubits out of the measured qubits which
             should be tracked.
                 -> If None, all measured qubits are tracked.
+            specific_round (int, optional): Specific round in which the specific_qubits selected
+            or the whole meeasurement block should be tracked.
+                -> Used for measurements inside a stim repeat block.
             repeats (int, optional): Number of times the measurements are repeated.
                 -> Needed if Measurement is inside a stim repeat block.
             tag (str, optional): Tag to associate with these measurements.
         """
-
-        if repeats < 1:
-            raise ValueError("Repeats must be at least 1.")
-
-        if repeats != 1 and tag is not None:
-            raise ValueError("Cannot specify both repeats and tag simultaneously.")
 
         if tag:
             if specific_qubits is None:
@@ -60,9 +56,12 @@ class MeasurementTracker:
                     if qubit in specific_qubits:
                         tracked_positions.append(self.total_measurements + pos + 1)
 
-            self.tags[tag] = tracked_positions
+            # Apply offset to all tracked positions
+            final_positions = [pos for pos in tracked_positions]
 
-        self.total_measurements += len(measured_qubits) * repeats
+            self.tags[tag] = final_positions
+
+        self.total_measurements += len(measured_qubits)
 
     def get_tagged_measurements(self, tag: str) -> list[int]:
         """

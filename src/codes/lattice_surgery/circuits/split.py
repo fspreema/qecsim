@@ -150,12 +150,6 @@ class SurgerySplit:
         split_repeat_circuit.append("M", self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx)
         split_repeat_circuit.append("TICK")
 
-        # Tracking Measurements
-        self.tracker.add_measurements(
-            measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
-            repeats=self.geometry.distance - 2,
-        )
-
         split_repeat_circuit.append("R", self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx)
         split_repeat_circuit.append("TICK")
 
@@ -177,14 +171,16 @@ class SurgerySplit:
             self.geometry.control_x_stb_idx + self.geometry.target_x_stb_idx,
         )
         split_repeat_circuit.append("TICK")
-
         split_repeat_circuit.append("M", self.geometry.control_target_all_stab_idx)
 
         # Tracking Measurements
-        self.tracker.add_measurements(
-            measured_qubits=self.geometry.control_target_all_stab_idx,
-            repeats=self.geometry.distance - 2,
-        )
+        for _ in range(self.geometry.distance - 2):
+            self.tracker.add_measurements(
+                measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
+            )
+            self.tracker.add_measurements(
+                measured_qubits=self.geometry.control_target_all_stab_idx,
+            )
 
         return split_repeat_circuit * (self.geometry.distance - 2)
 
@@ -231,7 +227,13 @@ class SurgerySplit:
         split_final_circuit.append("H", self.geometry.anc_x_bdy_b_stb_idx)
         split_final_circuit.append("TICK")
 
+        # Adding Conditional Operations depending on non-deterministic measurements
+        # Corrections appliead after all splits/ merges i.e. in AT split
+        if self.split_type in {"AT"}:
+            split_final_circuit += self._get_conditional_operations()
+
         # Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
+        split_final_circuit.append("TICK")
         cx_builder(
             q2i=self.geometry.q2i,
             stab_to_data=self.master_pairings.std_pairings.get_schedule(),
@@ -247,17 +249,15 @@ class SurgerySplit:
         )
         split_final_circuit.append("TICK")
         split_final_circuit.append("M", self.geometry.control_target_all_stab_idx)
-        split_final_circuit.append("TICK")
 
         # Tracking Measurements
         self.tracker.add_measurements(
             measured_qubits=self.geometry.control_target_all_stab_idx,
         )
 
-        ################################################################################
-        # Finding newly generated Stabilizer postion in the Measurement-Rec of the Merge
-        ################################################################################
+        return split_final_circuit
 
+    def _get_conditional_operations(self):
         """
         We need logical X or Z corrections depending on the non determinstic measurement outcome of
         the newly introduzed stabilizers on the merge (i.e. the old boundary stabilizers)
@@ -265,54 +265,59 @@ class SurgerySplit:
         -> Use measurement tracker to find the correct record targets which where tagged
         """
 
-        if self.split_type == "AC":
-            logical_obs_rec_tar = self.tracker.get_tagged_measurements(
-                tag="AC_non_deterministc_measurements",
-            )
-
-        elif self.split_type == "AT":
-            logical_obs_rec_tar = self.tracker.get_tagged_measurements(
-                tag="AT_non_deterministc_measurements",
-            )
+        # init return Circuit
+        conditional_operations_circuit = stim.Circuit()
 
         ####################################
         # Adding Conditional CZ/CX-Operators
         ####################################
 
-        if self.split_type == "AC":
-            for records in logical_obs_rec_tar:
+        # Getting Measurement recs from tracker
+        logical_obs_rec_tar_ac = self.tracker.get_tagged_measurements(
+            tag="AC_non_deterministic_measurements",
+        )
+
+        logical_obs_rec_tar_at = self.tracker.get_tagged_measurements(
+            tag="AT_non_deterministic_measurements",
+        )
+
+        for records in logical_obs_rec_tar_at:
+            for data in self.log_strings["t_z"]:
+                conditional_operations_circuit.append("CZ", [stim.target_rec(records + 8), data])
+
+        ###################################
+        # Measuring Ancilla in the Z Basis
+        ###################################
+
+        # Measuring Data
+        conditional_operations_circuit.append("TICK")
+        conditional_operations_circuit.append("MZ", self.geometry.anc_data_idx)
+        conditional_operations_circuit.append("TICK")
+
+        # Tracking Measurements
+        self.tracker.add_measurements(
+            measured_qubits=self.geometry.anc_data_idx,
+        )
+
+        # Adding the conditional Gate on Control (XORing two measurements)
+        # 1) Z measurements on data Ancilla
+        for rec_tar, index in enumerate(self.geometry.anc_data_idx):
+            if index in self.log_strings["a_z"]:
                 for data in self.log_strings["c_x"]:
-                    split_final_circuit.append("CX", [stim.target_rec(records), data])
+                    conditional_operations_circuit.append(
+                        "CX",
+                        [stim.target_rec(-len(self.geometry.anc_data_idx) + rec_tar), data],
+                    )
 
-        elif self.split_type == "AT":
-            for records in logical_obs_rec_tar:
-                for data in self.log_strings["t_z"]:
-                    split_final_circuit.append("CZ", [stim.target_rec(records), data])
+        # 2) XOR from AC non deterministic ZZ measurement
+        for records in logical_obs_rec_tar_ac:
+            for data in self.log_strings["c_x"]:
+                conditional_operations_circuit.append(
+                    "CX",
+                    [stim.target_rec(records + 8), data],
+                )
 
-            ###################################
-            # Measuring Ancilla in the Z Basis
-            ###################################
-
-            # Measuring Data
-            split_final_circuit.append("TICK")
-            split_final_circuit.append("MZ", self.geometry.anc_data_idx)
-            split_final_circuit.append("TICK")
-
-            # Tracking Measurements
-            self.tracker.add_measurements(
-                measured_qubits=self.geometry.anc_data_idx,
-            )
-
-            # Adding the conditional Gate on Control
-            for rec_tar, index in enumerate(self.geometry.anc_data_idx):
-                if index in self.log_strings["a_z"]:
-                    for data in self.log_strings["c_x"]:
-                        split_final_circuit.append(
-                            "CX",
-                            [stim.target_rec(-len(self.geometry.anc_data_idx) + rec_tar), data],
-                        )
-
-        return split_final_circuit
+        return conditional_operations_circuit
 
     def _get_detectors(self):
         """

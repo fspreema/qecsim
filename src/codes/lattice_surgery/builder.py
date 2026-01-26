@@ -145,7 +145,8 @@ class SurgeryBuilder(BaseClassBuilder):
             geometry=self.geometry,
         )
 
-        return reset_circuit_builder.build_circuit()
+        self.reset_circuit = reset_circuit_builder.build_circuit()
+        return self.reset_circuit
 
     def _adding_initialization_circuit(self) -> stim.Circuit:
         # Adding Initialization Circuit
@@ -158,9 +159,18 @@ class SurgeryBuilder(BaseClassBuilder):
         return self.init_circuit
 
     def _adding_merge(self, type: str) -> stim.Circuit:
+        # Count all previous measurements form init and reset circuits
+        if isinstance(self.reset_circuit, tuple):
+            num_measurements_reset = (
+                self.reset_circuit[0].num_measurements + self.reset_circuit[1].num_measurements
+            )
+        else:
+            num_measurements_reset = self.reset_circuit.num_measurements
+
         # Updating Measurement Tracker
+        all_prev_measurements = num_measurements_reset + self.init_circuit.num_measurements
         self.tracker.add_previous_measurements(
-            count=self.init_circuit.num_measurements,
+            count=all_prev_measurements,
         )
 
         # Adding Merge Circuit

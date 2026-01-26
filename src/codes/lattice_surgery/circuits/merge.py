@@ -108,8 +108,6 @@ class SurgeryMerge:
         self.tracker.add_measurements(
             measured_qubits=self.combined_z_stab_merging_lattices
             + self.combined_x_stab_merging_lattices,
-            specific_qubits=self.non_det_stab_indices,
-            tag=f"{self.merging_type}_non_deterministc_measurements",
         )
 
         merge_init_circuit.append("TICK")
@@ -188,13 +186,6 @@ class SurgeryMerge:
         )
         merge_round_circuit.append("TICK")
 
-        # Updating Measurement Tracker
-        self.tracker.add_measurements(
-            measured_qubits=self.combined_z_stab_merging_lattices
-            + self.combined_x_stab_merging_lattices,
-            repeats=self.geometry.distance - 1,
-        )
-
         merge_round_circuit.append(
             "R",
             self.combined_z_stab_merging_lattices + self.combined_x_stab_merging_lattices,
@@ -229,10 +220,21 @@ class SurgeryMerge:
             self.x_stab_index_untouched_circ + self.z_stab_index_untouched_circ,
         )
 
-        # Updating Measurement Tracker
-        self.tracker.add_measurements(
-            measured_qubits=self.x_stab_index_untouched_circ + self.z_stab_index_untouched_circ,
-            repeats=self.geometry.distance - 1,
-        )
+        # Updating Measurement Trackers
+        for curr_round in range(self.geometry.distance - 1):
+            # Updating Non Deterministic Measurement Tracker
+            self.tracker.add_measurements(
+                measured_qubits=self.combined_z_stab_merging_lattices
+                + self.combined_x_stab_merging_lattices,
+                specific_qubits=self.non_det_stab_indices,
+                tag=f"{self.merging_type}_non_deterministic_measurements"
+                if curr_round == self.geometry.distance - 2
+                else None,
+            )
+
+            # Updating Determisntic Measurement Tracker
+            self.tracker.add_measurements(
+                measured_qubits=self.x_stab_index_untouched_circ + self.z_stab_index_untouched_circ,
+            )
 
         return merge_round_circuit * (self.geometry.distance - 1)

@@ -85,11 +85,6 @@ class SurgeryReset:
                 state_init=self.target_state_init,
             )
 
-        # Reset Ancilla Patch Data Qubits in X Basis
-        reset_circuit.append("TICK")
-        reset_circuit.append("RX", self.geometry.anc_data_idx)
-        reset_circuit.append("TICK")
-
         return reset_circuit, flow_circuit
 
     def _build_std_patch(self, patch_type: str, state_init: str) -> stim.Circuit:
