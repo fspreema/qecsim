@@ -65,10 +65,12 @@ class SurgeryFlowObservables:
                 "No Logical Observable for given Flow Type, "
                 "circuit returned without correct observable.",
             )
-            print(
-                "These are the available flows for the current circuit that include similar terms:",
-            )
-            self._debug_print_available_flows(flow_circuit=flow_circuit)
+
+        # Debug Print Available Flows
+        print(
+            "These are the available flows for the current circuit that include similar terms:",
+        )
+        self._debug_print_available_flows(flow_circuit=flow_circuit)
 
         # Adding measurements to the logical observable
         return_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
