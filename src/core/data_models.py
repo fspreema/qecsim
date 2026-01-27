@@ -1,9 +1,5 @@
 from dataclasses import dataclass
 
-# --------------------------
-# Shared Helper Dataclasses
-# --------------------------
-
 __all__ = ["NoiseParameters"]
 
 

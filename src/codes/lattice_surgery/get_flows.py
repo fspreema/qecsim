@@ -66,7 +66,7 @@ class SurgeryFlowObservables:
                 "circuit returned without correct observable.",
             )
             print(
-                "These are the available flows for the current circuit:",
+                "These are the available flows for the current circuit that include similar terms:",
             )
             self._debug_print_available_flows(flow_circuit=flow_circuit)
 
@@ -164,10 +164,16 @@ class SurgeryFlowObservables:
 
         return "*".join(terms)
 
-    def _debug_print_available_flows(self, flow_circuit: stim.Circuit):
+    def _debug_print_available_flows(self, flow_circuit: stim.Circuit, must_have: list[str] = None):
         """
-        print all available flows for the current circuit provided
+        Returns all available flows or if must_have is specified only those containing all the
+        strings listed
         """
 
-        for flows in flow_circuit.flow_generators():
-            print(flows)
+        available_flows = flow_circuit.flow_generators()
+        for flow in available_flows:
+            if must_have is not None:
+                if all(item in str(flow) for item in must_have):
+                    print(flow)
+            else:
+                print(flow)

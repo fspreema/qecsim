@@ -223,7 +223,9 @@ class SurgeryReset:
             )
 
             # Print Creation Flow
-            print("Control Y Creation Flow Control:", logical_creation_rec)
+            print("Control Y Creation Flow Control:", "1 ->", logical_xyz_string)
+            print("All available Y flows for debugging:")
+            self._debug_print_available_flows(circuit, must_have=["Y", "X", "Z"])
 
             # Adding the Observable
             rec_pos = []
@@ -244,7 +246,7 @@ class SurgeryReset:
 
         # 2) Target Flow:
         if self.target_state_init in {"+i", "-i"}:
-            # Getting Logical Y Pauli Strings for Control
+            # Getting Logical Y Pauli Strings for Target
             y_corner = log_strings["t_y"]["y_corner"][0]
             logical_xyz_string = "*".join(
                 [f"Z{idz}" for j, idz in enumerate(log_strings["t_y"]["z_string"])]
@@ -259,7 +261,9 @@ class SurgeryReset:
             )
 
             # Print Creation Flow
-            print("Target Y Creation Flow Control:", logical_creation_rec)
+            print("Control Y Creation Flow Target:", "1 ->", logical_xyz_string)
+            print("All available Y flows for debugging:")
+            self._debug_print_available_flows(circuit, must_have=["Y", "X", "Z"])
 
             # Adding the Observable
             rec_pos = []
@@ -279,3 +283,17 @@ class SurgeryReset:
             )
 
         return observable_circuit
+
+    def _debug_print_available_flows(self, flow_circuit: stim.Circuit, must_have: list[str] = None):
+        """
+        Returns all available flows or if must_have is specified only those containing all the
+        strings listed
+        """
+
+        available_flows = flow_circuit.flow_generators()
+        for flow in available_flows:
+            if must_have is not None:
+                if all(item in str(flow) for item in must_have):
+                    print(flow)
+            else:
+                print(flow)
