@@ -97,8 +97,7 @@ class SurgeryBuilder(BaseClassBuilder):
         return_circuit = stim.Circuit()
 
         # Adding Reset Circuit
-        reset_circuit, flow_circuit_reset = self._adding_reset_circuit()
-        flow_circuit += flow_circuit_reset
+        reset_circuit = self._adding_reset_circuit()
 
         # Adding Initialization Circuit
         flow_circuit += self._adding_initialization_circuit()
@@ -138,9 +137,9 @@ class SurgeryBuilder(BaseClassBuilder):
             geometry=self.geometry,
         )
 
-        self.reset_circuit, flow_circuit_reset = reset_circuit_builder.build_circuit()
+        self.reset_circuit = reset_circuit_builder.build_circuit()
 
-        return self.reset_circuit, flow_circuit_reset
+        return self.reset_circuit
 
     def _adding_initialization_circuit(self) -> stim.Circuit:
         # Adding Initialization Circuit

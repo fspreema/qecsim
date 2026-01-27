@@ -26,6 +26,9 @@ class SurgeryFlowObservables:
         -> These are then applied to the circuit as additional measurement
         records to the same observable
 
+        If We are in the Y Basis the Flows are calculated by the X and Z flows combined.
+        -> So X and Z flows are calculated seperatly and then combined into one observable
+
         Returns:
             stim.Circuit: Corrected Circuit with the correct logical observable included
         """
@@ -34,29 +37,63 @@ class SurgeryFlowObservables:
         return_circuit = stim.Circuit()
 
         # Get Pauli Strings for Flow
-        pauli_start, pauli_end = self._get_pauli_strings_for_flows(flow_type=flow_type)
+        if "Y" in flow_type:
+            # Get Info out of Flow Dictionary
+            flow_pauli_strings = self._get_pauli_strings_for_flows(flow_type=flow_type)
+            pauli_start_x, pauli_end_x = flow_pauli_strings[0]
+            pauli_start_z, pauli_end_z = flow_pauli_strings[1]
 
-        # Construct Full Pauli Strings
-        start_string = self._construct_pauli_string(logical_operator_strings=pauli_start)
-        end_string = self._construct_pauli_string(logical_operator_strings=pauli_end)
+            # Construct Full Pauli Strings
+            start_string_x = self._construct_pauli_string(logical_operator_strings=pauli_start_x)
+            end_string_x = self._construct_pauli_string(logical_operator_strings=pauli_end_x)
+            start_string_z = self._construct_pauli_string(logical_operator_strings=pauli_start_z)
+            end_string_z = self._construct_pauli_string(logical_operator_strings=pauli_end_z)
 
-        # Determine Flow Measurements
-        (included_measurements,) = flow_circuit.solve_flow_measurements(
-            [
-                stim.Flow(f"{start_string} -> {end_string}"),
-            ],
-        )
+            # Determine Flow sign -> YY -> -XZ
+            flow_sign = ""
+            if flow_type == "YY -> XZ":
+                flow_sign = "-"
 
-        # Print Flow Info
-        print("Logical Flow from Circuit:")
-        print(start_string, "->", end_string)
+            # Determine Flow Measurements
+            (included_measurements_x,) = flow_circuit.solve_flow_measurements(
+                [
+                    stim.Flow(f"{start_string_x} -> {flow_sign}{end_string_x}"),
+                ],
+            )
+            print(start_string_x, end_string_x, included_measurements_x)
+            (included_measurements_z,) = flow_circuit.solve_flow_measurements(
+                [
+                    stim.Flow(f"{start_string_z} -> {end_string_z}"),
+                ],
+            )
+            print(start_string_z, end_string_z, included_measurements_z)
+
+            # Full list of measurements
+            if included_measurements_x is None or included_measurements_z is None:
+                full_measurements = None
+            else:
+                full_measurements = included_measurements_x + included_measurements_z
+
+        else:
+            pauli_start, pauli_end = self._get_pauli_strings_for_flows(flow_type=flow_type)
+
+            # Construct Full Pauli Strings
+            start_string = self._construct_pauli_string(logical_operator_strings=pauli_start)
+            end_string = self._construct_pauli_string(logical_operator_strings=pauli_end)
+
+            # Determine Flow Measurements
+            (full_measurements,) = flow_circuit.solve_flow_measurements(
+                [
+                    stim.Flow(f"{start_string} -> {end_string}"),
+                ],
+            )
 
         # Calculating target rec pos
         rec_pos = []
 
         # Adding Measurements to the Observable if solution exists
         try:
-            for index in included_measurements:
+            for index in full_measurements:
                 current_rec_tar = flow_circuit.num_measurements - index
                 rec_pos.append(-current_rec_tar)
 
@@ -65,12 +102,6 @@ class SurgeryFlowObservables:
                 "No Logical Observable for given Flow Type, "
                 "circuit returned without correct observable.",
             )
-
-        # Debug Print Available Flows
-        print(
-            "These are the available flows for the current circuit that include similar terms:",
-        )
-        self._debug_print_available_flows(flow_circuit=flow_circuit)
 
         # Adding measurements to the logical observable
         return_circuit.append("OBSERVABLE_INCLUDE", [stim.target_rec(k) for k in rec_pos], 0)
@@ -98,16 +129,43 @@ class SurgeryFlowObservables:
             "ZI -> ZI": [["c_z"], ["c_z"]],
             # Mixed Logical Strings
             "ZX -> ZX": [["c_z", "t_x"], ["c_z", "t_x"]],
-            # Y Logical Strings
-            "YZ -> XY": [["t_z_shifted"], ["c_x_shifted", "t_y"]],
-            "YX -> YI": [["t_x_shifted"], ["c_y"]],
-            "YI -> YX": [[], ["t_x_shifted", "c_y"]],
-            "YY -> XZ": [[], ["c_x_shifted", "t_z_shifted"]],
-            "IY -> ZY": [[], ["c_z_shifted", "t_y"]],
-            "XY -> YZ": [["c_x_shifted"], ["c_y", "t_z_shifted"]],
         }
 
-        return flow_dict.get(flow_type, [[], []])
+        # Define Y flow dict by just adding XZ flows
+        flow_dict_y = {
+            "YZ -> XY": [
+                [["c_x_shifted"], ["c_x_shifted", "t_x_shifted"]],
+                [["c_z_shifted", "t_z_shifted"], ["t_z_shifted"]],
+            ],
+            "YX -> YI": [
+                [["c_x_shifted", "t_x_shifted"], ["c_x_shifted"]],
+                [["c_z_shifted"], ["c_z_shifted"]],
+            ],
+            "YI -> YX": [
+                [["c_x_shifted"], ["c_x_shifted", "t_x"]],
+                [["c_z_shifted"], ["c_z_shifted"]],
+            ],
+            "YY -> XZ": [
+                [["c_x_shifted", "t_x_shifted"], ["c_x_shifted"]],
+                [["c_z_shifted", "t_z_shifted"], ["t_z_shifted"]],
+            ],
+            "IY -> ZY": [
+                [["t_x_shifted"], ["t_x_shifted"]],
+                [["t_z_shifted"], ["c_z", "t_z_shifted"]],
+            ],
+            "XY -> YZ": [
+                [["c_x_shifted", "t_x_shifted"], ["c_x_shifted"]],
+                [["t_z_shifted"], ["c_z_shifted", "t_z"]],
+            ],
+        }
+
+        # Determine which flow dict to use
+        if flow_type in flow_dict_y:
+            return flow_dict_y[flow_type]
+        elif flow_type in flow_dict:
+            return flow_dict[flow_type]
+        else:
+            raise ValueError(f"Flow Type {flow_type} not recognized.")
 
     def _construct_pauli_string(self, logical_operator_strings: list[str]) -> str:
         """
@@ -116,10 +174,6 @@ class SurgeryFlowObservables:
             logical_operator_strings (list[str]): List of logical operator strings
                 e.g. ["c_x", "t_z", "t_x_shifted"]
         """
-
-        # If no logical operator strings are given, return identity
-        if logical_operator_strings == []:
-            return "1"
 
         # Get Logical Strings
         log_strings = self.geometry.get_logical_strings()

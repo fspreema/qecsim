@@ -24,7 +24,7 @@ class SurgeryReset:
 
         # Getting Y-Basis Stab to Data Information
 
-    def build_circuit(self) -> tuple[stim.Circuit, stim.Circuit]:
+    def build_circuit(self) -> stim.Circuit:
         circuit = stim.Circuit()
 
         # Adding Coords
@@ -38,7 +38,7 @@ class SurgeryReset:
         if self.control_state_init in {"+i", "-i"} or self.target_state_init in {"+i", "-i"}:
             circuit += self._getting_y_observable(flow_circuit)
 
-        return circuit, flow_circuit
+        return circuit
 
     def _adding_coords(self) -> stim.Circuit:
         coord_circuit = stim.Circuit()
@@ -56,9 +56,10 @@ class SurgeryReset:
 
         # 2. Control Patch
         if self.control_state_init in {"+i", "-i"}:
-            return_circuit, flow_creation_circuit = self._build_y_patch(
+            return_circuit, flow_creation_circuit = self._y_patch_builder(
                 patch_type="control",
                 state_init=self.control_state_init,
+                fault_tolerant=False,
             )
             reset_circuit.append("TICK")
             reset_circuit += return_circuit
@@ -71,9 +72,10 @@ class SurgeryReset:
 
         # 3. Target Patch
         if self.target_state_init in {"+i", "-i"}:
-            return_circuit, flow_creation_circuit = self._build_y_patch(
+            return_circuit, flow_creation_circuit = self._y_patch_builder(
                 patch_type="target",
                 state_init=self.target_state_init,
+                fault_tolerant=False,
             )
             reset_circuit.append("TICK")
             reset_circuit += return_circuit
@@ -120,7 +122,68 @@ class SurgeryReset:
 
         return circ
 
-    def _build_y_patch(self, patch_type: str, state_init: str) -> stim.Circuit:
+    def _y_patch_builder(
+        self,
+        patch_type: str,
+        state_init: str,
+        fault_tolerant: bool,
+    ) -> tuple[stim.Circuit, stim.Circuit]:
+        """
+        Builds a Y-Basis Patch Circuit
+
+        - Fault Tolerant True:
+            Full Inplace Access of Y Basis Patch proposed by Gidney (i.e. Y-Switch etc.)
+        - Fault Tolerant False:
+            Simple Reset in the exact Basis where the paulis of the logical operator lie.
+        """
+
+        if fault_tolerant:
+            return self._ft_y_patch(patch_type, state_init)
+        else:
+            return self._non_ft_y_patch(patch_type, state_init)
+
+    def _non_ft_y_patch(
+        self,
+        patch_type: str,
+        state_init: str,
+    ) -> tuple[stim.Circuit, stim.Circuit]:
+        # Get logical string
+        log_strings = self.geometry.get_logical_strings()
+
+        # Initialize Measurement Circuit
+        reset_circuit = stim.Circuit()
+        flow_circuit = stim.Circuit()
+
+        if patch_type == "control":
+            # Control Patch Offset
+            y_corner = log_strings["c_y"]["y_corner"][0]
+            x_string = log_strings["c_y"]["x_string"]
+            z_string = log_strings["c_y"]["z_string"]
+        else:
+            # Target patch Offset
+            y_corner = log_strings["t_y"]["y_corner"][0]
+            x_string = log_strings["t_y"]["x_string"]
+            z_string = log_strings["t_y"]["z_string"]
+
+        # Add Measurements
+        reset_circuit.append("RY", [y_corner])
+        reset_circuit.append("RX", x_string)
+        reset_circuit.append("RZ", z_string)
+
+        # Add Logical Flip if needed
+        if state_init == "-i":
+            reset_circuit.append("Y", [y_corner])
+            reset_circuit.append("Z", z_string)
+            reset_circuit.append("X", x_string)
+
+        return reset_circuit, flow_circuit
+
+    def _ft_y_patch(self, patch_type: str, state_init: str) -> tuple[stim.Circuit, stim.Circuit]:
+        """
+        Implements the Fault Tolerant Y Basis Patch Reset + Initialization + Y-Memory + Y-Switch
+        as proposed by Gidney. (arXiv:2302.07395)
+        """
+
         if patch_type == "control":
             # Control Patch Offset
             offset = 0 + (self.geometry.distance * 2) * 1j
@@ -222,11 +285,6 @@ class SurgeryReset:
                 [stim.Flow(logical_creation)],
             )
 
-            # Print Creation Flow
-            print("Control Y Creation Flow Control:", "1 ->", logical_xyz_string)
-            print("All available Y flows for debugging:")
-            self._debug_print_available_flows(circuit, must_have=["Y", "X", "Z"])
-
             # Adding the Observable
             rec_pos = []
 
@@ -238,11 +296,13 @@ class SurgeryReset:
             except Exception:
                 print("No valid flow found control, skipping observable inclusion.")
 
-            observable_circuit.append(
-                "OBSERVABLE_INCLUDE",
-                [stim.target_rec(k) for k in rec_pos],
-                0,
-            )
+            # Adding Measurement Rec Correction given by Flow
+            if rec_pos != []:
+                observable_circuit.append(
+                    "OBSERVABLE_INCLUDE",
+                    [stim.target_rec(k) for k in rec_pos],
+                    0,
+                )
 
         # 2) Target Flow:
         if self.target_state_init in {"+i", "-i"}:
@@ -260,11 +320,6 @@ class SurgeryReset:
                 [stim.Flow(logical_creation)],
             )
 
-            # Print Creation Flow
-            print("Control Y Creation Flow Target:", "1 ->", logical_xyz_string)
-            print("All available Y flows for debugging:")
-            self._debug_print_available_flows(circuit, must_have=["Y", "X", "Z"])
-
             # Adding the Observable
             rec_pos = []
 
@@ -276,11 +331,13 @@ class SurgeryReset:
             except Exception:
                 print("No valid flow found for target, skipping observable inclusion.")
 
-            observable_circuit.append(
-                "OBSERVABLE_INCLUDE",
-                [stim.target_rec(k) for k in rec_pos],
-                0,
-            )
+            # Adding Measurement Rec Correction given by Flow
+            if rec_pos != []:
+                observable_circuit.append(
+                    "OBSERVABLE_INCLUDE",
+                    [stim.target_rec(k) for k in rec_pos],
+                    0,
+                )
 
         return observable_circuit
 

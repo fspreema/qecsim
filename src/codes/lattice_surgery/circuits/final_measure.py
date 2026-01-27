@@ -54,7 +54,7 @@ class SurgeryFinalMeasure:
             "YZ -> XY": [("control", "X", True), ("target", "Y", False)],
             "YI -> YX": [("control", "Y", False), ("target", "X", False)],
             "YX -> YI": [("control", "Y", False)],
-            "YY -> XZ": [("control", "X", False), ("target", "Z", False)],
+            "YY -> XZ": [("control", "X", True), ("target", "Z", True)],
             "IY -> ZY": [("control", "Z", False), ("target", "Y", False)],
             "XY -> YZ": [("control", "Y", False), ("target", "Z", False)],
         }
