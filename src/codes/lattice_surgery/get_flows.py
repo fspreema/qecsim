@@ -39,7 +39,7 @@ class SurgeryFlowObservables:
         # Get Pauli Strings for Flow
         if "Y" in flow_type:
             # Get Info out of Flow Dictionary
-            flow_pauli_strings = self._get_pauli_strings_for_flows(flow_type=flow_type)
+            flow_pauli_strings = self._get_pauli_strings_from_flows(flow_type=flow_type)
             pauli_start_x, pauli_end_x = flow_pauli_strings[0]
             pauli_start_z, pauli_end_z = flow_pauli_strings[1]
 
@@ -60,13 +60,12 @@ class SurgeryFlowObservables:
                     stim.Flow(f"{start_string_x} -> {flow_sign}{end_string_x}"),
                 ],
             )
-            print(start_string_x, end_string_x, included_measurements_x)
+
             (included_measurements_z,) = flow_circuit.solve_flow_measurements(
                 [
                     stim.Flow(f"{start_string_z} -> {end_string_z}"),
                 ],
             )
-            print(start_string_z, end_string_z, included_measurements_z)
 
             # Full list of measurements
             if included_measurements_x is None or included_measurements_z is None:
@@ -75,7 +74,7 @@ class SurgeryFlowObservables:
                 full_measurements = included_measurements_x + included_measurements_z
 
         else:
-            pauli_start, pauli_end = self._get_pauli_strings_for_flows(flow_type=flow_type)
+            pauli_start, pauli_end = self._get_pauli_strings_from_flows(flow_type=flow_type)
 
             # Construct Full Pauli Strings
             start_string = self._construct_pauli_string(logical_operator_strings=pauli_start)
@@ -108,7 +107,7 @@ class SurgeryFlowObservables:
 
         return return_circuit
 
-    def _get_pauli_strings_for_flows(
+    def _get_pauli_strings_from_flows(
         self,
         flow_type: str,
     ) -> list[list[str]]:

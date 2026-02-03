@@ -22,7 +22,10 @@ class SurgeryReset:
         self.control_state_init = geometry.control_state_init
         self.target_state_init = geometry.target_state_init
 
-        # Getting Y-Basis Stab to Data Information
+        # Y Basis Fault Tolerant Setting
+        # Currently only non-fault tolerant Y Basis fully functional
+        # Fault tolerant every flow valid except YY -> XZ!
+        self.fault_tolerant_y = False
 
     def build_circuit(self) -> stim.Circuit:
         circuit = stim.Circuit()
@@ -35,7 +38,9 @@ class SurgeryReset:
         circuit += reset_circuit
 
         # Adding Y-Creation Flows if relevant
-        if self.control_state_init in {"+i", "-i"} or self.target_state_init in {"+i", "-i"}:
+        if (
+            self.control_state_init in {"+i", "-i"} or self.target_state_init in {"+i", "-i"}
+        ) and self.fault_tolerant_y:
             circuit += self._getting_y_observable(flow_circuit)
 
         return circuit
@@ -59,7 +64,7 @@ class SurgeryReset:
             return_circuit, flow_creation_circuit = self._y_patch_builder(
                 patch_type="control",
                 state_init=self.control_state_init,
-                fault_tolerant=False,
+                fault_tolerant=self.fault_tolerant_y,
             )
             reset_circuit.append("TICK")
             reset_circuit += return_circuit
@@ -75,7 +80,7 @@ class SurgeryReset:
             return_circuit, flow_creation_circuit = self._y_patch_builder(
                 patch_type="target",
                 state_init=self.target_state_init,
-                fault_tolerant=False,
+                fault_tolerant=self.fault_tolerant_y,
             )
             reset_circuit.append("TICK")
             reset_circuit += return_circuit
@@ -297,12 +302,11 @@ class SurgeryReset:
                 print("No valid flow found control, skipping observable inclusion.")
 
             # Adding Measurement Rec Correction given by Flow
-            if rec_pos != []:
-                observable_circuit.append(
-                    "OBSERVABLE_INCLUDE",
-                    [stim.target_rec(k) for k in rec_pos],
-                    0,
-                )
+            observable_circuit.append(
+                "OBSERVABLE_INCLUDE",
+                [stim.target_rec(k) for k in rec_pos],
+                0,
+            )
 
         # 2) Target Flow:
         if self.target_state_init in {"+i", "-i"}:
@@ -332,12 +336,11 @@ class SurgeryReset:
                 print("No valid flow found for target, skipping observable inclusion.")
 
             # Adding Measurement Rec Correction given by Flow
-            if rec_pos != []:
-                observable_circuit.append(
-                    "OBSERVABLE_INCLUDE",
-                    [stim.target_rec(k) for k in rec_pos],
-                    0,
-                )
+            observable_circuit.append(
+                "OBSERVABLE_INCLUDE",
+                [stim.target_rec(k) for k in rec_pos],
+                0,
+            )
 
         return observable_circuit
 

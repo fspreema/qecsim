@@ -1,6 +1,6 @@
 import stim
 
-from src.core.unused.flow_builder import CircuitChunk
+from src.core.flow_builder import CircuitChunk
 
 """
 This tests needs to be updated!!
