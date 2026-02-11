@@ -120,6 +120,11 @@ def calc_ptm(
         -> We have only a pauli correction which could be done classically
         -> Initilizing in +x or -x or +z or -z makes no difference (Can be calssically correct, no?)
     """
+    """
+    Maybe just giving the Noisy and Clean Circuits can be used instead of 
+    hardcoding the measurements?
+    """
+
     clean_meas_0_z = False
     clean_meas_1_z = True
     clean_meas_p_x = False

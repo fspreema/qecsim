@@ -9,7 +9,7 @@ __all__ = ["logical_estimator"]
 
 
 class CircuitAssets:
-    def __init__(self, circuit, shots):
+    def __init__(self, circuit: stim.Circuit, shots: int):
         # Build DEM and Matcher
         dem = circuit.detector_error_model(decompose_errors=True)
         self.matcher = pymatching.Matching.from_detector_error_model(dem)

@@ -26,7 +26,8 @@ class SurgeryGeometry(BaseGeometry):
         """
 
         # Check valid State Initializations
-        valid_states = ["+", "-", "+i", "-i", "0", "1"]
+        # -> I skips complete Resets on that patch
+        valid_states = ["I", "X+", "X-", "Y+", "Y-", "Z0", "Z1"]
         if control_state_init not in valid_states:
             raise ValueError(
                 f"Invalid control_state_init: {control_state_init}. "

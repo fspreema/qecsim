@@ -39,7 +39,7 @@ class SurgeryReset:
 
         # Adding Y-Creation Flows if relevant
         if (
-            self.control_state_init in {"+i", "-i"} or self.target_state_init in {"+i", "-i"}
+            self.control_state_init in {"Y+", "Y-"} or self.target_state_init in {"Y+", "Y-"}
         ) and self.fault_tolerant_y:
             circuit += self._getting_y_observable(flow_circuit)
 
@@ -60,7 +60,7 @@ class SurgeryReset:
         flow_circuit = stim.Circuit()
 
         # 2. Control Patch
-        if self.control_state_init in {"+i", "-i"}:
+        if self.control_state_init in {"Y+", "Y-"}:
             return_circuit, flow_creation_circuit = self._y_patch_builder(
                 patch_type="control",
                 state_init=self.control_state_init,
@@ -76,7 +76,7 @@ class SurgeryReset:
             )
 
         # 3. Target Patch
-        if self.target_state_init in {"+i", "-i"}:
+        if self.target_state_init in {"Y+", "Y-"}:
             return_circuit, flow_creation_circuit = self._y_patch_builder(
                 patch_type="target",
                 state_init=self.target_state_init,
@@ -111,7 +111,7 @@ class SurgeryReset:
             log_x = log_strings["t_x"]
 
         # 1. Physical Qubit Reset
-        if state_init in {"+", "-"}:
+        if state_init in {"X+", "X-"}:
             circ.append("RX", data_idx)
         else:
             circ.append("R", data_idx)
@@ -120,7 +120,7 @@ class SurgeryReset:
         circ.append("RZ", full_stabs)
 
         # 2. Logical Operators for state prep
-        if state_init == "-":
+        if state_init == "X-":
             circ.append("Z", log_z)
         elif state_init == "1":
             circ.append("X", log_x)
@@ -176,7 +176,7 @@ class SurgeryReset:
         reset_circuit.append("RZ", z_string)
 
         # Add Logical Flip if needed
-        if state_init == "-i":
+        if state_init == "Y-":
             reset_circuit.append("Y", [y_corner])
             reset_circuit.append("Z", z_string)
             reset_circuit.append("X", x_string)
@@ -275,7 +275,7 @@ class SurgeryReset:
         log_strings = self.geometry.get_logical_strings()
 
         # 1) Control Flow:
-        if self.control_state_init in {"+i", "-i"}:
+        if self.control_state_init in {"Y+", "Y-"}:
             # Getting Logical Y Pauli Strings for Control
             y_corner = log_strings["c_y"]["y_corner"][0]
             logical_xyz_string = "*".join(
@@ -309,7 +309,7 @@ class SurgeryReset:
             )
 
         # 2) Target Flow:
-        if self.target_state_init in {"+i", "-i"}:
+        if self.target_state_init in {"Y+", "Y-"}:
             # Getting Logical Y Pauli Strings for Target
             y_corner = log_strings["t_y"]["y_corner"][0]
             logical_xyz_string = "*".join(

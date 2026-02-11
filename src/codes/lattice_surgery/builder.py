@@ -23,7 +23,8 @@ class SurgeryBuilder(BaseClassBuilder):
         distance: int,
         control_state_init: str,
         target_state_init: str,
-        flow_observable: str,
+        control_measure_basis: str,
+        target_measure_basis: str,
         noise: NoiseParameters = None,
     ):
         """
@@ -51,14 +52,12 @@ class SurgeryBuilder(BaseClassBuilder):
             -> Fully implemented CX-Gate in stim.Circuit format
         """
 
-        # Validation of Inputs
-        # NEEDS TO BE IMPLEMENTED!
-
         # Init Parameters
         self.distance = distance
         self.control_state_init = control_state_init
         self.target_state_init = target_state_init
-        self.flow_observable = flow_observable
+        self.control_measure_basis = control_measure_basis
+        self.target_measure_basis = target_measure_basis
         self.noise = noise
 
         # Initilize Geometry
@@ -88,6 +87,12 @@ class SurgeryBuilder(BaseClassBuilder):
 
         # Initiate Measurement Tracker
         self.tracker = MeasurementTracker()
+
+        # Initlize Current Flow
+        self.curr_flow = (
+            f"{self.geometry.control_state_init[0]}{self.geometry.target_state_init[0]}"
+            " -> " + f"{self.control_measure_basis[0]}{self.target_measure_basis[0]}"
+        )
 
         super().__init__(noise=noise)
 
@@ -122,8 +127,9 @@ class SurgeryBuilder(BaseClassBuilder):
         # Adding Flow Circuit to Return Circuit
         return_circuit += flow_circuit
 
-        # Adding Solve Flow Observables
-        return_circuit += self._adding_solve_flow_observables(flow_circuit=flow_circuit)
+        # Adding Solve Flow Observables if valid cx flow is selected
+        if self._valid_flow():
+            return_circuit += self._adding_solve_flow_observables(flow_circuit=flow_circuit)
 
         # Adding Final Measurement Circuit
         return_circuit += self._adding_final_measurement_circuit()
@@ -209,7 +215,10 @@ class SurgeryBuilder(BaseClassBuilder):
         # Adding Final Measurement Circuit
         final_measure_circuit_builder = SurgeryFinalMeasure(
             geometry=self.geometry,
-            flow=self.flow_observable,
+            curr_flow=self.curr_flow,
+            valid_flow=self._valid_flow(),
+            control_measure_basis=self.control_measure_basis,
+            target_measure_basis=self.target_measure_basis,
         )
         final_measure_circuit = final_measure_circuit_builder.build_circuit()
 
@@ -238,8 +247,31 @@ class SurgeryBuilder(BaseClassBuilder):
 
     def _adding_solve_flow_observables(self, flow_circuit: stim.Circuit) -> stim.Circuit:
         # Adding Solve Flow Observables Circuit
-        flow_getter = SurgeryFlowObservables(geometry=self.geometry)
+        flow_getter = SurgeryFlowObservables(
+            geometry=self.geometry,
+        )
         return flow_getter.get_observable_from_flow(
             flow_circuit=flow_circuit,
-            flow_type=self.flow_observable,
+            curr_flow=self.curr_flow,
         )
+
+    def _valid_flow(self) -> bool:
+        # Define valid flows
+        valid_flows = [
+            "XI -> XX",
+            "XX -> XI",
+            "IX -> IX",
+            "IZ -> ZZ",
+            "ZZ -> IZ",
+            "ZI -> ZI",
+            "ZX -> ZX",
+            "YI -> YX",
+            "YY -> XZ",
+            "IY -> ZY",
+            "XY -> YZ",
+        ]
+
+        if self.curr_flow not in valid_flows:
+            return False
+        else:
+            return True
