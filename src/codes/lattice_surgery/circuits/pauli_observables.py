@@ -2,22 +2,25 @@ import stim
 
 from src.codes.lattice_surgery.surgery_geom import SurgeryGeometry
 
-__all__ = ["SurgeryFinalMeasure"]
+__all__ = ["SurgeryPauliObservables"]
 
 
-class SurgeryFinalMeasure:
+class SurgeryPauliObservables:
     def __init__(
         self,
         geometry: SurgeryGeometry,
-        curr_flow: str,
         control_measure_basis: str,
         target_measure_basis: str,
+        control_state_init: str,
+        target_state_init: str,
+        type: str,
     ):
+        # Check validity of input arguments
+        if type not in {"incoming_flow", "outgoing_flow"}:
+            raise ValueError("Invalid type. Must be 'incoming_flow' or 'outgoing_flow'.")
+
         # Preliminary Setup
         self.geometry = geometry
-        self.curr_flow = curr_flow
-        self.control_measure_basis = control_measure_basis
-        self.target_measure_basis = target_measure_basis
         self.all_logical_strings = self.geometry.get_logical_strings()
         self.all_logical_strings_shifted = self.geometry.get_logical_strings(
             shift_cx_for_y=True,
@@ -26,21 +29,29 @@ class SurgeryFinalMeasure:
             shift_tx_for_y=True,
         )
 
+        # Select Basis depending on incoming or outgoing flow
+        if type == "outgoing_flow":
+            self.control_measure_basis = control_measure_basis
+            self.target_measure_basis = target_measure_basis
+        elif type == "incoming_flow":
+            self.control_measure_basis = control_state_init[0]
+            self.target_measure_basis = target_state_init[0]
+
     def build_circuit(self) -> stim.Circuit:
         # Init return Circuit
         return_circuit = stim.Circuit()
 
-        # Apply Measurements for both control and target patches
-        return_circuit += self._add_measurements_and_observables(
+        # Adding Pauli Observables for both control and target patches
+        return_circuit += self._add_pauli_observables(
             patch="control",
         )
-        return_circuit += self._add_measurements_and_observables(
+        return_circuit += self._add_pauli_observables(
             patch="target",
         )
 
         return return_circuit
 
-    def _add_measurements_and_observables(self, patch: str) -> stim.Circuit:
+    def _add_pauli_observables(self, patch: str) -> stim.Circuit:
         # Check validity of input arguments
         if patch not in {"control", "target"}:
             raise ValueError("Invalid patch type. Must be 'control' or 'target'.")
@@ -71,33 +82,23 @@ class SurgeryFinalMeasure:
 
         # Adding Measurements and Observables based on measurement basis and observable type
         if measure_basis == "X":
-            measurement_circuit.append("TICK")
-            measurement_circuit.append("MX", x_string)
             measurement_circuit.append(
                 "OBSERVABLE_INCLUDE",
-                [stim.target_rec(-len(x_string) + k) for k in range(len(x_string))],
+                [stim.target_pauli(i, "X") for i in x_string],
                 0,
             )
         elif measure_basis == "Z":
-            measurement_circuit.append("TICK")
-            measurement_circuit.append("MZ", z_string)
             measurement_circuit.append(
                 "OBSERVABLE_INCLUDE",
-                [stim.target_rec(-len(z_string) + k) for k in range(len(z_string))],
+                [stim.target_pauli(i, "Z") for i in z_string],
                 0,
             )
         elif measure_basis == "Y":
-            # Apply Y measurement on patch
-            measurement_circuit.append("TICK")
-            measurement_circuit.append("MX", y_logical_string[0])
-            measurement_circuit.append("MY", y_logical_string[1])
-            measurement_circuit.append("MZ", y_logical_string[2])
-            total_measurements = (
-                len(y_logical_string[0]) + len(y_logical_string[1]) + len(y_logical_string[2])
-            )
             measurement_circuit.append(
                 "OBSERVABLE_INCLUDE",
-                [stim.target_rec(-total_measurements + k) for k in range(total_measurements)],
+                [stim.target_pauli(i, "X") for i in y_logical_string[0]]
+                + [stim.target_pauli(i, "Y") for i in y_logical_string[1]]
+                + [stim.target_pauli(i, "Z") for i in y_logical_string[2]],
                 0,
             )
 

@@ -186,6 +186,23 @@ class SurgeryMerge:
         )
         merge_round_circuit.append("TICK")
 
+        # Adding Detectors for Combined Patches
+        self.tracker.add_measurements_to_detector_dict(
+            measured_qubits=self.combined_z_stab_merging_lattices
+            + self.combined_x_stab_merging_lattices,
+            patch_type=f"Merge_{self.merging_type}",
+        )
+
+        det_record_pairings = self.tracker.get_records_for_detectors(
+            patch_type=f"Merge_{self.merging_type}",
+        )
+        for curr_pairing in det_record_pairings:
+            merge_round_circuit.append("DETECTOR", curr_pairing)
+
+        # Shifting Coords
+        merge_round_circuit.append("SHIFT_COORDS")
+
+        # Adding Reset for Ancilla Qubits of Stabilizers
         merge_round_circuit.append(
             "R",
             self.combined_z_stab_merging_lattices + self.combined_x_stab_merging_lattices,
@@ -219,6 +236,21 @@ class SurgeryMerge:
             "M",
             self.x_stab_index_untouched_circ + self.z_stab_index_untouched_circ,
         )
+
+        # Adding Detectors for Combined Patches
+        self.tracker.add_measurements_to_detector_dict(
+            measured_qubits=self.x_stab_index_untouched_circ + self.z_stab_index_untouched_circ,
+            patch_type=f"Merge_{self.merging_type}_untouched",
+        )
+
+        det_record_pairings = self.tracker.get_records_for_detectors(
+            patch_type=f"Merge_{self.merging_type}_untouched",
+        )
+        for curr_pairing in det_record_pairings:
+            merge_round_circuit.append("DETECTOR", curr_pairing)
+
+        # Shifting Coords
+        merge_round_circuit.append("SHIFT_COORDS")
 
         # Updating Measurement Trackers
         for curr_round in range(self.geometry.distance - 1):

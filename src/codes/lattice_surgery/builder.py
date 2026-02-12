@@ -1,8 +1,10 @@
 import stim
+from tqecd import annotate_detectors_automatically
 
 from src.codes.lattice_surgery.circuits.final_measure import SurgeryFinalMeasure
 from src.codes.lattice_surgery.circuits.initial import SurgeryInitialization
 from src.codes.lattice_surgery.circuits.merge import SurgeryMerge
+from src.codes.lattice_surgery.circuits.pauli_observables import SurgeryPauliObservables
 from src.codes.lattice_surgery.circuits.reset import SurgeryReset
 from src.codes.lattice_surgery.circuits.split import SurgerySplit
 from src.codes.lattice_surgery.data_geometry import MasterPairings
@@ -109,6 +111,11 @@ class SurgeryBuilder(BaseClassBuilder):
         # Adding Initialization Circuit
         flow_circuit += self._adding_initialization_circuit()
 
+        # If not valid flow, we need to XOR rec measurements with pauli observables
+        # to get deterministic outcomes
+        if not self._valid_flow():
+            flow_circuit += self._add_pauli_observables(type="incoming_flow")
+
         # Adding Merging Ancilla Control Circuit
         flow_circuit += self._adding_merge(type="AC")
 
@@ -120,6 +127,11 @@ class SurgeryBuilder(BaseClassBuilder):
 
         # Adding Splitting Ancilla Target Circuit
         flow_circuit += self._adding_split(type="AT")
+
+        # If not valid flow, we need to XOR rec measurements with pauli observables
+        # to get deterministic outcomes
+        if not self._valid_flow():
+            flow_circuit += self._add_pauli_observables(type="outgoing_flow")
 
         # Adding Reset to Return Circuit
         return_circuit += reset_circuit
@@ -155,19 +167,6 @@ class SurgeryBuilder(BaseClassBuilder):
         return self.reset_circuit
 
     def _adding_initialization_circuit(self) -> stim.Circuit:
-        # Adding Initialization Circuit
-        init_circuit_builder = SurgeryInitialization(
-            geometry=self.geometry,
-            master_pairings=self.master_pairings,
-        )
-        self.init_circuit = init_circuit_builder.build_circuit()
-
-        # Adding Initialization Circuit into Compiler for Detectors
-        self.init_chunk = CircuitChunk(chunk_circuit=self.init_circuit, geometry=self.geometry)
-
-        return self.init_circuit
-
-    def _adding_merge(self, type: str) -> stim.Circuit:
         # Count all previous measurements form init and reset circuits
         if isinstance(self.reset_circuit, tuple):
             num_measurements_reset = (
@@ -177,11 +176,24 @@ class SurgeryBuilder(BaseClassBuilder):
             num_measurements_reset = self.reset_circuit.num_measurements
 
         # Updating Measurement Tracker
-        all_prev_measurements = num_measurements_reset + self.init_circuit.num_measurements
         self.tracker.add_previous_measurements(
-            count=all_prev_measurements,
+            count=num_measurements_reset,
         )
 
+        # Adding Initialization Circuit
+        init_circuit_builder = SurgeryInitialization(
+            geometry=self.geometry,
+            master_pairings=self.master_pairings,
+            measurement_tracker=self.tracker,
+        )
+        self.init_circuit = init_circuit_builder.build_circuit()
+
+        # Adding Initialization Circuit into Compiler for Detectors
+        self.init_chunk = CircuitChunk(chunk_circuit=self.init_circuit, geometry=self.geometry)
+
+        return self.init_circuit
+
+    def _adding_merge(self, type: str) -> stim.Circuit:
         # Adding Merge Circuit
         merge_circuit_builder = SurgeryMerge(
             geometry=self.geometry,
@@ -216,7 +228,6 @@ class SurgeryBuilder(BaseClassBuilder):
         final_measure_circuit_builder = SurgeryFinalMeasure(
             geometry=self.geometry,
             curr_flow=self.curr_flow,
-            valid_flow=self._valid_flow(),
             control_measure_basis=self.control_measure_basis,
             target_measure_basis=self.target_measure_basis,
         )
@@ -254,6 +265,19 @@ class SurgeryBuilder(BaseClassBuilder):
             flow_circuit=flow_circuit,
             curr_flow=self.curr_flow,
         )
+
+    def _add_pauli_observables(self, type: str) -> stim.Circuit:
+        # Adding Pauli Observables for both control and target patches
+        observable_getter = SurgeryPauliObservables(
+            geometry=self.geometry,
+            control_measure_basis=self.control_measure_basis,
+            target_measure_basis=self.target_measure_basis,
+            control_state_init=self.geometry.control_state_init,
+            target_state_init=self.geometry.target_state_init,
+            type=type,
+        )
+
+        return observable_getter.build_circuit()
 
     def _valid_flow(self) -> bool:
         # Define valid flows
