@@ -1,47 +1,42 @@
 import stim
 
+from src.codes.lattice_surgery.surgery_geom import SurgeryGeometry
+
 __all__ = ["MeasurementTracker"]
 
 
 class MeasurementTracker:
-    def __init__(self):
+    VALID_PATCH_TYPES = {
+        "Ancilla",
+        "Control_&_Target",
+        "Ancilla_Split_AC",
+        "Ancilla_Split_AT",
+        "Control_&_Target_Split_AC",
+        "Control_&_Target_Split_AT",
+        "Merge_AC",
+        "Merge_AT",
+        "Merge_AC_untouched",
+        "Merge_AT_untouched",
+    }
+
+    def __init__(self, geometry: SurgeryGeometry):
         """
         Initializes the MeasurementTracker with no measurements and an empty tag dictionary.
         """
-
+        self.geometry = geometry
         self.total_measurements = 0
         # Tags store: {"tag_name": [indices of measurements associated with this tag]}
         self.tags: dict[str, list[int]] = {}
         # Dictionary to store the Detector information for each qubit index
         self.detector_dict: dict[str, list[tuple[int, int]]] = {
-            "Ancilla": [],
-            "Control_&_Target": [],
-            "Merge_AC": [],
-            "Split_AC": [],
-            "Merge_AT": [],
-            "Split_AT": [],
-            "Merge_AC_untouched": [],
-            "Split_AC_untouched": [],
-            "Merge_AT_untouched": [],
-            "Split_AT_untouched": [],
+            pt: [] for pt in self.VALID_PATCH_TYPES
         }
+        # Dictionary to store split measurements that await their partner from the other patch
+        self.storage_for_split_matching: dict[int, list[int, int, int]] = {}
         # Dict to store the complete measurement history
         self.full_measurement_history: dict[str, list[tuple[int, int]]] = {
-            "Ancilla": [],
-            "Control_&_Target": [],
-            "Merge_AC": [],
-            "Split_AC": [],
-            "Merge_AT": [],
-            "Split_AT": [],
-            "Merge_AC_untouched": [],
-            "Split_AC_untouched": [],
-            "Merge_AT_untouched": [],
-            "Split_AT_untouched": [],
+            pt: [] for pt in self.VALID_PATCH_TYPES
         }
-        # Track the most recent measurement batch to avoid double-counting
-        self._last_measured_qubits: list[int] | None = None
-        self._last_batch_start: int | None = None
-        self._last_batch_counted: bool = False
 
     def add_previous_measurements(self, count: int):
         """
@@ -52,53 +47,6 @@ class MeasurementTracker:
         """
 
         self.total_measurements += count
-
-    def add_measurements(
-        self,
-        measured_qubits: list[int],
-        specific_qubits: list[int] = None,
-        tag: str = None,
-    ):
-        """
-        Adds measurements for the given qubits to the tracker and optionally tags them.
-
-        Args:
-            measured_qubits (list): List of qubit indices to be measured.
-            specific_qubits (list, optional): Specific qubits out of the measured qubits which
-            should be tracked.
-                -> If None, all measured qubits are tracked.
-            specific_round (int, optional): Specific round in which the specific_qubits selected
-            or the whole meeasurement block should be tracked.
-                -> Used for measurements inside a stim repeat block.
-            repeats (int, optional): Number of times the measurements are repeated.
-                -> Needed if Measurement is inside a stim repeat block.
-            tag (str, optional): Tag to associate with these measurements.
-        """
-
-        batch_start = self.total_measurements
-
-        if tag:
-            if specific_qubits is None:
-                # Track all measured qubits: their positions are simply the full range.
-                tracked_positions = [
-                    self.total_measurements + i + 1 for i in range(len(measured_qubits))
-                ]
-            else:
-                # Map the specified qubit IDs to their positions within measured_qubits
-                tracked_positions = []
-                for pos, qubit in enumerate(measured_qubits):
-                    if qubit in specific_qubits:
-                        tracked_positions.append(self.total_measurements + pos + 1)
-
-            # Apply offset to all tracked positions
-            final_positions = [pos for pos in tracked_positions]
-
-            self.tags[tag] = final_positions
-
-        self.total_measurements += len(measured_qubits)
-        self._last_measured_qubits = list(measured_qubits)
-        self._last_batch_start = batch_start
-        self._last_batch_counted = True
 
     def get_tagged_measurements(self, tag: str) -> list[int]:
         """
@@ -119,14 +67,17 @@ class MeasurementTracker:
         # Generate list of measurement indices for the tag
         return [-self.total_measurements - 1 + i for i in indices]
 
-    def add_measurements_to_detector_dict(
+    def add_measurements_to_tracker(
         self,
         patch_type: str,
         measured_qubits: list[int],
-        selected_qubits: list[int] | None = None,
+        qubits_for_detectors: list[int] | None = None,
+        tagged_qubits: list[int] | None = None,
+        tag: str | None = None,
     ):
         """
-        Adds all the measurements in "selected qubits" into the dictionary
+        Adds all the measurements in "qubits_for_detectors" into the dictionary as well as
+        adds taggs for selected measurements if needed.
 
         Dict Functionality:
             This Dict has the following information.
@@ -147,51 +98,48 @@ class MeasurementTracker:
                 the oldest one gets deleted
         """
 
-        # Check Validity of Method Arguemnts
-        if patch_type not in {
-            "Ancilla",
-            "Control_&_Target",
-            "Merge_AC",
-            "Split_AC",
-            "Merge_AT",
-            "Split_AT",
-            "Merge_AC_untouched",
-            "Split_AC_untouched",
-            "Merge_AT_untouched",
-            "Split_AT_untouched",
-        }:
+        ######################################
+        # Check Validity of Method Arguemnts #
+        ######################################
+
+        if patch_type not in self.VALID_PATCH_TYPES:
             raise ValueError(
-                f"Invalid patch type '{patch_type}'. Expected 'Ancilla', "
-                "'Control_&_Target', 'Merge_AC', 'Split_AC', "
-                "'Merge_AT', 'Split_AT', 'Merge_AC_untouched', 'Split_AC_untouched', "
-                "'Merge_AT_untouched', or 'Split_AT_untouched'.",
+                f"Invalid patch type '{patch_type}'. Expected one of {self.VALID_PATCH_TYPES}.",
             )
 
-        if selected_qubits is None:
-            selected_qubits = measured_qubits
+        ########################
+        # Add Tag if specified #
+        ########################
 
-        num_new_measurements = len(measured_qubits)
+        if tag:
+            if tagged_qubits is None:
+                raise ValueError("Tagged qubits must be provided if a tag is specified.")
+            else:
+                # Map the specified qubit IDs to their positions within measured_qubits
+                tracked_positions = []
+                for pos, qubit in enumerate(measured_qubits):
+                    if qubit in tagged_qubits:
+                        tracked_positions.append(self.total_measurements + pos + 1)
 
-        # If the same batch was already counted via add_measurements, reuse its start index.
-        already_counted = (
-            self._last_batch_counted
-            and self._last_measured_qubits == measured_qubits
-            and self._last_batch_start is not None
-            and self._last_batch_start + num_new_measurements == self.total_measurements
-        )
-        batch_start = self._last_batch_start if already_counted else self.total_measurements
+            # Apply offset to all tracked positions
+            final_positions = [pos for pos in tracked_positions]
+
+            self.tags[tag] = final_positions
+
+        ############################################################################
+        # Adding Measurements into Detector Dict and Full Measurement History Dict #
+        ############################################################################
+
+        if qubits_for_detectors is None:
+            qubits_for_detectors = measured_qubits
 
         # Clear the current round's detectors for the patch type
         self.detector_dict[patch_type] = []
 
-        ###################
-        # REGULAR DETECTORS
-        ###################
-
         # Enumerating current measured qubit batch and their positions
         for offset, qubit in enumerate(measured_qubits):
             # Calc absolute index of the current measurement
-            abs_idx = batch_start + offset
+            abs_idx = self.total_measurements + offset
 
             # If Full Measurement History Dict already has 2 entries on the same qubit index,
             # remove the oldest one (the one with the smallest absolute index)
@@ -203,29 +151,24 @@ class MeasurementTracker:
                 oldest_entry = min(existing_entries_full, key=lambda x: x[1])
                 self.full_measurement_history[patch_type].remove(oldest_entry)
 
-            # Add Entry to Full Dict if qubit is in selected_qubits
+            # Add Entry to Full Dict
             self.full_measurement_history[patch_type].append((qubit, abs_idx))
 
-            # Add Entry to Detector Dict if qubit is in selected_qubits
-            if qubit in selected_qubits:
+            # Add Entry to Detector Dict if qubit is in qubits_for_detectors
+            if qubit in qubits_for_detectors:
                 self.detector_dict[patch_type].append((qubit, abs_idx))
 
-        ###################
-        # MERGING DETECTORS
-        ###################
+        ################################################################
+        # Updating total measurements count after processing the batch #
+        ################################################################
 
-        #####################
-        # SPLITTING DETECTORS
-        #####################
+        self.total_measurements += len(measured_qubits)
 
-        # Update total measurements only if this batch was not already counted
-        if not already_counted:
-            self.total_measurements += num_new_measurements
-            self._last_measured_qubits = list(measured_qubits)
-            self._last_batch_start = batch_start
-            self._last_batch_counted = True
-
-    def get_records_for_detectors(self, patch_type: str) -> list[list[stim.GateTarget]]:
+    def get_records_for_detectors(
+        self,
+        patch_type: str,
+        manual_shift: int = 0,
+    ) -> list[list[stim.GateTarget]]:
         """
         *Return:
             Returns List of Lists with measurements of the same qubit index on different
@@ -239,28 +182,74 @@ class MeasurementTracker:
             -> If the Dcit Entrie only has one entry, double check for previous measurements of the
             same qubit index in the full history dict and add this to the records list
             -> If the Dict Entry has two entries, simply add these to the records list
+
+            For Merging Regions, we build up the detector dict differently
+            -> Create Full Meas dict out of the Old still existing measurements
+                from Ancilla, Control And Target
+                -> Check indices measured in the Merg and compare with indices inside
+                the other dict
         """
 
-        # Check Validity of Method Arguemnts
-        if patch_type not in {
-            "Ancilla",
-            "Control_&_Target",
-            "Merge_AC",
-            "Split_AC",
-            "Merge_AT",
-            "Split_AT",
-            "Merge_AC_untouched",
-            "Split_AC_untouched",
-            "Merge_AT_untouched",
-            "Split_AT_untouched",
-        }:
+        ######################################
+        # Check Validity of Method Arguemnts #
+        ######################################
+
+        if patch_type not in self.VALID_PATCH_TYPES:
             raise ValueError(
-                f"Invalid patch type '{patch_type}'. Expected 'Ancilla', "
-                "'Control_&_Target', 'Merge_AC', 'Split_AC', "
-                "'Merge_AT', 'Split_AT', 'Merge_AC_untouched', 'Split_AC_untouched', "
-                "'Merge_AT_untouched', or 'Split_AT_untouched'.",
+                f"Invalid patch type '{patch_type}'. Expected one of {self.VALID_PATCH_TYPES}.",
             )
 
+        #####################
+        # REGULAR DETECTORS #
+        #####################
+
+        if patch_type in {
+            "Ancilla",
+            "Control_&_Target",
+        }:
+            records = self._get_regular_records(patch_type)
+
+        #######################
+        # SPLITTING DETECTORS #
+        #######################
+
+        elif patch_type in {
+            "Ancilla_Split_AC",
+            "Ancilla_Split_AT",
+            "Control_&_Target_Split_AC",
+            "Control_&_Target_Split_AT",
+        }:
+            records = self._get_splitting_records(patch_type)
+
+        #####################
+        # MERGING DETECTORS #
+        #####################
+
+        elif patch_type in {
+            "Merge_AC_untouched",
+            "Merge_AT_untouched",
+        }:
+            records = self._get_untouched_merging_records(patch_type)
+
+        elif patch_type in {
+            "Merge_AC",
+            "Merge_AT",
+        }:
+            records = self._get_merging_records(patch_type)
+        
+        else:
+             raise ValueError(f"Unknown patch type encountered: {patch_type}")
+
+        # Apply manual shift if needed
+        if manual_shift != 0:
+            for record_group in records:
+                for target in record_group:
+                    target.value -= manual_shift
+
+        return records
+
+    def _get_regular_records(self, patch_type: str) -> list[list[stim.GateTarget]]:
+        # Initialize empty records list
         records: list[list[stim.GateTarget]] = []
 
         for qubit, curr_abs_idx in self.detector_dict[patch_type]:
@@ -282,6 +271,295 @@ class MeasurementTracker:
                 records.append(
                     [stim.target_rec(current_rel_idx), stim.target_rec(previous_rel_idx)],
                 )
+            else:
+                raise ValueError(
+                    f"Unexpected number of entries for qubit {qubit} in full measurement history.",
+                )
+
+        return records
+
+    def _get_untouched_merging_records(self, patch_type: str) -> list[list[stim.GateTarget]]:
+        # Initialize empty records list
+        records: list[list[stim.GateTarget]] = []
+
+        # Determine the previous patch type based on the current untouched merging patch type
+        if patch_type == "Merge_AC_untouched":
+            previous_patch_type = "Control_&_Target"
+        elif patch_type == "Merge_AT_untouched":
+            previous_patch_type = "Control_&_Target_Split_AC"
+
+        for qubit, curr_abs_idx in self.detector_dict[patch_type]:
+            # Calculate the Relative Index for the current measurement (for stim)
+            current_rel_idx = curr_abs_idx - self.total_measurements
+
+            # First check if this qubit was previously measured in this merge patch type
+            full_history_entries = [
+                entry for entry in self.full_measurement_history[patch_type] if entry[0] == qubit
+            ]
+
+            # If there are 2 entries in full history, treat like regular detector
+            if len(full_history_entries) == 2:
+                previous_rel_idx = full_history_entries[0][1] - self.total_measurements
+                records.append(
+                    [stim.target_rec(current_rel_idx), stim.target_rec(previous_rel_idx)],
+                )
+
+            # If only 1 entry in full history, this is the first time - check special cases
+            elif len(full_history_entries) == 1:
+                # Check other dicts for previous measurements of the same qubit index
+                # -> Get the newest measurement entry for the same qubit index across all other
+                # dicts
+
+                combined_dict: dict[str, list[list[int, int, int]]] = {
+                    "Regular_Stabilizers": [],
+                }
+
+                for qubit_ct, curr_abs_idx_ct in self.detector_dict[previous_patch_type]:
+                    # Filtering For Regular Stabilizers: These are the ones which have a
+                    # measurement entry in either the Ancilla Dict or the Control & Target
+                    # Dict but not in both on the same qubit index
+                    if qubit_ct == qubit:
+                        previous_rel_idx_ct = curr_abs_idx_ct - self.total_measurements
+                        combined_dict["Regular_Stabilizers"].append(
+                            (qubit, current_rel_idx, previous_rel_idx_ct),
+                        )
+
+                        # Found the latest measurement entry
+                        break
+
+                # Convert into records list for stim
+                for entry in combined_dict["Regular_Stabilizers"]:
+                    records.append(
+                        [stim.target_rec(entry[1]), stim.target_rec(entry[2])],
+                    )
+
+        return records
+
+    def _get_merging_records(self, patch_type: str) -> list[list[stim.GateTarget]]:
+        # Initialize empty records list
+        records: list[list[stim.GateTarget]] = []
+
+        # Determine the previous patch type based on the current merging patch type
+        if patch_type == "Merge_AC":
+            previous_patch_type_ct = "Control_&_Target"
+            previous_patch_type_anc = "Ancilla"
+            married_stab_indices = self.geometry.anc_x_bdy_b_stb_idx
+
+        elif patch_type == "Merge_AT":
+            previous_patch_type_ct = "Control_&_Target_Split_AC"
+            previous_patch_type_anc = "Ancilla_Split_AC"
+            married_stab_indices = self.geometry.anc_z_bdy_r_stb_idx
+
+        for qubit, curr_abs_idx in self.detector_dict[patch_type]:
+            # Initialize boolean to track if a partner record has been found
+            partner_found = False
+
+            # Calculate the Relative Index for the current measurement (for stim)
+            current_rel_idx = curr_abs_idx - self.total_measurements
+
+            # First check if this qubit was previously measured in this merge patch type
+            full_history_entries = [
+                entry for entry in self.full_measurement_history[patch_type] if entry[0] == qubit
+            ]
+
+            # If there are 2 entries in full history, treat like regular detector
+            if len(full_history_entries) == 2:
+                previous_rel_idx = full_history_entries[0][1] - self.total_measurements
+                records.append(
+                    [stim.target_rec(current_rel_idx), stim.target_rec(previous_rel_idx)],
+                )
+
+            # If only 1 entry in full history, this is the first time - check special cases
+            elif len(full_history_entries) == 1:
+                # Check other dicts for previous measurements of the same qubit index
+                # -> Get the newest measurement entry for the same qubit index across all other
+                # dicts
+
+                combined_dict: dict[str, list[list[int, int, int]]] = {
+                    "Married_Stabilizers": [],
+                    "Regular_Stabilizers": [],
+                }
+
+                for qubit_anc, curr_abs_idx_anc in self.detector_dict[previous_patch_type_anc]:
+                    # Filtering For Regular Stabilizers: These are the ones which have a
+                    # measurement entry in either the Ancilla Dict or the Control &
+                    # Target Dict but not in both on the same qubit index
+                    if qubit_anc == qubit and qubit_anc not in married_stab_indices:
+                        previous_rel_idx_anc = curr_abs_idx_anc - self.total_measurements
+
+                        records.append(
+                            [
+                                stim.target_rec(current_rel_idx),
+                                stim.target_rec(previous_rel_idx_anc),
+                            ],
+                        )
+
+                        # Found the latest measurement entry
+                        partner_found = True
+                        break
+
+                    # Filtering For Married Stabilizers: These are the ones which have a
+                    # measurement entry in both the Ancilla Dict and the Control & Target
+                    if qubit_anc == qubit and qubit_anc in married_stab_indices:
+                        previous_rel_idx_anc = curr_abs_idx_anc - self.total_measurements
+
+                        # Store the Ancilla record in the combined dict and wait for the
+                        # Control & Target record to appear in the loop below
+                        combined_dict["Married_Stabilizers"].append(
+                            (qubit, current_rel_idx, previous_rel_idx_anc, None),
+                        )
+                        break
+
+                if not partner_found:
+                    for qubit_ct, curr_abs_idx_ct in self.detector_dict[previous_patch_type_ct]:
+                        if qubit_ct == qubit and qubit_ct not in married_stab_indices:
+                            previous_rel_idx_ct = curr_abs_idx_ct - self.total_measurements
+
+                            records.append(
+                                [
+                                    stim.target_rec(current_rel_idx),
+                                    stim.target_rec(previous_rel_idx_ct),
+                                ],
+                            )
+                            # Found the latest measurement entry
+                            break
+
+                        # Filtering For Married Stabilizers: These are the ones which have a
+                        # measurement entry in both the Ancilla Dict and the Control & Target
+                        if qubit_ct == qubit and qubit_ct in married_stab_indices:
+                            previous_rel_idx_ct = curr_abs_idx_ct - self.total_measurements
+
+                            # Get Info of the corresponding Ancilla record stored in
+                            # the combined dict
+                            corresponding_entry = next(
+                                (
+                                    entry
+                                    for entry in combined_dict["Married_Stabilizers"]
+                                    if entry[0] == qubit_ct
+                                ),
+                                None,
+                            )
+
+                            if corresponding_entry is not None:
+                                records.append(
+                                    [
+                                        stim.target_rec(current_rel_idx),
+                                        stim.target_rec(previous_rel_idx_ct),
+                                        stim.target_rec(corresponding_entry[2]),
+                                    ],
+                                )
+                                # After finding both records for the married stabilizer,
+                                # we can remove the entry from the combined dict
+                                combined_dict["Married_Stabilizers"].remove(corresponding_entry)
+                            # Found the latest measurement entry
+                            break
+
+            else:
+                raise ValueError(
+                    f"Unexpected number of entries for qubit {qubit} in detector dict.",
+                )
+
+        return records
+
+    def _get_splitting_records(self, patch_type: str) -> list[list[stim.GateTarget]]:
+        # Initialize empty records list and boolean
+        records: list[list[stim.GateTarget]] = []
+
+        # Determine the previous patch type based on the current splitting patch type
+        if patch_type in {"Ancilla_Split_AC", "Control_&_Target_Split_AC"}:
+            previous_patch_type_untouched = "Merge_AC_untouched"
+            previous_patch_type_merged = "Merge_AC"
+            seperated_stab_indices = self.geometry.anc_x_bdy_b_stb_idx
+
+        elif patch_type in {"Ancilla_Split_AT", "Control_&_Target_Split_AT"}:
+            previous_patch_type_untouched = "Merge_AT_untouched"
+            previous_patch_type_merged = "Merge_AT"
+            seperated_stab_indices = self.geometry.anc_z_bdy_r_stb_idx
+
+        for qubit, curr_abs_idx in self.detector_dict[patch_type]:
+            # Initialize boolean to track if a partner record has been found
+            partner_found = False
+
+            # Calculate the Relative Index for the current measurement (for stim)
+            current_rel_idx = curr_abs_idx - self.total_measurements
+
+            # Find all entries in the full history dict for the same qubit index
+            full_history_entries = [
+                entry for entry in self.full_measurement_history[patch_type] if entry[0] == qubit
+            ]
+
+            # If there are two entries, add both to the records list
+            if len(full_history_entries) == 2:
+                # Calculate the Relative Index for the previous measurement (for stim)
+                previous_rel_idx = full_history_entries[0][1] - self.total_measurements
+                records.append(
+                    [stim.target_rec(current_rel_idx), stim.target_rec(previous_rel_idx)],
+                )
+
+            # If only one record exists, find older measurements inside Merge Dict
+            # and add to records list
+            elif len(full_history_entries) == 1:
+                # Look for regular stabilizers in both Merge Dicts (merged and untouched)
+                # and add to the combined dict
+                for qubit_merge, abs_idx_merge in self.detector_dict[previous_patch_type_untouched]:
+                    if qubit_merge == qubit and qubit not in seperated_stab_indices:
+                        previous_rel_idx_merge = abs_idx_merge - self.total_measurements
+                        records.append(
+                            [
+                                stim.target_rec(current_rel_idx),
+                                stim.target_rec(previous_rel_idx_merge),
+                            ],
+                        )
+                        partner_found = True
+                        break
+
+                # Continue looking in other Patch
+                if not partner_found:
+                    for qubit_merge, abs_idx_merge in self.detector_dict[
+                        previous_patch_type_merged
+                    ]:
+                        if qubit_merge == qubit and qubit not in seperated_stab_indices:
+                            previous_rel_idx_merge = abs_idx_merge - self.total_measurements
+                            records.append(
+                                [
+                                    stim.target_rec(current_rel_idx),
+                                    stim.target_rec(previous_rel_idx_merge),
+                                ],
+                            )
+                            break
+
+                # Look for divorced stabilizers in the Merge Dict and add to the combined dict
+                # -> Records for divorced stabilizers are old record and both new records from
+                #    Ancilla and Control & Target Split
+                for qubit_merge, abs_idx_merge in self.detector_dict[previous_patch_type_merged]:
+                    if qubit_merge == qubit and qubit in seperated_stab_indices:
+                        previous_rel_idx = abs_idx_merge - self.total_measurements
+                        stored_list = self.storage_for_split_matching.get(qubit)
+
+                        if stored_list is None:
+                            self.storage_for_split_matching[qubit] = [
+                                current_rel_idx,
+                                previous_rel_idx,
+                                None,
+                            ]
+                            break
+                        elif stored_list is not None:
+                            records.append(
+                                [
+                                    stim.target_rec(current_rel_idx),
+                                    stim.target_rec(previous_rel_idx),
+                                    stim.target_rec(stored_list[0]),
+                                ],
+                            )
+                            # After finding both records for the divorced stabilizer, we can
+                            # remove the entry from the storage dict
+                            self.storage_for_split_matching.pop(qubit)
+                            break
+                        else:
+                            raise ValueError(
+                                f"Unexpected state of split matching storage for qubit {qubit}.",
+                            )
+
             else:
                 raise ValueError(
                     f"Unexpected number of entries for qubit {qubit} in full measurement history.",

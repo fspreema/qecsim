@@ -47,16 +47,126 @@ class SurgerySplit:
 
         # Add Inital Split Round
         return_circuit += self._init_split_circuit()
+        return_circuit += self._init_detectors()
 
         # Add Repetition Rounds
         return_circuit += self._repeat_split_circuit()
 
         # Add Final Split Round
         return_circuit += self._final_split_circuit()
+        return_circuit += self._final_detectors()
 
         return return_circuit
 
-    def _init_split_circuit(self):
+    def _init_detectors(self) -> stim.Circuit:
+        # Define Detctor Circuit
+        detector_circuit = stim.Circuit()
+
+        # Adding Detectors for Ancilla Measurements
+        # and Tracking Measurements
+        self.tracker.add_measurements_to_tracker(
+            measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
+            patch_type=f"Ancilla_Split_{self.split_type}",
+        )
+        detector_pairings = self.tracker.get_records_for_detectors(
+            patch_type=f"Ancilla_Split_{self.split_type}",
+        )
+        for curr_pairing in detector_pairings:
+            detector_circuit.append("DETECTOR", curr_pairing)
+
+        # Adding Shift Coords
+        detector_circuit.append("SHIFT_COORDS")
+
+        # Adding Detectors for Control and Target Stabilizer Measurements
+        self.tracker.add_measurements_to_tracker(
+            measured_qubits=self.geometry.control_target_all_stab_idx,
+            patch_type=f"Control_&_Target_Split_{self.split_type}",
+        )
+        detector_pairings = self.tracker.get_records_for_detectors(
+            patch_type=f"Control_&_Target_Split_{self.split_type}",
+        )
+        for curr_pairing in detector_pairings:
+            detector_circuit.append("DETECTOR", curr_pairing)
+
+        # Adding Shift Coords
+        detector_circuit.append("SHIFT_COORDS")
+
+        return detector_circuit
+
+    def _repeat_detectors(self) -> stim.Circuit:
+        # Define Detctor Circuit
+        detector_circuit = stim.Circuit()
+
+        for _ in range(self.geometry.distance - 2):
+            # Adding Detectors for Ancilla Measurements
+            self.tracker.add_measurements_to_tracker(
+                measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
+                patch_type=f"Ancilla_Split_{self.split_type}",
+            )
+
+            detector_pairings = self.tracker.get_records_for_detectors(
+                patch_type=f"Ancilla_Split_{self.split_type}",
+            )
+            for curr_pairing in detector_pairings:
+                detector_circuit.append("DETECTOR", curr_pairing)
+
+            # Adding Shift Coords
+            detector_circuit.append("SHIFT_COORDS")
+
+            # Adding Detectors for Control and Target Stabilizer Measurements
+            self.tracker.add_measurements_to_tracker(
+                measured_qubits=self.geometry.control_target_all_stab_idx,
+                patch_type=f"Control_&_Target_Split_{self.split_type}",
+            )
+
+            detector_pairings = self.tracker.get_records_for_detectors(
+                patch_type=f"Control_&_Target_Split_{self.split_type}",
+            )
+            for curr_pairing in detector_pairings:
+                detector_circuit.append("DETECTOR", curr_pairing)
+
+            # Adding Shift Coords
+            detector_circuit.append("SHIFT_COORDS")
+
+        return detector_circuit
+
+    def _final_detectors(self) -> stim.Circuit:
+        # Define Detctor Circuit
+        detector_circuit = stim.Circuit()
+
+        # Tracking Measurements and
+        # Adding Detectors for Ancilla Measurements
+        self.tracker.add_measurements_to_tracker(
+            measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
+            patch_type=f"Ancilla_Split_{self.split_type}",
+        )
+        detector_pairings = self.tracker.get_records_for_detectors(
+            patch_type=f"Ancilla_Split_{self.split_type}",
+        )
+        for curr_pairing in detector_pairings:
+            detector_circuit.append("DETECTOR", curr_pairing)
+
+        # Adding Shift Coords
+        detector_circuit.append("SHIFT_COORDS")
+
+        # Tracking Measurements and
+        # Adding Detectors for Control and Target Stabilizer Measurements
+        self.tracker.add_measurements_to_tracker(
+            measured_qubits=self.geometry.control_target_all_stab_idx,
+            patch_type=f"Control_&_Target_Split_{self.split_type}",
+        )
+        detector_pairings = self.tracker.get_records_for_detectors(
+            patch_type=f"Control_&_Target_Split_{self.split_type}",
+        )
+        for curr_pairing in detector_pairings:
+            detector_circuit.append("DETECTOR", curr_pairing)
+
+        # Adding Shift Coords
+        detector_circuit.append("SHIFT_COORDS")
+
+        return detector_circuit
+
+    def _init_split_circuit(self) -> stim.Circuit:
         # Define initial split Circuit
         split_init_circuit = stim.Circuit()
 
@@ -86,11 +196,7 @@ class SurgerySplit:
         split_init_circuit.append("M", self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx)
         split_init_circuit.append("TICK")
 
-        # Tracking Measurements
-        self.tracker.add_measurements(
-            measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
-        )
-
+        # Adding Reset and basis preparation for Ancilla for next round
         split_init_circuit.append("R", self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx)
         split_init_circuit.append("TICK")
 
@@ -115,14 +221,9 @@ class SurgerySplit:
 
         split_init_circuit.append("M", self.geometry.control_target_all_stab_idx)
 
-        # Tracking Measurements
-        self.tracker.add_measurements(
-            measured_qubits=self.geometry.control_target_all_stab_idx,
-        )
-
         return split_init_circuit
 
-    def _repeat_split_circuit(self):
+    def _repeat_split_circuit(self) -> stim.Circuit:
         # Implementing Repeat Block
         split_repeat_circuit = stim.Circuit()
 
@@ -150,6 +251,7 @@ class SurgerySplit:
         split_repeat_circuit.append("M", self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx)
         split_repeat_circuit.append("TICK")
 
+        # Adding Reset and basis preparation for Ancilla for next round
         split_repeat_circuit.append("R", self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx)
         split_repeat_circuit.append("TICK")
 
@@ -173,18 +275,52 @@ class SurgerySplit:
         split_repeat_circuit.append("TICK")
         split_repeat_circuit.append("M", self.geometry.control_target_all_stab_idx)
 
-        # Tracking Measurements
+        # Manual Shift Update
+        full_circuit = stim.Circuit()
+        template_circuit = split_repeat_circuit.copy()
+
         for _ in range(self.geometry.distance - 2):
-            self.tracker.add_measurements(
+            round_circuit = template_circuit.copy()
+
+            # Adding Detectors for Ancilla Measurements
+            self.tracker.add_measurements_to_tracker(
                 measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
+                patch_type=f"Ancilla_Split_{self.split_type}",
             )
-            self.tracker.add_measurements(
+
+            # Shift for Ancilla detectors (subtracting CT measurements)
+            ct_meas_count = len(self.geometry.control_target_all_stab_idx)
+
+            detector_pairings = self.tracker.get_records_for_detectors(
+                patch_type=f"Ancilla_Split_{self.split_type}",
+                manual_shift=ct_meas_count
+            )
+            for curr_pairing in detector_pairings:
+                round_circuit.append("DETECTOR", curr_pairing)
+
+            # Adding Shift Coords
+            round_circuit.append("SHIFT_COORDS")
+
+            # Adding Detectors for Control and Target Stabilizer Measurements
+            self.tracker.add_measurements_to_tracker(
                 measured_qubits=self.geometry.control_target_all_stab_idx,
+                patch_type=f"Control_&_Target_Split_{self.split_type}",
             )
 
-        return split_repeat_circuit * (self.geometry.distance - 2)
+            detector_pairings = self.tracker.get_records_for_detectors(
+                patch_type=f"Control_&_Target_Split_{self.split_type}",
+            )
+            for curr_pairing in detector_pairings:
+                round_circuit.append("DETECTOR", curr_pairing)
 
-    def _final_split_circuit(self):
+            # Adding Shift Coords
+            round_circuit.append("SHIFT_COORDS")
+            
+            full_circuit += round_circuit
+
+        return full_circuit
+
+    def _final_split_circuit(self) -> stim.Circuit:
         # Adding Final Circ
         """
         In this Section we add the Conditional X_L and Z_L depending on the XX and ZZ Measurements
@@ -216,11 +352,6 @@ class SurgerySplit:
         split_final_circuit.append("M", self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx)
         split_final_circuit.append("TICK")
 
-        # Tracking Measurements
-        self.tracker.add_measurements(
-            measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
-        )
-
         split_final_circuit.append("R", self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx)
         split_final_circuit.append("TICK")
         split_final_circuit.append("H", self.geometry.anc_x_bdy_b_stb_idx)
@@ -242,11 +373,6 @@ class SurgerySplit:
         )
         split_final_circuit.append("TICK")
         split_final_circuit.append("M", self.geometry.control_target_all_stab_idx)
-
-        # Tracking Measurements
-        self.tracker.add_measurements(
-            measured_qubits=self.geometry.control_target_all_stab_idx,
-        )
 
         # Adding Conditional Operations depending on non-deterministic measurements
         # Corrections appliead after all splits/ merges i.e. in AT split
@@ -293,11 +419,6 @@ class SurgerySplit:
         conditional_operations_circuit.append("MZ", self.geometry.anc_data_idx)
         conditional_operations_circuit.append("TICK")
 
-        # Tracking Measurements
-        self.tracker.add_measurements(
-            measured_qubits=self.geometry.anc_data_idx,
-        )
-
         # Adding the conditional Gate on Control (XORing two measurements)
         # 1) Z measurements on data Ancilla
         for rec_tar, index in enumerate(self.geometry.anc_data_idx):
@@ -317,15 +438,3 @@ class SurgerySplit:
                 )
 
         return conditional_operations_circuit
-
-    def _get_detectors(self):
-        """
-        As these are dependent on the measurement outcome and also on the type of merge
-        -> Seperated into two Parts conditioned on the Merge/Split type
-
-        The logical ZZ Observable is already defined by the newly implemented Z stabilizers
-        on the merge
-        -> Product of the stabilizers give measurement result
-        """
-
-        pass

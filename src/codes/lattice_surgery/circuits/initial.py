@@ -27,14 +27,111 @@ class SurgeryInitialization:
 
         # Adding Initializations
         circuit += self._adding_ancilla_initializations()
+        circuit += self._ancilla_init_detectors()
         circuit += self._adding_control_target_initializations()
+        circuit += self._control_target_init_detectors()
 
         # Adding Init Repeat Block
         circuit += self._adding_repeat_block()
 
         return circuit
 
-    def _adding_ancilla_initializations(self):
+    def _ancilla_init_detectors(self):
+        # Initialization Circuit
+        detector_circuit = stim.Circuit()
+
+        # Adding Detectors -> Only X Type Stabilizers for Ancilla Init
+        # -> Init. in X Basis
+        self.measurement_tracker.add_measurements_to_tracker(
+            measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
+            qubits_for_detectors=self.geometry.anc_x_stb_idx,
+            patch_type="Ancilla",
+        )
+
+        det_record_pairings = self.measurement_tracker.get_records_for_detectors(
+            patch_type="Ancilla",
+        )
+        for curr_pairing in det_record_pairings:
+            detector_circuit.append("DETECTOR", curr_pairing)
+
+        # Shifting Coords
+        detector_circuit.append("SHIFT_COORDS")
+
+        return detector_circuit
+
+    def _control_target_init_detectors(self) -> stim.Circuit:
+        # Initialization Circuit
+        detector_circuit = stim.Circuit()
+
+        # Adding Detectors -> Selected qubits depend on Basis
+        control_stabs = (
+            self.geometry.control_x_stb_idx
+            if self.geometry.control_state_init in {"X+", "X-"}
+            else self.geometry.control_z_stb_idx
+        )
+        target_stabs = (
+            self.geometry.target_x_stb_idx
+            if self.geometry.target_state_init in {"X+", "X-"}
+            else self.geometry.target_z_stb_idx
+        )
+
+        self.measurement_tracker.add_measurements_to_tracker(
+            measured_qubits=self.geometry.control_target_all_stab_idx,
+            qubits_for_detectors=control_stabs + target_stabs,
+            patch_type="Control_&_Target",
+        )
+
+        det_record_pairings = self.measurement_tracker.get_records_for_detectors(
+            patch_type="Control_&_Target",
+        )
+        for curr_pairing in det_record_pairings:
+            detector_circuit.append("DETECTOR", curr_pairing)
+
+        # Shifting Coords
+        detector_circuit.append("SHIFT_COORDS")
+
+        return detector_circuit
+
+    def _repeat_block_detectors(self) -> stim.Circuit:
+        # Detector Circuit
+        detector_circuit = stim.Circuit()
+
+        for _ in range(self.geometry.distance - 1):
+            # Adding Full Ancilla Detectors
+            self.measurement_tracker.add_measurements_to_tracker(
+                measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
+                patch_type="Ancilla",
+            )
+
+            det_record_pairings = self.measurement_tracker.get_records_for_detectors(
+                patch_type="Ancilla",
+            )
+
+            for curr_pairing in det_record_pairings:
+                detector_circuit.append("DETECTOR", curr_pairing)
+
+            # Shifting Coords
+            detector_circuit.append("SHIFT_COORDS")
+
+            # Adding Full Control and Target Detectors
+            self.measurement_tracker.add_measurements_to_tracker(
+                measured_qubits=self.geometry.control_target_all_stab_idx,
+                patch_type="Control_&_Target",
+            )
+
+            det_record_pairings = self.measurement_tracker.get_records_for_detectors(
+                patch_type="Control_&_Target",
+            )
+
+            for curr_pairing in det_record_pairings:
+                detector_circuit.append("DETECTOR", curr_pairing)
+
+            # Shifting Coords
+            detector_circuit.append("SHIFT_COORDS")
+
+        return detector_circuit
+
+    def _adding_ancilla_initializations(self) -> stim.Circuit:
         # Initialization Circuit
         anc_init_circuit = stim.Circuit()
 
@@ -64,26 +161,9 @@ class SurgeryInitialization:
         anc_init_circuit.append("M", self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx)
         anc_init_circuit.append("TICK")
 
-        # Adding Detectors -> Only X Type Stabilizers for Ancilla Init
-        # -> Init. in X Basis
-        self.measurement_tracker.add_measurements_to_detector_dict(
-            measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
-            selected_qubits=self.geometry.anc_x_stb_idx,
-            patch_type="Ancilla",
-        )
-
-        det_record_pairings = self.measurement_tracker.get_records_for_detectors(
-            patch_type="Ancilla",
-        )
-        for curr_pairing in det_record_pairings:
-            anc_init_circuit.append("DETECTOR", curr_pairing)
-
-        # Shifting Coords
-        anc_init_circuit.append("SHIFT_COORDS")
-
         return anc_init_circuit
 
-    def _adding_control_target_initializations(self):
+    def _adding_control_target_initializations(self) -> stim.Circuit:
         # Initialization Circuit
         ct_init_circuit = stim.Circuit()
 
@@ -110,36 +190,9 @@ class SurgeryInitialization:
         ct_init_circuit.append("TICK")
         ct_init_circuit.append("M", self.geometry.control_target_all_stab_idx)
 
-        # Adding Detectors -> Selected qubits depend on Basis
-        control_stabs = (
-            self.geometry.control_x_stb_idx
-            if self.geometry.control_state_init in {"X+", "X-"}
-            else self.geometry.control_z_stb_idx
-        )
-        target_stabs = (
-            self.geometry.target_x_stb_idx
-            if self.geometry.target_state_init in {"X+", "X-"}
-            else self.geometry.target_z_stb_idx
-        )
-
-        self.measurement_tracker.add_measurements_to_detector_dict(
-            measured_qubits=self.geometry.control_target_all_stab_idx,
-            selected_qubits=control_stabs + target_stabs,
-            patch_type="Control_&_Target",
-        )
-
-        det_record_pairings = self.measurement_tracker.get_records_for_detectors(
-            patch_type="Control_&_Target",
-        )
-        for curr_pairing in det_record_pairings:
-            ct_init_circuit.append("DETECTOR", curr_pairing)
-
-        # Shifting Coords
-        ct_init_circuit.append("SHIFT_COORDS")
-
         return ct_init_circuit
 
-    def _adding_repeat_block(self):
+    def _adding_repeat_block(self) -> stim.Circuit:
         rep_init_circuit = stim.Circuit()
 
         # Adding reset from initial round
@@ -168,22 +221,6 @@ class SurgeryInitialization:
         )
         rep_init_circuit.append("TICK")
 
-        # Adding Full Ancilla Detectors
-        self.measurement_tracker.add_measurements_to_detector_dict(
-            measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
-            patch_type="Ancilla",
-        )
-
-        det_record_pairings = self.measurement_tracker.get_records_for_detectors(
-            patch_type="Ancilla",
-        )
-
-        for curr_pairing in det_record_pairings:
-            rep_init_circuit.append("DETECTOR", curr_pairing)
-
-        # Shifting Coords
-        rep_init_circuit.append("SHIFT_COORDS")
-
         rep_init_circuit.append(
             "R",
             self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
@@ -209,20 +246,47 @@ class SurgeryInitialization:
         rep_init_circuit.append("TICK")
         rep_init_circuit.append("M", self.geometry.control_target_all_stab_idx)
 
-        # Adding Full Control and Target Detectors
-        self.measurement_tracker.add_measurements_to_detector_dict(
-            measured_qubits=self.geometry.control_target_all_stab_idx,
-            patch_type="Control_&_Target",
-        )
+        # Manual Shift Update
+        full_circuit = stim.Circuit()
+        template_circuit = rep_init_circuit.copy()
 
-        det_record_pairings = self.measurement_tracker.get_records_for_detectors(
-            patch_type="Control_&_Target",
-        )
+        for _ in range(self.geometry.distance - 1):
+            round_circuit = template_circuit.copy()
+            
+            # Adding Full Ancilla Detectors
+            self.measurement_tracker.add_measurements_to_tracker(
+                measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
+                patch_type="Ancilla",
+            )
+            
+            # Shift for Ancilla detectors (subtracting CT measurements)
+            ct_meas_count = len(self.geometry.control_target_all_stab_idx)
 
-        for curr_pairing in det_record_pairings:
-            rep_init_circuit.append("DETECTOR", curr_pairing)
+            det_record_pairings = self.measurement_tracker.get_records_for_detectors(
+                patch_type="Ancilla",
+                manual_shift=ct_meas_count
+            )
+            for curr_pairing in det_record_pairings:
+                round_circuit.append("DETECTOR", curr_pairing)
 
-        # Shifting Coords
-        rep_init_circuit.append("SHIFT_COORDS")
+            # Shifting Coords
+            round_circuit.append("SHIFT_COORDS")
 
-        return rep_init_circuit * (self.geometry.distance - 1)
+            # Adding Full Control and Target Detectors
+            self.measurement_tracker.add_measurements_to_tracker(
+                measured_qubits=self.geometry.control_target_all_stab_idx,
+                patch_type="Control_&_Target",
+            )
+
+            det_record_pairings = self.measurement_tracker.get_records_for_detectors(
+                patch_type="Control_&_Target",
+            )
+            for curr_pairing in det_record_pairings:
+                round_circuit.append("DETECTOR", curr_pairing)
+
+            # Shifting Coords
+            round_circuit.append("SHIFT_COORDS")
+            
+            full_circuit += round_circuit
+        
+        return full_circuit

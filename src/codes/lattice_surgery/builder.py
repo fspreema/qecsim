@@ -1,5 +1,4 @@
 import stim
-from tqecd import annotate_detectors_automatically
 
 from src.codes.lattice_surgery.circuits.final_measure import SurgeryFinalMeasure
 from src.codes.lattice_surgery.circuits.initial import SurgeryInitialization
@@ -14,7 +13,6 @@ from src.codes.lattice_surgery.measurement_tracker import MeasurementTracker
 from src.codes.lattice_surgery.surgery_geom import SurgeryGeometry
 from src.core.base_class_builder import BaseClassBuilder
 from src.core.data_models import NoiseParameters
-from src.core.flow_builder import CircuitChunk, CompileChunk
 
 __all__ = ["SurgeryBuilder"]
 
@@ -88,7 +86,7 @@ class SurgeryBuilder(BaseClassBuilder):
         )
 
         # Initiate Measurement Tracker
-        self.tracker = MeasurementTracker()
+        self.tracker = MeasurementTracker(geometry=self.geometry)
 
         # Initlize Current Flow
         self.curr_flow = (
@@ -146,9 +144,6 @@ class SurgeryBuilder(BaseClassBuilder):
         # Adding Final Measurement Circuit
         return_circuit += self._adding_final_measurement_circuit()
 
-        # Generating Detectors
-        # return_circuit = self._generate_detectors()
-
         # Adding Noise Model if applicable
         return_circuit = self._apply_noise(input_circuit=return_circuit)
 
@@ -160,9 +155,6 @@ class SurgeryBuilder(BaseClassBuilder):
             geometry=self.geometry,
         )
         self.reset_circuit = reset_circuit_builder.build_circuit()
-
-        # Adding Reset Circuit into Compiler for Detectors
-        self.reset_chunk = CircuitChunk(chunk_circuit=self.reset_circuit, geometry=self.geometry)
 
         return self.reset_circuit
 
@@ -188,9 +180,6 @@ class SurgeryBuilder(BaseClassBuilder):
         )
         self.init_circuit = init_circuit_builder.build_circuit()
 
-        # Adding Initialization Circuit into Compiler for Detectors
-        self.init_chunk = CircuitChunk(chunk_circuit=self.init_circuit, geometry=self.geometry)
-
         return self.init_circuit
 
     def _adding_merge(self, type: str) -> stim.Circuit:
@@ -202,9 +191,6 @@ class SurgeryBuilder(BaseClassBuilder):
             tracker=self.tracker,
         )
         merge_circuit = merge_circuit_builder.build_circuit()
-
-        # Adding Merge Circuit into Compiler for Detectors
-        self.merge_chunk = CircuitChunk(chunk_circuit=merge_circuit, geometry=self.geometry)
 
         return merge_circuit
 
@@ -218,9 +204,6 @@ class SurgeryBuilder(BaseClassBuilder):
         )
         split_circuit = split_circuit_builder.build_circuit()
 
-        # Adding Split Circuit into Compiler for Detectors
-        self.split_chunk = CircuitChunk(chunk_circuit=split_circuit, geometry=self.geometry)
-
         return split_circuit
 
     def _adding_final_measurement_circuit(self) -> stim.Circuit:
@@ -233,28 +216,7 @@ class SurgeryBuilder(BaseClassBuilder):
         )
         final_measure_circuit = final_measure_circuit_builder.build_circuit()
 
-        # Adding Final Measurement Circuit into Compiler for Detectors
-        self.final_measure_chunk = CircuitChunk(
-            chunk_circuit=final_measure_circuit,
-            geometry=self.geometry,
-        )
-
         return final_measure_circuit
-
-    def _generate_detectors(self) -> stim.Circuit:
-        # Compiling all Circuit Chunks for Detector Generation
-        compile_chunks = CompileChunk(
-            chunk_circuits=[
-                self.reset_chunk,
-                self.init_chunk,
-                self.merge_chunk,
-                self.split_chunk,
-                self.final_measure_chunk,
-            ],
-        )
-
-        # Generating Detectors
-        return compile_chunks.compile()
 
     def _adding_solve_flow_observables(self, flow_circuit: stim.Circuit) -> stim.Circuit:
         # Adding Solve Flow Observables Circuit

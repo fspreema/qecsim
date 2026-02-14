@@ -127,6 +127,8 @@ class SurgeryGeometry(BaseGeometry):
             "Z-STAB-SURGERY-M",
             self.coords_surgery,
         )
+        self.non_det_stab_indices_ac = self.surgery_z_l_stb_idx + self.surgery_z_m_stb_idx
+        self.non_det_stab_indices_at = self.surgery_x_b_stb_idx + self.surgery_x_m_stb_idx
 
         # Additional Stabilizer Indices Definitions that are needed
         self.control_target_all_stab_idx = (
