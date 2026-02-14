@@ -167,7 +167,7 @@ class MeasurementTracker:
     def get_records_for_detectors(
         self,
         patch_type: str,
-        manual_shift: int = 0,
+        number_of_repeat_blocks: int = 0,
     ) -> list[list[stim.GateTarget]]:
         """
         *Return:
@@ -236,15 +236,9 @@ class MeasurementTracker:
             "Merge_AT",
         }:
             records = self._get_merging_records(patch_type)
-        
-        else:
-             raise ValueError(f"Unknown patch type encountered: {patch_type}")
 
-        # Apply manual shift if needed
-        if manual_shift != 0:
-            for record_group in records:
-                for target in record_group:
-                    target.value -= manual_shift
+        else:
+            raise ValueError(f"Unknown patch type encountered: {patch_type}")
 
         return records
 

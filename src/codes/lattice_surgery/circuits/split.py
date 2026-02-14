@@ -51,6 +51,7 @@ class SurgerySplit:
 
         # Add Repetition Rounds
         return_circuit += self._repeat_split_circuit()
+        return_circuit += self._repeat_detectors()
 
         # Add Final Split Round
         return_circuit += self._final_split_circuit()
@@ -275,50 +276,7 @@ class SurgerySplit:
         split_repeat_circuit.append("TICK")
         split_repeat_circuit.append("M", self.geometry.control_target_all_stab_idx)
 
-        # Manual Shift Update
-        full_circuit = stim.Circuit()
-        template_circuit = split_repeat_circuit.copy()
-
-        for _ in range(self.geometry.distance - 2):
-            round_circuit = template_circuit.copy()
-
-            # Adding Detectors for Ancilla Measurements
-            self.tracker.add_measurements_to_tracker(
-                measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
-                patch_type=f"Ancilla_Split_{self.split_type}",
-            )
-
-            # Shift for Ancilla detectors (subtracting CT measurements)
-            ct_meas_count = len(self.geometry.control_target_all_stab_idx)
-
-            detector_pairings = self.tracker.get_records_for_detectors(
-                patch_type=f"Ancilla_Split_{self.split_type}",
-                manual_shift=ct_meas_count
-            )
-            for curr_pairing in detector_pairings:
-                round_circuit.append("DETECTOR", curr_pairing)
-
-            # Adding Shift Coords
-            round_circuit.append("SHIFT_COORDS")
-
-            # Adding Detectors for Control and Target Stabilizer Measurements
-            self.tracker.add_measurements_to_tracker(
-                measured_qubits=self.geometry.control_target_all_stab_idx,
-                patch_type=f"Control_&_Target_Split_{self.split_type}",
-            )
-
-            detector_pairings = self.tracker.get_records_for_detectors(
-                patch_type=f"Control_&_Target_Split_{self.split_type}",
-            )
-            for curr_pairing in detector_pairings:
-                round_circuit.append("DETECTOR", curr_pairing)
-
-            # Adding Shift Coords
-            round_circuit.append("SHIFT_COORDS")
-            
-            full_circuit += round_circuit
-
-        return full_circuit
+        return split_repeat_circuit * (self.geometry.distance - 2)
 
     def _final_split_circuit(self) -> stim.Circuit:
         # Adding Final Circ

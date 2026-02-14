@@ -33,6 +33,7 @@ class SurgeryInitialization:
 
         # Adding Init Repeat Block
         circuit += self._adding_repeat_block()
+        circuit += self._repeat_block_detectors()
 
         return circuit
 
@@ -246,47 +247,4 @@ class SurgeryInitialization:
         rep_init_circuit.append("TICK")
         rep_init_circuit.append("M", self.geometry.control_target_all_stab_idx)
 
-        # Manual Shift Update
-        full_circuit = stim.Circuit()
-        template_circuit = rep_init_circuit.copy()
-
-        for _ in range(self.geometry.distance - 1):
-            round_circuit = template_circuit.copy()
-            
-            # Adding Full Ancilla Detectors
-            self.measurement_tracker.add_measurements_to_tracker(
-                measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
-                patch_type="Ancilla",
-            )
-            
-            # Shift for Ancilla detectors (subtracting CT measurements)
-            ct_meas_count = len(self.geometry.control_target_all_stab_idx)
-
-            det_record_pairings = self.measurement_tracker.get_records_for_detectors(
-                patch_type="Ancilla",
-                manual_shift=ct_meas_count
-            )
-            for curr_pairing in det_record_pairings:
-                round_circuit.append("DETECTOR", curr_pairing)
-
-            # Shifting Coords
-            round_circuit.append("SHIFT_COORDS")
-
-            # Adding Full Control and Target Detectors
-            self.measurement_tracker.add_measurements_to_tracker(
-                measured_qubits=self.geometry.control_target_all_stab_idx,
-                patch_type="Control_&_Target",
-            )
-
-            det_record_pairings = self.measurement_tracker.get_records_for_detectors(
-                patch_type="Control_&_Target",
-            )
-            for curr_pairing in det_record_pairings:
-                round_circuit.append("DETECTOR", curr_pairing)
-
-            # Shifting Coords
-            round_circuit.append("SHIFT_COORDS")
-            
-            full_circuit += round_circuit
-        
-        return full_circuit
+        return rep_init_circuit * (self.geometry.distance - 1)
