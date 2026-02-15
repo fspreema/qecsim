@@ -65,91 +65,38 @@ class SurgeryMerge:
 
         # Initial Merge Circuit
         return_circuit += self._initial_merge_circuit()
-        return_circuit += self._initial_detectors()
         # Repeat Merge Circuit
         return_circuit += self._repeat_merge_circuit()
-        return_circuit += self._repeat_block_detectors()
 
         return return_circuit
 
-    def _initial_detectors(self) -> stim.Circuit:
-        # Init Circuit
+    def _get_detectors(
+        self,
+        measured_qubits: list[int],
+        patch_type: str,
+        qubits_for_detectors: list[int] | None = None,
+        tag: str | None = None,
+        tagged_qubits: list[int] | None = None,
+    ) -> stim.Circuit:
+        # Initialize Circuit
         detector_circuit = stim.Circuit()
 
-        # Add Measurements to tracker and
-        # Adding Detectors for Combined Patches
         self.tracker.add_measurements_to_tracker(
-            measured_qubits=self.combined_z_stab_merging_lattices
-            + self.combined_x_stab_merging_lattices,
-            patch_type=f"Merge_{self.merging_type}",
+            measured_qubits=measured_qubits,
+            qubits_for_detectors=qubits_for_detectors,
+            patch_type=patch_type,
+            tag=tag,
+            tagged_qubits=tagged_qubits,
         )
+
         det_record_pairings = self.tracker.get_records_for_detectors(
-            patch_type=f"Merge_{self.merging_type}",
+            patch_type=patch_type,
         )
         for curr_pairing in det_record_pairings:
             detector_circuit.append("DETECTOR", curr_pairing)
 
         # Shifting Coords
         detector_circuit.append("SHIFT_COORDS")
-
-        # Updating Measurement Tracker and
-        # Adding Detectors for untouched Patches
-        self.tracker.add_measurements_to_tracker(
-            measured_qubits=self.x_stab_index_untouched_circ + self.z_stab_index_untouched_circ,
-            patch_type=f"Merge_{self.merging_type}_untouched",
-        )
-        det_record_pairings = self.tracker.get_records_for_detectors(
-            patch_type=f"Merge_{self.merging_type}_untouched",
-        )
-        for curr_pairing in det_record_pairings:
-            detector_circuit.append("DETECTOR", curr_pairing)
-
-        # Shifting Coords
-        detector_circuit.append("SHIFT_COORDS")
-
-        return detector_circuit
-
-    def _repeat_block_detectors(self) -> stim.Circuit:
-        # Init Circuit
-        detector_circuit = stim.Circuit()
-
-        for curr_round in range(self.geometry.distance - 1):
-            # Updating Non Deterministic Measurement Tracker and
-            # Adding Detectors for Combined Patches
-            self.tracker.add_measurements_to_tracker(
-                measured_qubits=self.combined_z_stab_merging_lattices
-                + self.combined_x_stab_merging_lattices,
-                tagged_qubits=self.non_det_stab_indices,
-                patch_type=f"Merge_{self.merging_type}",
-                tag=f"{self.merging_type}_non_deterministic_measurements"
-                if curr_round == self.geometry.distance - 2
-                else None,
-            )
-
-            det_record_pairings = self.tracker.get_records_for_detectors(
-                patch_type=f"Merge_{self.merging_type}",
-            )
-            for curr_pairing in det_record_pairings:
-                detector_circuit.append("DETECTOR", curr_pairing)
-
-            # Shifting Coords
-            detector_circuit.append("SHIFT_COORDS")
-
-            # Updating Determisntic Measurement Tracker
-            # Adding Detectors for Untouched Patches
-            self.tracker.add_measurements_to_tracker(
-                measured_qubits=self.x_stab_index_untouched_circ + self.z_stab_index_untouched_circ,
-                patch_type=f"Merge_{self.merging_type}_untouched",
-            )
-
-            det_record_pairings = self.tracker.get_records_for_detectors(
-                patch_type=f"Merge_{self.merging_type}_untouched",
-            )
-            for curr_pairing in det_record_pairings:
-                detector_circuit.append("DETECTOR", curr_pairing)
-
-            # Shifting Coords
-            detector_circuit.append("SHIFT_COORDS")
 
         return detector_circuit
 
@@ -183,6 +130,14 @@ class SurgeryMerge:
             self.combined_z_stab_merging_lattices + self.combined_x_stab_merging_lattices,
         )
         merge_init_circuit.append("TICK")
+
+        # Adding Detectors for Combined Patches
+        merge_init_circuit += self._get_detectors(
+            measured_qubits=self.combined_z_stab_merging_lattices
+            + self.combined_x_stab_merging_lattices,
+            patch_type=f"Merge_{self.merging_type}",
+        )
+
         merge_init_circuit.append(
             "R",
             self.combined_z_stab_merging_lattices + self.combined_x_stab_merging_lattices,
@@ -216,75 +171,100 @@ class SurgeryMerge:
             self.x_stab_index_untouched_circ + self.z_stab_index_untouched_circ,
         )
 
+        # Adding Detectors for untouched Patches
+        merge_init_circuit += self._get_detectors(
+            measured_qubits=self.x_stab_index_untouched_circ + self.z_stab_index_untouched_circ,
+            patch_type=f"Merge_{self.merging_type}_untouched",
+        )
+
         return merge_init_circuit
 
     def _repeat_merge_circuit(self) -> stim.Circuit:
         # Defining Repeat Circuit
         merge_round_circuit = stim.Circuit()
 
-        # Reinitializing Stabilizers and add basis change where needed
-        merge_round_circuit.append("TICK")
-        merge_round_circuit.append(
-            "R",
-            self.x_stab_index_untouched_circ + self.z_stab_index_untouched_circ,
-        )
+        for curr_round in range(self.geometry.distance - 1):
+            # Reinitializing Stabilizers and add basis change where needed
+            merge_round_circuit.append("TICK")
+            merge_round_circuit.append(
+                "R",
+                self.x_stab_index_untouched_circ + self.z_stab_index_untouched_circ,
+            )
 
-        merge_round_circuit.append("TICK")
-        merge_round_circuit.append("H", self.combined_x_stab)
+            merge_round_circuit.append("TICK")
+            merge_round_circuit.append("H", self.combined_x_stab)
 
-        merge_round_circuit.append("TICK")
-
-        # CX Operations for Ancilla qubits
-        cx_builder(
-            q2i=self.geometry.q2i,
-            stab_to_data=self.stab_to_data_curr_merg | self.stab_to_data_untouched_circ,
-            circuit=merge_round_circuit,
-        )
-
-        # Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement):
-        # I.e. return to Z-Basis where needed and Measure
-        merge_round_circuit.append("H", self.combined_x_stab_merging_lattices)
-        merge_round_circuit.append("TICK")
-
-        merge_round_circuit.append(
-            "M",
-            self.combined_z_stab_merging_lattices + self.combined_x_stab_merging_lattices,
-        )
-        merge_round_circuit.append("TICK")
-
-        # Adding Reset for Ancilla Qubits of Stabilizers
-        merge_round_circuit.append(
-            "R",
-            self.combined_z_stab_merging_lattices + self.combined_x_stab_merging_lattices,
-        )
-        merge_round_circuit.append("TICK")
-
-        # Continue CX-Implementation for untouched lattice (As AC/AT-Lattice already has a full run)
-
-        """
-        Adding needed H-Gates for X-Stabs which are shared between 
-        merged lattice and untouched lattice
-        """
-
-        if self.merging_type == "AT":
-            merge_round_circuit.append("H", self.geometry.anc_x_bdy_b_stb_idx)
             merge_round_circuit.append("TICK")
 
-        cx_builder(
-            q2i=self.geometry.q2i,
-            stab_to_data=self.stab_to_data_untouched_circ,
-            circuit=merge_round_circuit,
-            orders=("5-CX", "6-CX"),
-        )
+            # CX Operations for Ancilla qubits
+            cx_builder(
+                q2i=self.geometry.q2i,
+                stab_to_data=self.stab_to_data_curr_merg | self.stab_to_data_untouched_circ,
+                circuit=merge_round_circuit,
+            )
 
-        # Retreive Boundary + Normal Stabilizers from Target and Control
-        # (Basis Change + Measurement):
-        merge_round_circuit.append("H", self.x_stab_index_untouched_circ)
-        merge_round_circuit.append("TICK")
+            # Retreive Boundary + Normal Stabilizers Ancilla (Basis change and Measurement):
+            # I.e. return to Z-Basis where needed and Measure
+            merge_round_circuit.append("H", self.combined_x_stab_merging_lattices)
+            merge_round_circuit.append("TICK")
 
-        merge_round_circuit.append(
-            "M",
-            self.x_stab_index_untouched_circ + self.z_stab_index_untouched_circ,
-        )
+            merge_round_circuit.append(
+                "M",
+                self.combined_z_stab_merging_lattices + self.combined_x_stab_merging_lattices,
+            )
+            merge_round_circuit.append("TICK")
 
-        return merge_round_circuit * (self.geometry.distance - 1)
+            # Adding Detectors for Combined Patches & Labeling Non Deterministic Measurements
+            merge_round_circuit += self._get_detectors(
+                measured_qubits=self.combined_z_stab_merging_lattices
+                + self.combined_x_stab_merging_lattices,
+                patch_type=f"Merge_{self.merging_type}",
+                tagged_qubits=self.non_det_stab_indices,
+                tag=f"{self.merging_type}_non_deterministic_measurements"
+                if curr_round == self.geometry.distance - 2
+                else None,
+            )
+
+            # Adding Reset for Ancilla Qubits of Stabilizers
+            merge_round_circuit.append(
+                "R",
+                self.combined_z_stab_merging_lattices + self.combined_x_stab_merging_lattices,
+            )
+            merge_round_circuit.append("TICK")
+
+            # Continue CX-Implementation for untouched lattice
+            # (As AC/AT-Lattice already has a full run)
+
+            """
+            Adding needed H-Gates for X-Stabs which are shared between 
+            merged lattice and untouched lattice
+            """
+
+            if self.merging_type == "AT":
+                merge_round_circuit.append("H", self.geometry.anc_x_bdy_b_stb_idx)
+                merge_round_circuit.append("TICK")
+
+            cx_builder(
+                q2i=self.geometry.q2i,
+                stab_to_data=self.stab_to_data_untouched_circ,
+                circuit=merge_round_circuit,
+                orders=("5-CX", "6-CX"),
+            )
+
+            # Retreive Boundary + Normal Stabilizers from Target and Control
+            # (Basis Change + Measurement):
+            merge_round_circuit.append("H", self.x_stab_index_untouched_circ)
+            merge_round_circuit.append("TICK")
+
+            merge_round_circuit.append(
+                "M",
+                self.x_stab_index_untouched_circ + self.z_stab_index_untouched_circ,
+            )
+
+            # Adding Detectors for untouched Patches
+            merge_round_circuit += self._get_detectors(
+                measured_qubits=self.x_stab_index_untouched_circ + self.z_stab_index_untouched_circ,
+                patch_type=f"Merge_{self.merging_type}_untouched",
+            )
+
+        return merge_round_circuit

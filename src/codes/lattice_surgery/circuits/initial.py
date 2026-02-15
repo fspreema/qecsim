@@ -27,108 +27,36 @@ class SurgeryInitialization:
 
         # Adding Initializations
         circuit += self._adding_ancilla_initializations()
-        circuit += self._ancilla_init_detectors()
         circuit += self._adding_control_target_initializations()
-        circuit += self._control_target_init_detectors()
 
         # Adding Init Repeat Block
         circuit += self._adding_repeat_block()
-        circuit += self._repeat_block_detectors()
 
         return circuit
 
-    def _ancilla_init_detectors(self):
+    def _get_detectors(
+        self,
+        measured_qubits: list[int],
+        patch_type: str,
+        qubits_for_detectors: list[int] | None = None,
+    ) -> stim.Circuit:
         # Initialization Circuit
         detector_circuit = stim.Circuit()
 
-        # Adding Detectors -> Only X Type Stabilizers for Ancilla Init
-        # -> Init. in X Basis
         self.measurement_tracker.add_measurements_to_tracker(
-            measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
-            qubits_for_detectors=self.geometry.anc_x_stb_idx,
-            patch_type="Ancilla",
+            measured_qubits=measured_qubits,
+            qubits_for_detectors=qubits_for_detectors,
+            patch_type=patch_type,
         )
 
         det_record_pairings = self.measurement_tracker.get_records_for_detectors(
-            patch_type="Ancilla",
+            patch_type=patch_type,
         )
         for curr_pairing in det_record_pairings:
             detector_circuit.append("DETECTOR", curr_pairing)
 
         # Shifting Coords
         detector_circuit.append("SHIFT_COORDS")
-
-        return detector_circuit
-
-    def _control_target_init_detectors(self) -> stim.Circuit:
-        # Initialization Circuit
-        detector_circuit = stim.Circuit()
-
-        # Adding Detectors -> Selected qubits depend on Basis
-        control_stabs = (
-            self.geometry.control_x_stb_idx
-            if self.geometry.control_state_init in {"X+", "X-"}
-            else self.geometry.control_z_stb_idx
-        )
-        target_stabs = (
-            self.geometry.target_x_stb_idx
-            if self.geometry.target_state_init in {"X+", "X-"}
-            else self.geometry.target_z_stb_idx
-        )
-
-        self.measurement_tracker.add_measurements_to_tracker(
-            measured_qubits=self.geometry.control_target_all_stab_idx,
-            qubits_for_detectors=control_stabs + target_stabs,
-            patch_type="Control_&_Target",
-        )
-
-        det_record_pairings = self.measurement_tracker.get_records_for_detectors(
-            patch_type="Control_&_Target",
-        )
-        for curr_pairing in det_record_pairings:
-            detector_circuit.append("DETECTOR", curr_pairing)
-
-        # Shifting Coords
-        detector_circuit.append("SHIFT_COORDS")
-
-        return detector_circuit
-
-    def _repeat_block_detectors(self) -> stim.Circuit:
-        # Detector Circuit
-        detector_circuit = stim.Circuit()
-
-        for _ in range(self.geometry.distance - 1):
-            # Adding Full Ancilla Detectors
-            self.measurement_tracker.add_measurements_to_tracker(
-                measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
-                patch_type="Ancilla",
-            )
-
-            det_record_pairings = self.measurement_tracker.get_records_for_detectors(
-                patch_type="Ancilla",
-            )
-
-            for curr_pairing in det_record_pairings:
-                detector_circuit.append("DETECTOR", curr_pairing)
-
-            # Shifting Coords
-            detector_circuit.append("SHIFT_COORDS")
-
-            # Adding Full Control and Target Detectors
-            self.measurement_tracker.add_measurements_to_tracker(
-                measured_qubits=self.geometry.control_target_all_stab_idx,
-                patch_type="Control_&_Target",
-            )
-
-            det_record_pairings = self.measurement_tracker.get_records_for_detectors(
-                patch_type="Control_&_Target",
-            )
-
-            for curr_pairing in det_record_pairings:
-                detector_circuit.append("DETECTOR", curr_pairing)
-
-            # Shifting Coords
-            detector_circuit.append("SHIFT_COORDS")
 
         return detector_circuit
 
@@ -162,6 +90,13 @@ class SurgeryInitialization:
         anc_init_circuit.append("M", self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx)
         anc_init_circuit.append("TICK")
 
+        # Adding Detectors for Ancilla Initialization
+        anc_init_circuit += self._get_detectors(
+            measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
+            qubits_for_detectors=self.geometry.anc_x_stb_idx,
+            patch_type="Ancilla",
+        )
+
         return anc_init_circuit
 
     def _adding_control_target_initializations(self) -> stim.Circuit:
@@ -191,60 +126,91 @@ class SurgeryInitialization:
         ct_init_circuit.append("TICK")
         ct_init_circuit.append("M", self.geometry.control_target_all_stab_idx)
 
+        # Adding Detectors -> Selected qubits depend on Basis
+        control_stabs = (
+            self.geometry.control_x_stb_idx
+            if self.geometry.control_state_init in {"X+", "X-"}
+            else self.geometry.control_z_stb_idx
+        )
+        target_stabs = (
+            self.geometry.target_x_stb_idx
+            if self.geometry.target_state_init in {"X+", "X-"}
+            else self.geometry.target_z_stb_idx
+        )
+
+        ct_init_circuit += self._get_detectors(
+            measured_qubits=self.geometry.control_target_all_stab_idx,
+            qubits_for_detectors=control_stabs + target_stabs,
+            patch_type="Control_&_Target",
+        )
+
         return ct_init_circuit
 
     def _adding_repeat_block(self) -> stim.Circuit:
         rep_init_circuit = stim.Circuit()
 
-        # Adding reset from initial round
-        rep_init_circuit.append("TICK")
-        rep_init_circuit.append("R", self.geometry.control_target_all_stab_idx)
+        for _ in range(self.geometry.distance - 1):
+            # Adding reset from initial round
+            rep_init_circuit.append("TICK")
+            rep_init_circuit.append("R", self.geometry.control_target_all_stab_idx)
 
-        rep_init_circuit.append("TICK")
-        rep_init_circuit.append("H", self.geometry.combined_x_stab_idx_filtered)
-        rep_init_circuit.append("TICK")
+            rep_init_circuit.append("TICK")
+            rep_init_circuit.append("H", self.geometry.combined_x_stab_idx_filtered)
+            rep_init_circuit.append("TICK")
 
-        # CX Operations for Ancilla qubits
-        cx_builder(
-            q2i=self.geometry.q2i,
-            stab_to_data=self.stab_to_data,
-            circuit=rep_init_circuit,
-        )
+            # CX Operations for Ancilla qubits
+            cx_builder(
+                q2i=self.geometry.q2i,
+                stab_to_data=self.stab_to_data,
+                circuit=rep_init_circuit,
+            )
 
-        # Retreive Boundary + Normal Stabilizers Ancilla
-        # I.e. Basis change and measurement of ancilla
-        rep_init_circuit.append("H", self.geometry.anc_x_stb_idx)
-        rep_init_circuit.append("TICK")
+            # Retreive Boundary + Normal Stabilizers Ancilla
+            # I.e. Basis change and measurement of ancilla
+            rep_init_circuit.append("H", self.geometry.anc_x_stb_idx)
+            rep_init_circuit.append("TICK")
 
-        rep_init_circuit.append(
-            "M",
-            self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
-        )
-        rep_init_circuit.append("TICK")
+            rep_init_circuit.append(
+                "M",
+                self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
+            )
+            rep_init_circuit.append("TICK")
 
-        rep_init_circuit.append(
-            "R",
-            self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
-        )
-        rep_init_circuit.append("TICK")
-        rep_init_circuit.append("H", self.geometry.anc_x_bdy_b_stb_idx)
-        rep_init_circuit.append("TICK")
+            # Adding Detectors for Ancilla Initialization
+            rep_init_circuit += self._get_detectors(
+                measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
+                patch_type="Ancilla",
+            )
 
-        # Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
-        cx_builder(
-            q2i=self.geometry.q2i,
-            stab_to_data=self.stab_to_data,
-            circuit=rep_init_circuit,
-            orders=("5-CX", "6-CX"),
-        )
+            rep_init_circuit.append(
+                "R",
+                self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
+            )
+            rep_init_circuit.append("TICK")
+            rep_init_circuit.append("H", self.geometry.anc_x_bdy_b_stb_idx)
+            rep_init_circuit.append("TICK")
 
-        # Retreive Boundary + Normal Stabilizers from Target and Control
-        # (Basis Change + Measurement):
-        rep_init_circuit.append(
-            "H",
-            self.geometry.control_x_stb_idx + self.geometry.target_x_stb_idx,
-        )
-        rep_init_circuit.append("TICK")
-        rep_init_circuit.append("M", self.geometry.control_target_all_stab_idx)
+            # Continue CX-Implementation for Target and Control (As Ancilla already has a full run)
+            cx_builder(
+                q2i=self.geometry.q2i,
+                stab_to_data=self.stab_to_data,
+                circuit=rep_init_circuit,
+                orders=("5-CX", "6-CX"),
+            )
 
-        return rep_init_circuit * (self.geometry.distance - 1)
+            # Retreive Boundary + Normal Stabilizers from Target and Control
+            # (Basis Change + Measurement):
+            rep_init_circuit.append(
+                "H",
+                self.geometry.control_x_stb_idx + self.geometry.target_x_stb_idx,
+            )
+            rep_init_circuit.append("TICK")
+            rep_init_circuit.append("M", self.geometry.control_target_all_stab_idx)
+
+            # Adding Detectors for Control and Target Initialization
+            rep_init_circuit += self._get_detectors(
+                measured_qubits=self.geometry.control_target_all_stab_idx,
+                patch_type="Control_&_Target",
+            )
+
+        return rep_init_circuit

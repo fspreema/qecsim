@@ -167,7 +167,6 @@ class MeasurementTracker:
     def get_records_for_detectors(
         self,
         patch_type: str,
-        number_of_repeat_blocks: int = 0,
     ) -> list[list[stim.GateTarget]]:
         """
         *Return:
@@ -300,32 +299,20 @@ class MeasurementTracker:
 
             # If only 1 entry in full history, this is the first time - check special cases
             elif len(full_history_entries) == 1:
-                # Check other dicts for previous measurements of the same qubit index
-                # -> Get the newest measurement entry for the same qubit index across all other
-                # dicts
-
-                combined_dict: dict[str, list[list[int, int, int]]] = {
-                    "Regular_Stabilizers": [],
-                }
-
                 for qubit_ct, curr_abs_idx_ct in self.detector_dict[previous_patch_type]:
                     # Filtering For Regular Stabilizers: These are the ones which have a
-                    # measurement entry in either the Ancilla Dict or the Control & Target
-                    # Dict but not in both on the same qubit index
+                    # measurement entry in the Control & Target
                     if qubit_ct == qubit:
                         previous_rel_idx_ct = curr_abs_idx_ct - self.total_measurements
-                        combined_dict["Regular_Stabilizers"].append(
-                            (qubit, current_rel_idx, previous_rel_idx_ct),
+                        records.append(
+                            [
+                                stim.target_rec(current_rel_idx),
+                                stim.target_rec(previous_rel_idx_ct),
+                            ],
                         )
 
                         # Found the latest measurement entry
                         break
-
-                # Convert into records list for stim
-                for entry in combined_dict["Regular_Stabilizers"]:
-                    records.append(
-                        [stim.target_rec(entry[1]), stim.target_rec(entry[2])],
-                    )
 
         return records
 
@@ -365,14 +352,8 @@ class MeasurementTracker:
 
             # If only 1 entry in full history, this is the first time - check special cases
             elif len(full_history_entries) == 1:
-                # Check other dicts for previous measurements of the same qubit index
-                # -> Get the newest measurement entry for the same qubit index across all other
-                # dicts
-
-                combined_dict: dict[str, list[list[int, int, int]]] = {
-                    "Married_Stabilizers": [],
-                    "Regular_Stabilizers": [],
-                }
+                # Init Married Stab list for current qubit
+                stored_rel_married_idx: int = 0
 
                 for qubit_anc, curr_abs_idx_anc in self.detector_dict[previous_patch_type_anc]:
                     # Filtering For Regular Stabilizers: These are the ones which have a
@@ -397,11 +378,10 @@ class MeasurementTracker:
                     if qubit_anc == qubit and qubit_anc in married_stab_indices:
                         previous_rel_idx_anc = curr_abs_idx_anc - self.total_measurements
 
-                        # Store the Ancilla record in the combined dict and wait for the
+                        # Store the Ancilla record and wait for the
                         # Control & Target record to appear in the loop below
-                        combined_dict["Married_Stabilizers"].append(
-                            (qubit, current_rel_idx, previous_rel_idx_anc, None),
-                        )
+                        stored_rel_married_idx = previous_rel_idx_anc
+
                         break
 
                 if not partner_found:
@@ -424,27 +404,13 @@ class MeasurementTracker:
                             previous_rel_idx_ct = curr_abs_idx_ct - self.total_measurements
 
                             # Get Info of the corresponding Ancilla record stored in
-                            # the combined dict
-                            corresponding_entry = next(
-                                (
-                                    entry
-                                    for entry in combined_dict["Married_Stabilizers"]
-                                    if entry[0] == qubit_ct
-                                ),
-                                None,
+                            records.append(
+                                [
+                                    stim.target_rec(current_rel_idx),
+                                    stim.target_rec(previous_rel_idx_ct),
+                                    stim.target_rec(stored_rel_married_idx),
+                                ],
                             )
-
-                            if corresponding_entry is not None:
-                                records.append(
-                                    [
-                                        stim.target_rec(current_rel_idx),
-                                        stim.target_rec(previous_rel_idx_ct),
-                                        stim.target_rec(corresponding_entry[2]),
-                                    ],
-                                )
-                                # After finding both records for the married stabilizer,
-                                # we can remove the entry from the combined dict
-                                combined_dict["Married_Stabilizers"].remove(corresponding_entry)
                             # Found the latest measurement entry
                             break
 
@@ -459,16 +425,21 @@ class MeasurementTracker:
         # Initialize empty records list and boolean
         records: list[list[stim.GateTarget]] = []
 
+        # Define seperated stab indices
+        all_seperated_stab_indices = (
+            self.geometry.anc_x_bdy_b_stb_idx + self.geometry.anc_z_bdy_r_stb_idx
+        )
+
         # Determine the previous patch type based on the current splitting patch type
         if patch_type in {"Ancilla_Split_AC", "Control_&_Target_Split_AC"}:
             previous_patch_type_untouched = "Merge_AC_untouched"
             previous_patch_type_merged = "Merge_AC"
-            seperated_stab_indices = self.geometry.anc_x_bdy_b_stb_idx
+            specific_seperated_stab_indices = self.geometry.anc_x_bdy_b_stb_idx
 
         elif patch_type in {"Ancilla_Split_AT", "Control_&_Target_Split_AT"}:
             previous_patch_type_untouched = "Merge_AT_untouched"
             previous_patch_type_merged = "Merge_AT"
-            seperated_stab_indices = self.geometry.anc_z_bdy_r_stb_idx
+            specific_seperated_stab_indices = self.geometry.anc_z_bdy_r_stb_idx
 
         for qubit, curr_abs_idx in self.detector_dict[patch_type]:
             # Initialize boolean to track if a partner record has been found
@@ -496,7 +467,7 @@ class MeasurementTracker:
                 # Look for regular stabilizers in both Merge Dicts (merged and untouched)
                 # and add to the combined dict
                 for qubit_merge, abs_idx_merge in self.detector_dict[previous_patch_type_untouched]:
-                    if qubit_merge == qubit and qubit not in seperated_stab_indices:
+                    if qubit_merge == qubit and qubit not in all_seperated_stab_indices:
                         previous_rel_idx_merge = abs_idx_merge - self.total_measurements
                         records.append(
                             [
@@ -512,7 +483,7 @@ class MeasurementTracker:
                     for qubit_merge, abs_idx_merge in self.detector_dict[
                         previous_patch_type_merged
                     ]:
-                        if qubit_merge == qubit and qubit not in seperated_stab_indices:
+                        if qubit_merge == qubit and qubit not in all_seperated_stab_indices:
                             previous_rel_idx_merge = abs_idx_merge - self.total_measurements
                             records.append(
                                 [
@@ -526,14 +497,13 @@ class MeasurementTracker:
                 # -> Records for divorced stabilizers are old record and both new records from
                 #    Ancilla and Control & Target Split
                 for qubit_merge, abs_idx_merge in self.detector_dict[previous_patch_type_merged]:
-                    if qubit_merge == qubit and qubit in seperated_stab_indices:
-                        previous_rel_idx = abs_idx_merge - self.total_measurements
+                    if qubit_merge == qubit and qubit in specific_seperated_stab_indices:
                         stored_list = self.storage_for_split_matching.get(qubit)
 
                         if stored_list is None:
                             self.storage_for_split_matching[qubit] = [
-                                current_rel_idx,
-                                previous_rel_idx,
+                                curr_abs_idx,
+                                abs_idx_merge,
                                 None,
                             ]
                             break
@@ -541,8 +511,8 @@ class MeasurementTracker:
                             records.append(
                                 [
                                     stim.target_rec(current_rel_idx),
-                                    stim.target_rec(previous_rel_idx),
-                                    stim.target_rec(stored_list[0]),
+                                    stim.target_rec(stored_list[1] - self.total_measurements),
+                                    stim.target_rec(stored_list[0] - self.total_measurements),
                                 ],
                             )
                             # After finding both records for the divorced stabilizer, we can
