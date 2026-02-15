@@ -17,6 +17,10 @@ class MeasurementTracker:
         "Merge_AT",
         "Merge_AC_untouched",
         "Merge_AT_untouched",
+        "None",
+        "Final_Measurement_Anc",
+        "Final_Measurement_C",
+        "Final_Measurement_T",
     }
 
     def __init__(self, geometry: SurgeryGeometry):
@@ -235,6 +239,16 @@ class MeasurementTracker:
             "Merge_AT",
         }:
             records = self._get_merging_records(patch_type)
+
+        elif patch_type in {
+            "Final_Measurement_Anc",
+            "Final_Measurement_C",
+            "Final_Measurement_T",
+        }:
+            records = self._get_final_measurement_records(patch_type)
+
+        elif patch_type == "None":
+            records = []
 
         else:
             raise ValueError(f"Unknown patch type encountered: {patch_type}")
@@ -528,5 +542,69 @@ class MeasurementTracker:
                 raise ValueError(
                     f"Unexpected number of entries for qubit {qubit} in full measurement history.",
                 )
+
+        return records
+
+    def _get_final_measurement_records(self, patch_type: str) -> list[list[stim.GateTarget]]:
+        """
+        Helper Function to create Target Recod Pairs for Detectors out of the final Measuerement
+        created by data measruements and the last measurement of real ancillary qubits
+
+        Currently only used for the final measurement of the ancilla patch,
+        but can be easily adapted
+        """
+
+        # Initialize empty records list
+        records: list[list[stim.GateTarget]] = []
+
+        # Create dict stab_idx to data_idx
+        if patch_type == "Final_Measurement_Anc":
+            measurement_basis = "Z"
+            stab_idx_to_data_idx = self.geometry.get_patch_stabilizer_to_data_mapping(
+                patch_coords=self.geometry.coords_ancilla,
+                type=measurement_basis,
+            )
+            patch_before = "Ancilla_Split_AT"
+        elif patch_type == "Final_Measurement_C":
+            measurement_basis = None
+            stab_idx_to_data_idx = self.geometry.get_patch_stabilizer_to_data_mapping(
+                patch_coords=self.geometry.coords_ancilla,
+                type=measurement_basis,
+            )
+            patch_before = "Control_&_Target_Split_AT"
+        elif patch_type == "Final_Measurement_T":
+            measurement_basis = None
+            stab_idx_to_data_idx = self.geometry.get_patch_stabilizer_to_data_mapping(
+                patch_coords=self.geometry.coords_ancilla,
+                type=measurement_basis,
+            )
+            patch_before = "Control_&_Target_Split_AT"
+
+        # Last Measurement -> Therefore only one Entry
+        # Loop over Stab Measurements from past
+        for qubit, curr_abs_idx in self.detector_dict[patch_before]:
+            # Get the corresponding data qubit index for the current stabilizer qubit index
+            data_qubit_idx = stab_idx_to_data_idx.get(qubit)
+
+            # Skip different Basis Stabs
+            if data_qubit_idx is None:
+                continue
+
+            # Create List for storage of all abs idx of data meas
+            stored_list_of_abs_idx = [curr_abs_idx]
+
+            # Loop over current data Measurements in present time step
+            for qubit_data, curr_abs_idx_data in self.detector_dict[patch_type]:
+                if qubit_data in data_qubit_idx:
+                    # Store Abs Idx
+                    stored_list_of_abs_idx.append(curr_abs_idx_data)
+
+            # If loop is finished add get relative idx and add to records list
+            curr_record_list = [
+                stim.target_rec(curr_abs_idx - self.total_measurements)
+                for curr_abs_idx in stored_list_of_abs_idx
+            ]
+
+            records.append(curr_record_list)
 
         return records

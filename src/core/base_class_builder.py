@@ -7,18 +7,9 @@ from src.core.noise_models import BiasNoise, CircuitNoise
 
 
 class BaseClassBuilder(ABC):
-    def __init__(self, noise=None):
-        # Initialize Noise Model
-        if noise is None:
-            noise = NoiseParameters(
-                after_c_depol_prob=0.0,
-                before_round_depol=0.0,
-                before_m_flip_prob=0.0,
-                after_r_flip=0.0,
-                after_c_pauli_channel_prob=0.0,
-                noise_bias=None,
-            )
-        self.noise = noise
+    @abstractmethod
+    def __init__(self):
+        pass
 
     @abstractmethod
     def build_circuit(self) -> stim.Circuit:
@@ -30,10 +21,26 @@ class BaseClassBuilder(ABC):
         """
         pass
 
-    def _apply_noise(self, input_circuit: stim.Circuit) -> stim.Circuit:
+    def apply_noise(
+        self,
+        input_circuit: stim.Circuit,
+        noise: NoiseParameters = None,
+    ) -> stim.Circuit:
         """
         Method to apply noise models to the circuit.
         """
+
+        # Initialize Noise Model
+        if noise is None:
+            noise = NoiseParameters(
+                after_c_depol_prob=0.0,
+                before_round_depol=0.0,
+                before_m_flip_prob=0.0,
+                after_r_flip=0.0,
+                after_c_pauli_channel_prob=0.0,
+                noise_bias=None,
+            )
+        self.noise = noise
 
         # 1) Circuit Noise Model
         if (

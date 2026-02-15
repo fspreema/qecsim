@@ -102,3 +102,28 @@ class BaseGeometry(ABC):
             source = valid_coords
 
         return [self.q2i[coord] for coord, label in source.items() if label == type]
+
+    def get_neighbours_from_stabilizer(
+        self,
+        qubit_coord,
+        lookup_coords: dict[complex, str] = None,
+    ) -> list[int]:
+        """
+        Returns the indices of the neighboring qubits for a given stabilizer qubits coordinate.
+        -> Checks upper left, upper, right etc...
+        """
+
+        # Init list of neighboring qubits
+        neighbours = []
+
+        if lookup_coords is None:
+            lookup_coords = self.coords
+
+        check_on_coords = [1 + 1j, 1 - 1j, -1 + 1j, -1 - 1j]
+
+        for delta in check_on_coords:
+            neighbour_coord = qubit_coord + delta
+            if neighbour_coord in lookup_coords:
+                neighbours.append(self.q2i[neighbour_coord])
+
+        return neighbours

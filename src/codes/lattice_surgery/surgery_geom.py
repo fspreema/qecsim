@@ -9,6 +9,8 @@ Geometry Class which build all Coordinates and converts them to Indices for the 
 
 
 class SurgeryGeometry(BaseGeometry):
+    VALID_STATES = {"I", "X+", "X-", "Y+", "Y-", "Z0", "Z1"}
+
     def __init__(
         self,
         distance: int,
@@ -25,22 +27,26 @@ class SurgeryGeometry(BaseGeometry):
             Control (Bot-Left) |      (Empty)
         """
 
-        # Check valid State Initializations
+        #####################################
+        # Check valid State Initializations #
+        #####################################
         # -> I skips complete Resets on that patch
-        valid_states = ["I", "X+", "X-", "Y+", "Y-", "Z0", "Z1"]
-        if control_state_init not in valid_states:
+        if control_state_init not in self.VALID_STATES:
             raise ValueError(
                 f"Invalid control_state_init: {control_state_init}. "
-                f"Valid options are: {valid_states}",
+                f"Valid options are: {self.VALID_STATES}",
             )
 
-        if target_state_init not in valid_states:
+        if target_state_init not in self.VALID_STATES:
             raise ValueError(
                 f"Invalid target_state_init: {target_state_init}. "
-                f"Valid options are: {valid_states}",
+                f"Valid options are: {self.VALID_STATES}",
             )
 
-        # Initialize Parameters
+        #########################
+        # Initialize Parameters #
+        #########################
+
         self.distance = distance
         self.control_state_init = control_state_init
         self.target_state_init = target_state_init
@@ -51,22 +57,34 @@ class SurgeryGeometry(BaseGeometry):
         self.start_stab_x_target = False
         self.start_stab_x_control = False
 
-        # Get Coordinates and Indices
+        ###############################
+        # Get Coordinates and Indices #
+        ###############################
+
         self.coords = self.get_coords()
         self.q2i = self._get_q2i()
         self.i2q = self._get_i2q()
 
-        # Get Patch Specific Coordinates
+        ##################################
+        # Get Patch Specific Coordinates #
+        ##################################
+
         self.coords_ancilla = self.get_coords(specific_coord="ancilla")
         self.coords_target = self.get_coords(specific_coord="target")
         self.coords_control = self.get_coords(specific_coord="control")
 
-        # Getting Data Qubit Indices
+        ##############################
+        # Getting Data Qubit Indices #
+        ##############################
+
         self.anc_data_idx = self._get_specific_indices("DATA", self.coords_ancilla)
         self.target_data_idx = self._get_specific_indices("DATA", self.coords_target)
         self.control_data_idx = self._get_specific_indices("DATA", self.coords_control)
 
-        # Get Stabilizers for ancilla
+        ###############################
+        # Get Stabilizers for ancilla #
+        ###############################
+
         self.anc_x_stb_idx = (
             self._get_specific_indices("X-STAB", self.coords_ancilla)
             + self._get_specific_indices("X-STAB-BOUND-A-A", self.coords_ancilla)
@@ -86,7 +104,10 @@ class SurgeryGeometry(BaseGeometry):
             self.coords_ancilla,
         )
 
-        # Get Stabilizers for Control
+        ###############################
+        # Get Stabilizers for Control #
+        ###############################
+
         self.control_x_stb_idx = (
             self._get_specific_indices("X-STAB", self.coords_control)
             + self._get_specific_indices("X-STAB-BOUND-A-C", self.coords_control)
@@ -98,7 +119,10 @@ class SurgeryGeometry(BaseGeometry):
             + self._get_specific_indices("Z-STAB-BOUND-R-C", self.coords_control)
         )
 
-        # Get Stabilizers for Target
+        ##############################
+        # Get Stabilizers for Target #
+        ##############################
+
         self.target_x_stb_idx = (
             self._get_specific_indices("X-STAB", self.coords_target)
             + self._get_specific_indices("X-STAB-BOUND-A-T", self.coords_target)
@@ -110,7 +134,10 @@ class SurgeryGeometry(BaseGeometry):
             + self._get_specific_indices("Z-STAB-BOUND-R-T", self.coords_target)
         )
 
-        # Get Stabilizers for Surgery
+        ###############################
+        # Get Stabilizers for Surgery #
+        ###############################
+
         self.surgery_x_m_stb_idx = self._get_specific_indices(
             "X-STAB-SURGERY-M",
             self.coords_surgery,
@@ -130,7 +157,9 @@ class SurgeryGeometry(BaseGeometry):
         self.non_det_stab_indices_ac = self.surgery_z_l_stb_idx + self.surgery_z_m_stb_idx
         self.non_det_stab_indices_at = self.surgery_x_b_stb_idx + self.surgery_x_m_stb_idx
 
-        # Additional Stabilizer Indices Definitions that are needed
+        #############################################################
+        # Additional Stabilizer Indices Definitions that are needed #
+        #############################################################
         self.control_target_all_stab_idx = (
             self.control_x_stb_idx
             + self.target_x_stb_idx
@@ -138,7 +167,7 @@ class SurgeryGeometry(BaseGeometry):
             + self.target_z_stb_idx
         )
 
-        # Using set to avoid double indices
+        # Using set to avoid double indices #
         self.combined_x_stab_idx_filtered = self._get_filtered_x_stabilizers()
         self.combined_x_stab_idx_filtered_AT = self._get_filtered_x_stabilizers(merging_type="AT")
 
@@ -474,3 +503,35 @@ class SurgeryGeometry(BaseGeometry):
         for y in range(4, max_coord, 4):
             coord_control = complex((self.distance * 2), y + (self.distance * 2))
             self.coords_control[coord_control] = "X-STAB-BOUND-R-H"
+
+    def get_patch_stabilizer_to_data_mapping(
+        self,
+        patch_coords: dict[complex, str],
+        type: str,
+    ) -> dict[int, list[int]]:
+        """
+        Returns the mapping from stabilizer indices to their neighboring data qubit indices
+        for a given patch
+
+        Parameters:
+            patch_coords: dict[complex, str]
+                Dictionary with coordinates as keys and labels as values for the patch
+            type: str
+                Type of the Stabilizer i.e. X or Z
+        """
+
+        valid_types = {"X", "Z"}
+
+        if type not in valid_types:
+            raise ValueError(f"Invalid type: {type}. Valid options are: {valid_types}")
+
+        stab_idx_to_data_idx: dict[int, list[int]] = {}
+
+        for coord, label in patch_coords.items():
+            if label != "DATA":
+                stab_idx = self.q2i[coord]
+                neighboring_data = self.get_neighbours_from_stabilizer(coord, patch_coords)
+                if patch_coords[coord].startswith(type):
+                    stab_idx_to_data_idx[stab_idx] = neighboring_data
+
+        return stab_idx_to_data_idx

@@ -305,6 +305,12 @@ class SurgerySplit:
         conditional_operations_circuit.append("MZ", self.geometry.anc_data_idx)
         conditional_operations_circuit.append("TICK")
 
+        # Adding Detectors for Ancilla Patch
+        conditional_operations_circuit += self._get_detectors(
+            measured_qubits=self.geometry.anc_data_idx,
+            patch_type="Final_Measurement_Anc",
+        )
+
         # Adding the conditional Gate on Control (XORing two measurements)
         # 1) Z measurements on data Ancilla
         for rec_tar, index in enumerate(self.geometry.anc_data_idx):

@@ -26,7 +26,7 @@ class XZZXBuilder(BaseClassBuilder):
             state_init=state_init,
         )
         self.pairings = XZZXPairings(patch=self.geometry.coords)
-        super().__init__(noise=noise)
+        self.noise = noise
 
     def build_circuit(self) -> stim.Circuit:
         # Initialize Empty Circuit
@@ -61,4 +61,4 @@ class XZZXBuilder(BaseClassBuilder):
         self.full_circuit += final_circ.build_final_measurement_circuit()
 
         # 5) Applying Noise Model
-        return self._apply_noise(input_circuit=self.full_circuit)
+        return self.apply_noise(input_circuit=self.full_circuit, noise=self.noise)

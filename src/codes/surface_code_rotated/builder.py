@@ -112,8 +112,6 @@ class SurfaceBuilder(BaseClassBuilder):
             ),
         )
 
-        super().__init__(noise=noise)
-
     def build_circuit(self) -> stim.Circuit:
         # Initialize Empty Circuit
         self.full_circuit = stim.Circuit()
@@ -138,7 +136,7 @@ class SurfaceBuilder(BaseClassBuilder):
             self.full_circuit += self._adding_final_measurement()
 
         # Adding Noise if specified
-        self.full_circuit = self._apply_noise(self.full_circuit)
+        self.full_circuit = self.apply_noise(input_circuit=self.full_circuit, noise=self.noise)
 
         return self.full_circuit, self.rec_list
 

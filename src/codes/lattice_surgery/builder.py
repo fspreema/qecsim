@@ -94,8 +94,6 @@ class SurgeryBuilder(BaseClassBuilder):
             " -> " + f"{self.control_measure_basis[0]}{self.target_measure_basis[0]}"
         )
 
-        super().__init__(noise=noise)
-
     def build_circuit(self) -> stim.Circuit:
         # Defining flow_circuit -> For Solving Flow Observables at the end
         flow_circuit = stim.Circuit()
@@ -145,7 +143,7 @@ class SurgeryBuilder(BaseClassBuilder):
         return_circuit += self._adding_final_measurement_circuit()
 
         # Adding Noise Model if applicable
-        return_circuit = self._apply_noise(input_circuit=return_circuit)
+        return_circuit = self.apply_noise(input_circuit=return_circuit, noise=self.noise)
 
         return return_circuit
 
