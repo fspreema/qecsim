@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import stim
 
@@ -34,41 +34,17 @@ class NoiseParameters:
 
 
 @dataclass
-class PTMCircuitsSurface:
+class PTMCircuits:
     """
     Data model to store all circuits required for PTM calculation.
 
-    Attributes:
-        ideal_circuit: Ideal circuit without noise
-        -> These are only needed for the diagonal entries
-        noisy_circuit: Noisy circuit with noise model applied
-    """
+    Functionality:
+    - Stores both deterministic and non-deterministic circuits for PTM calculations
+    - Str: Organizes Circuits by input-output Pauli Combinations
+    - Returns a tuple with Circuit and Measurement Records
+        of logical operator to alter xor with observable flipped value given by dem
 
-    # Noisy Circuits
-    circ_xx_noisy: stim.Circuit
-    circ_xy_noisy: stim.Circuit
-    circ_xz_noisy: stim.Circuit
-    circ_yx_noisy: stim.Circuit
-    circ_yy_noisy: stim.Circuit
-    circ_yz_noisy: stim.Circuit
-    circ_zx_noisy: stim.Circuit
-    circ_zy_noisy: stim.Circuit
-    circ_zz_noisy: stim.Circuit
-
-    # Ideal Circuits
-    circ_xx_ideal: stim.Circuit
-    circ_yy_ideal: stim.Circuit
-    circ_zz_ideal: stim.Circuit
-
-
-@dataclass
-class PTMCircuitsSurgery:
-    """
-    Data model to store all circuits required for PTM calculation in lattice surgery.
-
-    Attributes:
-        ideal_circuit: Ideal circuit without noise
-        noisy_circuit: Noisy circuit with noise model applied
+    ### Lattice Surgery ###
 
     These are essentially buidling up the full PTM by seperatly calculating the different
     logical input to logical output combinations.
@@ -91,18 +67,22 @@ class PTMCircuitsSurgery:
     ZY,0 ,0 ,-1,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0
     ZZ,0 ,0 ,0 ,1 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0 ,0
 
+    ### Surface Code ###
+    This is just a 4 x 4 Matrix
 
-    It should be noted that all II can't be produced as a measurement needs to be made
-    or rather some obseravble needs to be declared as well as we need to reset the qubits
+     ,I,X,Y,Z
+    I,1,0,0,0
+    X,0,1,0,0
+    Y,0,0,1,0
+    Z,0,0,0,1
 
+    ### Attention ###
+    All Measurements that include only the I operator can't be produced as a measurement needs
+    to be made
     """
 
-    # Noisy Circuits
-    # Keys should follow the pattern: f"{input_pauli}_{output_pauli}" (e.g., "XI_XX")
-    circuits_noisy: dict[str, stim.Circuit]
-
-    # Ideal Circuits
-    circuits_ideal: dict[str, stim.Circuit]
+    # Circuits
+    circuits: dict[str, tuple[stim.Circuit, list[int]]] = field(default_factory=dict)
 
 
 @dataclass
