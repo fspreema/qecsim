@@ -109,8 +109,8 @@ class SurgeryFlowObservables:
 
         return return_circuit
 
+    @staticmethod
     def _get_pauli_strings_from_flows(
-        self,
         flow_type: str,
     ) -> list[list[str]]:
         """
@@ -221,7 +221,11 @@ class SurgeryFlowObservables:
 
         return "*".join(terms)
 
-    def _debug_print_available_flows(self, flow_circuit: stim.Circuit, must_have: list[str] = None):
+    @staticmethod
+    def _get_flow_generators(
+        flow_circuit: stim.Circuit,
+        must_have: list[str] | None = None,
+    ) -> None:
         """
         Returns all available flows or if must_have is specified only those containing all the
         strings listed

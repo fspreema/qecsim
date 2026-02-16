@@ -33,8 +33,8 @@ class BasePairings(ABC):
         """
         pass
 
+    @staticmethod
     def _neighbours(
-        self,
         c: complex,
         dx: int,
         dy: int,
@@ -46,8 +46,8 @@ class BasePairings(ABC):
 
         return (c.real + dx) + (c.imag + dy) * 1j
 
+    @staticmethod
     def _assign_orders(
-        self,
         table: dict[complex, str],
         pairs: list[complex],
         orders: list[str],

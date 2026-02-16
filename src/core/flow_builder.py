@@ -39,7 +39,8 @@ class CircuitChunk:
 
         return creation_flows
 
-    def get_pauli_indices(self, current_flow: stim.Flow):
+    @staticmethod
+    def get_pauli_indices(current_flow: stim.Flow):
         """
         Get the pauli string indices from the flow.
 
@@ -69,7 +70,8 @@ class CircuitChunk:
 
         return pauli_indices
 
-    def _count_flow_weight(self, current_flow: stim.Flow):
+    @staticmethod
+    def _count_flow_weight(current_flow: stim.Flow):
         """
         Count the number of non Identity Pauli strings in flow evolution.
 
@@ -88,7 +90,8 @@ class CircuitChunk:
 
         return num_non_identity_paulis_before, num_non_identity_paulis_after
 
-    def _classify_flow_type(self, current_flow: stim.Flow):
+    @staticmethod
+    def _classify_flow_type(current_flow: stim.Flow):
         """
         Classify the flow type based on its pauli string before and after.
 
@@ -349,7 +352,8 @@ class CompileChunk:
 
         return compiled_circ
 
-    def _flow_matcher(self, prev_chunk: CircuitChunk, curr_chunk: CircuitChunk):
+    @staticmethod
+    def _flow_matcher(prev_chunk: CircuitChunk, curr_chunk: CircuitChunk):
         """
         Match creation and annihilation flows based on pauli string indices.
 
