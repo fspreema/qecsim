@@ -110,11 +110,11 @@ class PTMCalculator:
         -> This is Vectorized to speed up the process as much as possible
         """
 
-        final_meas: np.ndarray = np.empty(shape=(samples_from_sampler.shape[0],), dtype=np.bool_)
+        final_meas: np.ndarray = np.zeros(shape=(samples_from_sampler.shape[0],), dtype=np.int8)
 
         for curr_rec in rec_pos:
             # XOR current measurement with the final measurement (Vectorized)
-            final_meas ^= samples_from_sampler[:, curr_rec]
+            final_meas ^= samples_from_sampler[:, curr_rec].astype(np.int8)
 
         return final_meas
 
