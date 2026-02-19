@@ -122,7 +122,7 @@ class SurgeryReset:
         # 2. Logical Operators for state prep
         if state_init == "X-":
             circ.append("Z", log_z)
-        elif state_init == "1":
+        elif state_init == "Z1":
             circ.append("X", log_x)
 
         return circ

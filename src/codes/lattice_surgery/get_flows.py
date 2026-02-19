@@ -6,6 +6,11 @@ __all__ = ["SurgeryFlowObservables"]
 
 
 class SurgeryFlowObservables:
+    NEGATIVE_SIGN_FLOWS = [
+        "YY -> XZ",
+        "XZ -> YY",
+    ]
+
     def __init__(
         self,
         geometry: SurgeryGeometry,
@@ -51,7 +56,7 @@ class SurgeryFlowObservables:
 
             # Determine Flow sign -> YY -> -XZ
             flow_sign = ""
-            if curr_flow == "YY -> XZ":
+            if curr_flow in self.NEGATIVE_SIGN_FLOWS:
                 flow_sign = "-"
 
             # Determine Flow Measurements
@@ -157,6 +162,14 @@ class SurgeryFlowObservables:
             "XY -> YZ": [
                 [["c_x_shifted", "t_x_shifted"], ["c_x_shifted"]],
                 [["t_z_shifted"], ["c_z_shifted", "t_z_shifted"]],
+            ],
+            "XZ -> YY": [
+                [["c_x_shifted"], ["c_x_shifted", "t_x_shifted"]],
+                [["t_z_shifted"], ["c_z_shifted", "t_z_shifted"]],
+            ],
+            "ZY -> IY": [
+                [["c_z_shifted", "t_z_shifted"], ["t_z_shifted"]],
+                [["t_x_shifted"], ["t_x_shifted"]],
             ],
         }
 

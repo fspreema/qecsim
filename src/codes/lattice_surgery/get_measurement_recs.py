@@ -16,6 +16,7 @@ def get_measurement_recs(circuit: stim.Circuit, observable_index: int) -> list[i
     # Init Measurement Records list
     measurement_records = []
     check_for_measurements = False
+    measurement_in_last_tick = False
     curr_meas_offset = 0
 
     # Loop through all instructions in the circuit and check for OBSERVABLE_INCLUDE instructions
@@ -26,6 +27,21 @@ def get_measurement_recs(circuit: stim.Circuit, observable_index: int) -> list[i
     for instruction in circuit:
         # Check Instruction name
         if instruction.name == "OBSERVABLE_INCLUDE":
+            # If previously measurements detected
+            if measurement_in_last_tick:
+                # Shift current measurement records by applying offset and add to final
+                # measurement records
+                # Build new shifted list and clear current measurement records
+                shifted_measurement_records = [
+                    rec - curr_meas_offset for rec in measurement_records
+                ]
+                # Update measurement records with shifted values
+                measurement_records = []
+                measurement_records = shifted_measurement_records
+                # Reset current measurement records and lookout for measurements
+                check_for_measurements = False
+                curr_meas_offset = 0
+
             # Check if observable index matches with the one we want to track
             if int(instruction.gate_args_copy()[0]) == observable_index:
                 # Append all measurement rec values
@@ -39,16 +55,6 @@ def get_measurement_recs(circuit: stim.Circuit, observable_index: int) -> list[i
         if instruction.name in {"M", "MX", "MZ", "MY"} and check_for_measurements:
             # Add to offset
             curr_meas_offset += len(instruction.targets_copy())
-
-        # Shift current measurement records by applying offset and add to final measurement records
-        if curr_meas_offset != 0 and check_for_measurements:
-            # Build new shifted list and clear current measurement records
-            shifted_measurement_records = [rec - curr_meas_offset for rec in measurement_records]
-            # Update measurement records with shifted values
-            measurement_records = []
-            measurement_records = shifted_measurement_records
-            # Reset current measurement records and lookout for measurements
-            check_for_measurements = False
-            curr_meas_offset = 0
+            measurement_in_last_tick = True
 
     return measurement_records

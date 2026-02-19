@@ -269,6 +269,10 @@ class SurgeryBuilder(BaseClassBuilder):
             "YY -> XZ",
             "IY -> ZY",
             "XY -> YZ",
+            "XZ -> YY",
+            "YZ -> XY",
+            "YX -> YI",
+            "ZY -> IY",
         ]
 
         if self.curr_flow not in valid_flows:
