@@ -1,12 +1,12 @@
 from dataclasses import dataclass, field
+from enum import Enum, auto
 
 import stim
 
 __all__ = ["NoiseParameters"]
 
+
 # Dataclass for saving Noise Parameters which will be given to the individual Circuit Builders
-
-
 @dataclass
 class NoiseParameters:
     """
@@ -30,9 +30,44 @@ class NoiseParameters:
     noise_bias: list[float] = None
 
 
+### FOR FUTURE IMPLEMENTATION ###
+
+
+class MeasurementBasis(Enum):
+    X = auto()
+    Y = auto()
+    Z = auto()
+
+
+class InitilizationState(Enum):
+    PLUS = auto()
+    MINUS = auto()
+    PLUS_I = auto()
+    MINUS_I = auto()
+    ZERO = auto()
+    ONE = auto()
+
+
+class SurgeryStabilizerType(Enum):
+    X_STABILIZER = auto()
+    Z_STABILIZER = auto()
+
+
+class SurgeryOperationType(Enum):
+    ANCILLA_CONTROL = auto()
+    ANCILLA_TARGET = auto()
+
+
+class SurgeryPatchTypes(Enum):
+    CONTROL = auto()
+    TARGET = auto()
+    ANCILLA = auto()
+
+
+##################################
+
+
 # Dataclasses for construction of the PTM
-
-
 @dataclass
 class PTMCircuits:
     """
@@ -41,6 +76,7 @@ class PTMCircuits:
     Functionality:
     - Stores both deterministic and non-deterministic circuits for PTM calculations
     - Str: Organizes Circuits by input-output Pauli Combinations
+    - For each
     - Returns a tuple with Circuit and Measurement Records
         of logical operator to alter xor with observable flipped value given by dem
 
@@ -76,13 +112,10 @@ class PTMCircuits:
     Y,0,0,1,0
     Z,0,0,0,1
 
-    ### Attention ###
-    All Measurements that include only the I operator can't be produced as a measurement needs
-    to be made
     """
 
     # Circuits
-    circuits: dict[str, tuple[stim.Circuit, list[int]]] = field(default_factory=dict)
+    circuits: dict[str, tuple[dict[str, stim.Circuit], list[int]]] = field(default_factory=dict)
 
 
 @dataclass

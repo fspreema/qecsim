@@ -6,7 +6,7 @@ __all__ = ["MeasurementTracker"]
 
 
 class MeasurementTracker:
-    VALID_PATCH_TYPES = {
+    VALID_SURGERY_DETECTOR_TYPES = {
         "Ancilla",
         "Control_&_Target",
         "Ancilla_Split_AC",
@@ -33,13 +33,13 @@ class MeasurementTracker:
         self.tags: dict[str, list[int]] = {}
         # Dictionary to store the Detector information for each qubit index
         self.detector_dict: dict[str, list[tuple[int, int]]] = {
-            pt: [] for pt in self.VALID_PATCH_TYPES
+            pt: [] for pt in self.VALID_SURGERY_DETECTOR_TYPES
         }
         # Dictionary to store split measurements that await their partner from the other patch
         self.storage_for_split_matching: dict[int, list[int, int, int]] = {}
         # Dict to store the complete measurement history
         self.full_measurement_history: dict[str, list[tuple[int, int]]] = {
-            pt: [] for pt in self.VALID_PATCH_TYPES
+            pt: [] for pt in self.VALID_SURGERY_DETECTOR_TYPES
         }
 
     def add_previous_measurements(self, count: int):
@@ -85,30 +85,45 @@ class MeasurementTracker:
 
         Dict Functionality:
             This Dict has the following information.
-            -> Key: Patch_Type (i.e. Ancilla, Target, Control)
+            -> Key: Detector Type (i.e. Ancilla, Target, Control)
             -> Entries: Qubit Index, Absolute Index of the Measurement
 
         Function:
             -> Creates Dict (Detector_dict and Full Measurement History Dict)
             -> Detector Dict only has the most recent measurement which was selected with
                 "selected_qubits" inside this method
-                -> Gets cleared every time this method is called again for the same patch type
-            -> Full Measurement History Dict has all measurements of the patch type, even if
+                -> Gets cleared every time this method is called again for the same detector type
+            -> Full Measurement History Dict has all measurements of the detector type, even if
                 they were not selected with "selected_qubits"
                 -> This is needed to check for previous measurements of the same qubit index in case
                 there is only one entry in the Detector Dict for a specific qubit index
                 -> This Dict includes only the last 2 recent measurements for each qubit index,
                 meaning if there are more than 2 measurements of the same qubit index,
                 the oldest one gets deleted
+
+        Args:
+            patch_type (str): The type of patch for which the measurements are being added.
+                -> If None is selected no detectors will be build based on these measurements!
+                -> Soley for tracking the measurements in the tracker and for tagging if needed
+            measured_qubits (list[int]): List of qubit indices that were measured in the
+                current round.
+            qubits_for_detectors (list[int] | None): List of qubit indices from measured_qubits that
+                should be included in the detector dictionary. If None, all measured_qubits
+                are included.
+            tagged_qubits (list[int] | None): List of qubit indices from measured_qubits that should
+                be tagged with the provided tag. If None, no qubits will be tagged.
+            tag (str | None): The tag to associate with the tagged_qubits. If None, no tagging will
+                occur.
         """
 
         ######################################
         # Check Validity of Method Arguemnts #
         ######################################
 
-        if patch_type not in self.VALID_PATCH_TYPES:
+        if patch_type not in self.VALID_SURGERY_DETECTOR_TYPES:
             raise ValueError(
-                f"Invalid patch type '{patch_type}'. Expected one of {self.VALID_PATCH_TYPES}.",
+                f"Invalid patch type '{patch_type}'. Expected"
+                f" one of {self.VALID_SURGERY_DETECTOR_TYPES}.",
             )
 
         ########################
@@ -181,8 +196,8 @@ class MeasurementTracker:
             Be aware: These Int Records are already in the stim.target_rec format!
 
         *Functionality:
-            For the current Patch get Info of Detector Dictionary and FUll Measurement Histroy Dict
-            -> If the Dcit Entrie only has one entry, double check for previous measurements of the
+            For the current Patch get Info of Detector Dictionary and Full Measurement History Dict
+            -> If the Dict Entry only has one entry, double check for previous measurements of the
             same qubit index in the full history dict and add this to the records list
             -> If the Dict Entry has two entries, simply add these to the records list
 
@@ -197,9 +212,10 @@ class MeasurementTracker:
         # Check Validity of Method Arguemnts #
         ######################################
 
-        if patch_type not in self.VALID_PATCH_TYPES:
+        if patch_type not in self.VALID_SURGERY_DETECTOR_TYPES:
             raise ValueError(
-                f"Invalid patch type '{patch_type}'. Expected one of {self.VALID_PATCH_TYPES}.",
+                f"Invalid patch type '{patch_type}'. Expected"
+                f" one of {self.VALID_SURGERY_DETECTOR_TYPES}.",
             )
 
         #####################

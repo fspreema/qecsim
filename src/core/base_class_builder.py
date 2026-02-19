@@ -21,6 +21,17 @@ class BaseClassBuilder(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_logical_meas_rec(self) -> list[int]:
+        """
+        Abstract Method to get the list of measurement record positions that need to be
+        xored together to get the final logical measurement.
+
+        Returns:
+            list[int]: List of measurement record positions
+        """
+        pass
+
     def apply_noise(
         self,
         input_circuit: stim.Circuit,

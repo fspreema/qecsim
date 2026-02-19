@@ -138,10 +138,15 @@ class SurgeryInitialization:
             else self.geometry.target_z_stb_idx
         )
 
-        ct_init_circuit += self._get_detectors(
+        # ct_init_circuit += self._get_detectors(
+        #    measured_qubits=self.geometry.control_target_all_stab_idx,
+        #    qubits_for_detectors=control_stabs + target_stabs,
+        #    patch_type="Control_&_Target",
+        # )
+
+        self.measurement_tracker.add_measurements_to_tracker(
+            patch_type="None",
             measured_qubits=self.geometry.control_target_all_stab_idx,
-            qubits_for_detectors=control_stabs + target_stabs,
-            patch_type="Control_&_Target",
         )
 
         return ct_init_circuit
@@ -208,9 +213,14 @@ class SurgeryInitialization:
             rep_init_circuit.append("M", self.geometry.control_target_all_stab_idx)
 
             # Adding Detectors for Control and Target Initialization
-            rep_init_circuit += self._get_detectors(
+            # rep_init_circuit += self._get_detectors(
+            #     measured_qubits=self.geometry.control_target_all_stab_idx,
+            #     patch_type="Control_&_Target",
+            # )
+
+            self.measurement_tracker.add_measurements_to_tracker(
+                patch_type="None",
                 measured_qubits=self.geometry.control_target_all_stab_idx,
-                patch_type="Control_&_Target",
             )
 
         return rep_init_circuit

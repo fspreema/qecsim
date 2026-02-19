@@ -8,6 +8,7 @@ from src.codes.lattice_surgery.circuits.reset import SurgeryReset
 from src.codes.lattice_surgery.circuits.split import SurgerySplit
 from src.codes.lattice_surgery.data_geometry import MasterPairings
 from src.codes.lattice_surgery.get_flows import SurgeryFlowObservables
+from src.codes.lattice_surgery.get_measurement_recs import get_measurement_recs
 from src.codes.lattice_surgery.get_stab_pairings import LatticeSurgeryPairings
 from src.codes.lattice_surgery.measurement_tracker import MeasurementTracker
 from src.codes.lattice_surgery.surgery_geom import SurgeryGeometry
@@ -99,7 +100,7 @@ class SurgeryBuilder(BaseClassBuilder):
         flow_circuit = stim.Circuit()
 
         # Defining return circuit
-        return_circuit = stim.Circuit()
+        self.return_circuit = stim.Circuit()
 
         # Adding Reset Circuit
         reset_circuit = self._adding_reset_circuit()
@@ -130,22 +131,37 @@ class SurgeryBuilder(BaseClassBuilder):
             flow_circuit += self._add_pauli_observables(type="outgoing_flow")
 
         # Adding Reset to Return Circuit
-        return_circuit += reset_circuit
+        self.return_circuit += reset_circuit
 
         # Adding Flow Circuit to Return Circuit
-        return_circuit += flow_circuit
+        self.return_circuit += flow_circuit
 
         # Adding Solve Flow Observables if valid cx flow is selected
         if self._valid_flow():
-            return_circuit += self._adding_solve_flow_observables(flow_circuit=flow_circuit)
+            self.return_circuit += self._adding_solve_flow_observables(flow_circuit=flow_circuit)
 
         # Adding Final Measurement Circuit
-        return_circuit += self._adding_final_measurement_circuit()
+        self.return_circuit += self._adding_final_measurement_circuit()
 
         # Adding Noise Model if applicable
-        return_circuit = self.apply_noise(input_circuit=return_circuit, noise=self.noise)
+        self.return_circuit = self.apply_noise(input_circuit=self.return_circuit, noise=self.noise)
 
-        return return_circuit
+        return self.return_circuit
+
+    def get_logical_meas_rec(self, observable_index: int) -> list[int]:
+        """
+        Returns the measurement records that build up the logical operator
+        """
+
+        if self.return_circuit is None:
+            raise ValueError("Circuit has not been built yet. Please build the circuit first.")
+
+        measurement_recors = get_measurement_recs(
+            circuit=self.return_circuit,
+            observable_index=observable_index,
+        )
+
+        return measurement_recors
 
     def _adding_reset_circuit(self) -> tuple[stim.Circuit, stim.Circuit]:
         # Building Reset Circuit

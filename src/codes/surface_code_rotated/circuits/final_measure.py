@@ -55,14 +55,39 @@ class FinalMeasureCircuit:
         )
 
     def build_final_measurement_circuit(self) -> stim.Circuit:
-        self.final_circuit = stim.Circuit()
+        final_circuit = stim.Circuit()
 
         # Building Circuit
-        self.final_circuit += self._apply_final_measurement()
-        observable_circuit, rec_list = self._apply_observables()
-        self.final_circuit += observable_circuit
+        final_circuit += self._apply_final_measurement()
+        final_circuit += self._apply_observables()
 
-        return self.final_circuit, rec_list
+        return final_circuit
+
+    def build_observable_meas_rec(self) -> list[int]:
+        # Defining Record List
+        rec_list: list[int] = []
+
+        # Flatten Observale indice (Needed for Y Obs)
+        # [[...], [...], [.]] -> [.....]
+        if self.geometry.obs == "Y":
+            qubit_idx = [
+                qubit_idx
+                for qubit_type_list in self.geometry.get_logical_observables(self.geometry.obs)
+                for qubit_idx in qubit_type_list
+            ]
+        else:
+            qubit_idx = self.geometry.get_logical_observables(self.geometry.obs)
+
+        # Return Measurement Records of the logical operator for later decoding
+        rec_list = [
+            -len(self._what_qubits_measured()) + k
+            for k in self._get_rec_targets(
+                indicies=qubit_idx,
+                measured_qubits=self._what_qubits_measured(),
+            )
+        ]
+
+        return rec_list
 
     def _apply_final_measurement(self) -> stim.Circuit:
         ##########################
@@ -89,7 +114,8 @@ class FinalMeasureCircuit:
 
         return final_circuit
 
-    def _get_rec_targets(self, indicies: list[int], measured_qubits: list[int]) -> list[int]:
+    @staticmethod
+    def _get_rec_targets(indicies: list[int], measured_qubits: list[int]) -> list[int]:
         """
         Finds the record targets for given qubit indicies
 
@@ -131,9 +157,6 @@ class FinalMeasureCircuit:
         # Defining Observable Circuit
         observable_circuit = stim.Circuit()
 
-        # Defining Record List
-        rec_list: list[int] = []
-
         # Defining Logical Observables
         if self.non_deterministic_pairing:
             # Non-deterministic observables are added by Pauli Indexes
@@ -160,15 +183,6 @@ class FinalMeasureCircuit:
                     0,
                 )
 
-            # Return Measurement Records of the logical operator for later decoding
-            rec_list = [
-                -k - 1
-                for k in self._get_rec_targets(
-                    indicies=self.geometry.get_logical_observables(self.geometry.obs),
-                    measured_qubits=self._what_qubits_measured(),
-                )
-            ]
-
         # As the logical Y obsesrvable inside the y basis is measured by stabilizers in the reverse
         # switch, we do not need to add any observable here
         elif not self.non_deterministic_pairing and self.geometry.obs in {"X", "Z"}:
@@ -185,4 +199,4 @@ class FinalMeasureCircuit:
                 0,
             )
 
-        return observable_circuit, rec_list
+        return observable_circuit

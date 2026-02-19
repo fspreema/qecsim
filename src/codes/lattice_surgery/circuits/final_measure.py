@@ -70,36 +70,29 @@ class SurgeryFinalMeasure:
             ]
 
         # Adding Measurements and Observables based on measurement basis and observable type
+        measured_qubits = []
+        measurement_circuit.append("TICK")
+
         if measure_basis == "X":
-            measurement_circuit.append("TICK")
             measurement_circuit.append("MX", x_string)
-            measurement_circuit.append(
-                "OBSERVABLE_INCLUDE",
-                [stim.target_rec(-len(x_string) + k) for k in range(len(x_string))],
-                0,
-            )
+            measured_qubits = x_string
+
         elif measure_basis == "Z":
-            measurement_circuit.append("TICK")
             measurement_circuit.append("MZ", z_string)
-            measurement_circuit.append(
-                "OBSERVABLE_INCLUDE",
-                [stim.target_rec(-len(z_string) + k) for k in range(len(z_string))],
-                0,
-            )
+            measured_qubits = z_string
+
         elif measure_basis == "Y":
             # Apply Y measurement on patch
-            measurement_circuit.append("TICK")
             measurement_circuit.append("MX", y_logical_string[0])
             measurement_circuit.append("MY", y_logical_string[1])
             measurement_circuit.append("MZ", y_logical_string[2])
-            total_measurements = (
-                len(y_logical_string[0]) + len(y_logical_string[1]) + len(y_logical_string[2])
-            )
-            measurement_circuit.append(
-                "OBSERVABLE_INCLUDE",
-                [stim.target_rec(-total_measurements + k) for k in range(total_measurements)],
-                0,
-            )
+            measured_qubits = y_logical_string[0] + y_logical_string[1] + y_logical_string[2]
+
+        measurement_circuit.append(
+            "OBSERVABLE_INCLUDE",
+            [stim.target_rec(-len(measured_qubits) + k) for k in range(len(measured_qubits))],
+            0,
+        )
 
         # Return Circuit
         return measurement_circuit

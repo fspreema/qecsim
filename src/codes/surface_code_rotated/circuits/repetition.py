@@ -108,7 +108,7 @@ class SurfaceRepetitionCircuit:
             return self._y_basis_add_non_det_obs()[1]
         return []
 
-    def _y_basis_memory_prep_circuit(self):
+    def _y_basis_memory_prep_circuit(self) -> stim.Circuit:
         # Init reset Circuit
         y_memory_prep_circ = stim.Circuit()
 
@@ -144,7 +144,7 @@ class SurfaceRepetitionCircuit:
 
         return y_memory_prep_circ
 
-    def _y_basis_add_non_det_obs(self):
+    def _y_basis_add_non_det_obs(self) -> tuple[stim.Circuit, list[int]]:
         observable_circ = stim.Circuit()
 
         if self.geometry.obs == "X":
@@ -179,7 +179,7 @@ class SurfaceRepetitionCircuit:
 
         return observable_circ, []
 
-    def _adding_repetition_rounds(self):
+    def _adding_repetition_rounds(self) -> stim.Circuit:
         repetition_circ = stim.Circuit()
 
         # -----BUILDING-REPETITION-CIRC------

@@ -114,31 +114,49 @@ class SurfaceBuilder(BaseClassBuilder):
 
     def build_circuit(self) -> stim.Circuit:
         # Initialize Empty Circuit
-        self.full_circuit = stim.Circuit()
+        full_circuit = stim.Circuit()
 
         # Adding Setup Resets
-        self.full_circuit += self._adding_setup_resets()
+        full_circuit += self._adding_setup_resets()
 
         # Adding Initialiazion Circuit
-        self.full_circuit += self._adding_initilization()
+        full_circuit += self._adding_initilization()
 
         # Addings Repetion Circuit
-        self.full_circuit += self._adding_repetition()
+        full_circuit += self._adding_repetition()
 
         # Adding Conditional Circuits depending on Y Basis or Transversal H
         if self.y_sections_required:
-            self.full_circuit += self._adding_y_basis_sections()
+            full_circuit += self._adding_y_basis_sections()
         elif self.logical_h is True:
-            self.full_circuit += self._adding_logical_h_sections()
+            full_circuit += self._adding_logical_h_sections()
 
         # Adding Final Measurement Circuit -> Not for Y Basis
         if not self.y_sections_required:
-            self.full_circuit += self._adding_final_measurement()
+            full_circuit += self._adding_final_measurement()
+
+        # Adding Detectors
+        return_circuit = self._adding_detectors(input_circuit=full_circuit)
 
         # Adding Noise if specified
-        self.full_circuit = self.apply_noise(input_circuit=self.full_circuit, noise=self.noise)
+        return_circuit = self.apply_noise(input_circuit=return_circuit, noise=self.noise)
 
-        return self.full_circuit, self.rec_list
+        return return_circuit
+
+    def get_logical_meas_rec(self) -> list[int]:
+        """
+        Returns the list of measurement record positions that need to be xored together
+        to get the final logical measurement
+
+        -> This is used for Caluclation of the PTM
+        """
+
+        if self.y_sections_required:
+            pass
+        else:
+            rec_list = self._get_x_z_basis_measurement_recs()
+
+        return rec_list
 
     def _adding_setup_resets(self) -> stim.Circuit:
         # Adding Reset Circuit
@@ -246,6 +264,18 @@ class SurfaceBuilder(BaseClassBuilder):
 
         return h_section_circuits
 
+    def _get_x_z_basis_measurement_recs(self) -> list[int]:
+        final_meas_circ = FinalMeasureCircuit(
+            master_geometry=self.master_geometry,
+            master_pairings=self.master_pairings,
+            type=("log_h" if self.logical_h is True else "standard"),
+        )
+
+        # Get Measurement records for everything except the y basis
+        rec_list = final_meas_circ.build_observable_meas_rec()
+
+        return rec_list
+
     def _adding_final_measurement(self) -> stim.Circuit:
         # Adding Final Measurement Circuit -> Not for Y Basis
 
@@ -254,14 +284,21 @@ class SurfaceBuilder(BaseClassBuilder):
             master_pairings=self.master_pairings,
             type=("log_h" if self.logical_h is True else "standard"),
         )
-        meas_circ, self.rec_list = final_meas_circ.build_final_measurement_circuit()
+
+        # Build measurement Circuit
+        meas_circ = final_meas_circ.build_final_measurement_circuit()
 
         return meas_circ
 
-    def _adding_detectors(self) -> stim.Circuit:
+    @staticmethod
+    def _adding_detectors(input_circuit: stim.Circuit) -> stim.Circuit:
+        """
+        Calculates all Detectors needed by using the tqecd package
+        """
+
         # Annotate Detectors Automatically
         annotated_circuit = annotate_detectors_automatically(
-            circuit=self.full_circuit,
+            circuit=input_circuit,
         )
 
-        return annotated_circuit, self.rec_list
+        return annotated_circuit
