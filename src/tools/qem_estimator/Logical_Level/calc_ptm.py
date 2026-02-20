@@ -51,8 +51,6 @@ class PTMCalculator:
         Arguments:
             *circuits: Data model containing all circuits required for PTM calculation
             *samples: Number of samples to take for each circuit
-            *only_diagonal: Only the diagonal Values are calculated
-
         """
 
         # Set perliminary attributes
@@ -83,6 +81,7 @@ class PTMCalculator:
         first_key = next(iter(exp_vals_per_basis_comb))
         input_pauli_str = first_key.split("->")[0]
         n_qubits = len(input_pauli_str)
+        len_mtx = 0
 
         if n_qubits == 1:
             len_mtx = 3
@@ -213,8 +212,8 @@ class PTMCalculator:
 
     @staticmethod
     def _get_init_pairing_value(
-        pair: tuple[str, str],
-        average_logical_state: dict[str, int],
+        pair: tuple[int, int],
+        average_logical_state: dict[str, float],
     ) -> float:
         """
         Given a pair of two states (e.g. (1, 0))) this function returns the corresponding

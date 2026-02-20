@@ -133,30 +133,30 @@ class CircuitNoise:
                 inner_circuit = instructions.body_copy()
                 repeat_count = instructions.repeat_count
 
-                for instructions in inner_circuit:
+                for inner_instructions in inner_circuit:
                     # Check for unsupported MR operations in repeat blocks
-                    if instructions.name == "MR":
+                    if inner_instructions.name == "MR":
                         raise NotImplementedError("MR Operations are not supported")
 
                     # Check what type of Operation we have
-                    if instructions.name in self.noise_before_operators:
+                    if inner_instructions.name in self.noise_before_operators:
                         # Adding Clifford
-                        noisy_repeat.append(instructions)
+                        noisy_repeat.append(inner_instructions)
 
                         # Check if Dict has a non zero value
                         if self.noise.get("after_c_depol_prob", 0) > 0:
                             # Adding Depolarize Noise after Clifford
-                            if instructions.name in {"CX", "CZ", "XCY"}:
+                            if inner_instructions.name in {"CX", "CZ", "XCY"}:
                                 # Check if Multi-Qubit gate has record targets
                                 # -> Skip complelty as this needs to be handled as single qubit gate
                                 if any(
                                     target.is_measurement_record_target
-                                    for target in instructions.targets_copy()
+                                    for target in inner_instructions.targets_copy()
                                 ):
                                     # Single qubit Depolarize for rec dependent targets
                                     qubits = [
                                         targets.value
-                                        for targets in instructions.targets_copy()
+                                        for targets in inner_instructions.targets_copy()
                                         if targets.is_qubit_target
                                     ]
 
@@ -169,7 +169,7 @@ class CircuitNoise:
                                 else:
                                     # Multi-qubit gate
                                     qubits = [
-                                        targets.value for targets in instructions.targets_copy()
+                                        targets.value for targets in inner_instructions.targets_copy()
                                     ]
                                     noisy_repeat.append(
                                         "DEPOLARIZE2",
@@ -179,18 +179,18 @@ class CircuitNoise:
 
                             else:
                                 # Single qubit gate
-                                qubit = [targets.value for targets in instructions.targets_copy()]
+                                qubit = [targets.value for targets in inner_instructions.targets_copy()]
                                 noisy_repeat.append(
                                     "DEPOLARIZE1",
                                     qubit,
                                     self.noise.get("after_c_depol_prob", 0),
                                 )
 
-                    elif instructions.name in self.measurement_noise_operators:
+                    elif inner_instructions.name in self.measurement_noise_operators:
                         # Check if Dict has a non zero value
                         if self.noise.get("before_m_flip_prob", 0) > 0:
                             # Adding Before Measurement Flip
-                            for targets in instructions.targets_copy():
+                            for targets in inner_instructions.targets_copy():
                                 qubit = targets.value
                                 noisy_repeat.append(
                                     "X_ERROR",
@@ -199,16 +199,16 @@ class CircuitNoise:
                                 )
 
                         # Adding Measurement
-                        noisy_repeat.append(instructions)
+                        noisy_repeat.append(inner_instructions)
 
-                    elif instructions.name in self.reset_noise_operators:
+                    elif inner_instructions.name in self.reset_noise_operators:
                         # Adding Reset
-                        noisy_repeat.append(instructions)
+                        noisy_repeat.append(inner_instructions)
 
                         # Check if Dict has a non zero value
                         if self.noise.get("after_r_flip", 0) > 0:
                             # Adding after reset noise
-                            for targets in instructions.targets_copy():
+                            for targets in inner_instructions.targets_copy():
                                 qubit = targets.value
                                 noisy_repeat.append(
                                     "X_ERROR",
@@ -218,7 +218,7 @@ class CircuitNoise:
 
                     else:
                         # For all other instructions in repeat block, just append them without noise
-                        noisy_repeat.append(instructions)
+                        noisy_repeat.append(inner_instructions)
 
                 # Append Repeat Block to Noisy Circuit
                 noisy_circuit += noisy_repeat * repeat_count
@@ -378,29 +378,29 @@ class BiasNoise:
                 inner_circuit = instructions.body_copy()
                 repeat_count = instructions.repeat_count
 
-                for instructions in inner_circuit:
+                for inner_instructions in inner_circuit:
                     # Check what type of Operation we have
-                    if instructions.name in self.noise_before_operators:
+                    if inner_instructions.name in self.noise_before_operators:
                         # Adding Clifford
                         noisy_repeat.append(instructions)
 
                         # Adding Depolarize Noise after Clifford
-                        if instructions.name in {"CX", "CZ"}:
+                        if inner_instructions.name in {"CX", "CZ"}:
                             # Check if 15 MPP is non zer0
                             if np.any(after_c_p_xyz_multi):
                                 # Multi-qubit gate
-                                qubits = [targets.value for targets in instructions.targets_copy()]
+                                qubits = [targets.value for targets in inner_instructions.targets_copy()]
                                 noisy_repeat.append(
                                     "PAULI_CHANNEL_2",
                                     qubits,
                                     after_c_p_xyz_multi,
                                 )
 
-                        elif instructions.name not in {"CX", "CZ"}:
+                        elif inner_instructions.name not in {"CX", "CZ"}:
                             # Check if single Value is non zero
                             if np.any(after_c_p_xyz):
                                 # Single qubit gate
-                                qubit = [targets.value for targets in instructions.targets_copy()]
+                                qubit = [targets.value for targets in inner_instructions.targets_copy()]
                                 noisy_repeat.append(
                                     "PAULI_CHANNEL_1",
                                     qubit,
@@ -409,7 +409,7 @@ class BiasNoise:
 
                     else:
                         # For all other instructions in repeat block, just append them without noise
-                        noisy_repeat.append(instructions)
+                        noisy_repeat.append(inner_instructions)
 
                 # Append Repeat Block to Noisy Circuit
                 noisy_circuit += noisy_repeat * repeat_count

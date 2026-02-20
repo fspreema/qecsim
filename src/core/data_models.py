@@ -3,7 +3,8 @@ from enum import Enum, auto
 
 import stim
 
-__all__ = ["NoiseParameters"]
+__all__ = ["NoiseParameters",
+           "PTMCircuits"]
 
 
 # Dataclass for saving Noise Parameters which will be given to the individual Circuit Builders
@@ -27,7 +28,7 @@ class NoiseParameters:
     after_r_flip: float = 0.0
     after_c_depol_prob: float = 0.0
     after_c_pauli_channel_prob: float = 0.0
-    noise_bias: list[float] = None
+    noise_bias: list[float] | None = None
 
 
 ### FOR FUTURE IMPLEMENTATION ###

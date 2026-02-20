@@ -127,16 +127,6 @@ class SurgeryInitialization:
         ct_init_circuit.append("M", self.geometry.control_target_all_stab_idx)
 
         # Adding Detectors -> Selected qubits depend on Basis
-        control_stabs = (
-            self.geometry.control_x_stb_idx
-            if self.geometry.control_state_init in {"X+", "X-"}
-            else self.geometry.control_z_stb_idx
-        )
-        target_stabs = (
-            self.geometry.target_x_stb_idx
-            if self.geometry.target_state_init in {"X+", "X-"}
-            else self.geometry.target_z_stb_idx
-        )
 
         # ct_init_circuit += self._get_detectors(
         #    measured_qubits=self.geometry.control_target_all_stab_idx,

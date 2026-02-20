@@ -60,6 +60,7 @@ class SurgeryBuilder(BaseClassBuilder):
         self.control_measure_basis = control_measure_basis
         self.target_measure_basis = target_measure_basis
         self.noise = noise
+        self.return_circuit = stim.Circuit()
 
         # Initilize Geometry
         self.geometry = SurgeryGeometry(
@@ -99,9 +100,6 @@ class SurgeryBuilder(BaseClassBuilder):
         # Defining flow_circuit -> For Solving Flow Observables at the end
         flow_circuit = stim.Circuit()
 
-        # Defining return circuit
-        self.return_circuit = stim.Circuit()
-
         # Adding Reset Circuit
         reset_circuit = self._adding_reset_circuit()
 
@@ -111,24 +109,24 @@ class SurgeryBuilder(BaseClassBuilder):
         # If not valid flow, we need to XOR rec measurements with pauli observables
         # to get deterministic outcomes
         if not self._valid_flow():
-            flow_circuit += self._add_pauli_observables(type="incoming_flow")
+            flow_circuit += self._add_pauli_observables(flow_type="incoming_flow")
 
         # Adding Merging Ancilla Control Circuit
-        flow_circuit += self._adding_merge(type="AC")
+        flow_circuit += self._adding_merge(merge_type="AC")
 
         # Adding Splitting Ancilla Control Circuit
-        flow_circuit += self._adding_split(type="AC")
+        flow_circuit += self._adding_split(split_type="AC")
 
         # Adding Merging Ancilla Target Circuit
-        flow_circuit += self._adding_merge(type="AT")
+        flow_circuit += self._adding_merge(merge_type="AT")
 
         # Adding Splitting Ancilla Target Circuit
-        flow_circuit += self._adding_split(type="AT")
+        flow_circuit += self._adding_split(split_type="AT")
 
         # If not valid flow, we need to XOR rec measurements with pauli observables
         # to get deterministic outcomes
         if not self._valid_flow():
-            flow_circuit += self._add_pauli_observables(type="outgoing_flow")
+            flow_circuit += self._add_pauli_observables(flow_type="outgoing_flow")
 
         # Adding Reset to Return Circuit
         self.return_circuit += reset_circuit
@@ -156,14 +154,14 @@ class SurgeryBuilder(BaseClassBuilder):
         if self.return_circuit is None:
             raise ValueError("Circuit has not been built yet. Please build the circuit first.")
 
-        measurement_recors = get_measurement_recs(
+        measurement_records = get_measurement_recs(
             circuit=self.return_circuit,
             observable_index=observable_index,
         )
 
-        return measurement_recors
+        return measurement_records
 
-    def _adding_reset_circuit(self) -> tuple[stim.Circuit, stim.Circuit]:
+    def _adding_reset_circuit(self) -> stim.Circuit:
         # Building Reset Circuit
         reset_circuit_builder = SurgeryReset(
             geometry=self.geometry,
@@ -196,24 +194,24 @@ class SurgeryBuilder(BaseClassBuilder):
 
         return self.init_circuit
 
-    def _adding_merge(self, type: str) -> stim.Circuit:
+    def _adding_merge(self, merge_type: str) -> stim.Circuit:
         # Adding Merge Circuit
         merge_circuit_builder = SurgeryMerge(
             geometry=self.geometry,
             master_pairings=self.master_pairings,
-            merging_type=type,
+            merging_type=merge_type,
             tracker=self.tracker,
         )
         merge_circuit = merge_circuit_builder.build_circuit()
 
         return merge_circuit
 
-    def _adding_split(self, type: str) -> stim.Circuit:
+    def _adding_split(self, split_type: str) -> stim.Circuit:
         # Adding Split Circuit
         split_circuit_builder = SurgerySplit(
             geometry=self.geometry,
             master_pairings=self.master_pairings,
-            split_type=type,
+            split_type=split_type,
             tracker=self.tracker,
         )
         split_circuit = split_circuit_builder.build_circuit()
@@ -242,7 +240,7 @@ class SurgeryBuilder(BaseClassBuilder):
             curr_flow=self.curr_flow,
         )
 
-    def _add_pauli_observables(self, type: str) -> stim.Circuit:
+    def _add_pauli_observables(self, flow_type: str) -> stim.Circuit:
         # Adding Pauli Observables for both control and target patches
         observable_getter = SurgeryPauliObservables(
             geometry=self.geometry,
@@ -250,7 +248,7 @@ class SurgeryBuilder(BaseClassBuilder):
             target_measure_basis=self.target_measure_basis,
             control_state_init=self.geometry.control_state_init,
             target_state_init=self.geometry.target_state_init,
-            type=type,
+            flow_type=flow_type,
         )
 
         return observable_getter.build_circuit()

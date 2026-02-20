@@ -151,7 +151,7 @@ class CircuitChunk:
         # Get the index of all corresponding pauli strings
         current_indices = self.get_pauli_indices(current_flow)
 
-        currently_checking_coords: complex = None
+        currently_checking_coords: complex | None = None
 
         # Convert into Coordinates
         for index in current_indices:

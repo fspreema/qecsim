@@ -88,7 +88,7 @@ def test_get_entires_for_surgery():
     """
 
     # Create Circuits for testing
-    circ_1 = SurgeryBuilder(
+    SurgeryBuilder(
         distance=3,
         control_state_init="Z0",
         target_state_init="X+",
@@ -97,6 +97,5 @@ def test_get_entires_for_surgery():
     )
 
     # Adding all Circuit to the Dict
-    circuits_surgery = PTMCircuits(circuits=[])
 
     pass

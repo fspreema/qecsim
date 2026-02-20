@@ -9,6 +9,7 @@ from src.core.noise_models import BiasNoise, CircuitNoise
 class BaseClassBuilder(ABC):
     @abstractmethod
     def __init__(self):
+        self.noise = None
         pass
 
     @abstractmethod
@@ -22,7 +23,7 @@ class BaseClassBuilder(ABC):
         pass
 
     @abstractmethod
-    def get_logical_meas_rec(self) -> list[int]:
+    def get_logical_meas_rec(self, observable_index: int) -> list[int]:
         """
         Abstract Method to get the list of measurement record positions that need to be
         xored together to get the final logical measurement.

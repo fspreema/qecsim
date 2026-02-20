@@ -24,8 +24,6 @@ def cx_builder(
         circuit: The Circuit to build into
         orders: What strings in stab_to_data to apply in what order
         excluded_index: An index to exclude from CX application
-        noise_overwrite: Whether to apply noise after CX gates
-        noise: The Noise Model to use
         add_operator_before: Operators to add before the CX gates
         -> Dict with order as key and list of (operator, indices) tuples as value
         -> Example: {"2-CX": [("H", [1,2,3]), ("S_DAG", [1,2,3])]}
@@ -59,7 +57,7 @@ def cx_builder(
 
     def _append_by_single_index(
         op: str,
-        index: int,
+        index: list[int],
     ) -> None:
         # Adding Single Qubit Operation
         if op in ["X", "Y", "Z", "H", "S", "S_DAG", "T", "T_DAG"]:

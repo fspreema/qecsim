@@ -13,10 +13,10 @@ class SurgeryPauliObservables:
         target_measure_basis: str,
         control_state_init: str,
         target_state_init: str,
-        type: str,
+        flow_type: str,
     ):
         # Check validity of input arguments
-        if type not in {"incoming_flow", "outgoing_flow"}:
+        if flow_type not in {"incoming_flow", "outgoing_flow"}:
             raise ValueError("Invalid type. Must be 'incoming_flow' or 'outgoing_flow'.")
 
         # Preliminary Setup
@@ -30,10 +30,10 @@ class SurgeryPauliObservables:
         )
 
         # Select Basis depending on incoming or outgoing flow
-        if type == "outgoing_flow":
+        if flow_type == "outgoing_flow":
             self.control_measure_basis = control_measure_basis
             self.target_measure_basis = target_measure_basis
-        elif type == "incoming_flow":
+        elif flow_type == "incoming_flow":
             self.control_measure_basis = control_state_init[0]
             self.target_measure_basis = target_state_init[0]
 
