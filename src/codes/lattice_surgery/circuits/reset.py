@@ -14,6 +14,8 @@ from src.codes.surface_code_rotated.surface_geom import SurfaceGeometry
 
 __all__ = ["SurgeryReset"]
 
+# Translation Layer needed between Surgery and Surface Classes
+STATE_TRANSLATOR = {"Y+": "+i", "Y-": "-i"}
 
 class SurgeryReset:
     def __init__(self, geometry: SurgeryGeometry):
@@ -28,22 +30,16 @@ class SurgeryReset:
         self.fault_tolerant_y = False
 
     def build_circuit(self) -> stim.Circuit:
-        circuit = stim.Circuit()
+        return_circuit = stim.Circuit()
 
         # Adding Coords
-        circuit += self._adding_coords()
+        return_circuit += self._adding_coords()
 
         # Adding Resets
-        reset_circuit, flow_circuit = self._adding_resets()
-        circuit += reset_circuit
+        return_circuit += self._adding_resets(patch_type="control")
+        return_circuit += self._adding_resets(patch_type="target")
 
-        # Adding Y-Creation Flows if relevant
-        if (
-            self.control_state_init in {"Y+", "Y-"} or self.target_state_init in {"Y+", "Y-"}
-        ) and self.fault_tolerant_y:
-            circuit += self._getting_y_observable(flow_circuit)
-
-        return circuit
+        return return_circuit
 
     def _adding_coords(self) -> stim.Circuit:
         coord_circuit = stim.Circuit()
@@ -54,44 +50,32 @@ class SurgeryReset:
 
         return coord_circuit
 
-    def _adding_resets(self) -> tuple[stim.Circuit, stim.Circuit]:
+    def _adding_resets(self, patch_type: str) -> stim.Circuit:
         # Init Reset Circuit
         reset_circuit = stim.Circuit()
-        flow_circuit = stim.Circuit()
+        reset_circuit.append("TICK")
+
+        if patch_type == "control":
+            initial_state = self.control_state_init
+        else:
+            initial_state = self.target_state_init
 
         # 2. Control Patch
-        if self.control_state_init in {"Y+", "Y-"}:
-            return_circuit, flow_creation_circuit = self._y_patch_builder(
-                patch_type="control",
-                state_init=self.control_state_init,
+        if initial_state in {"Y+", "Y-"}:
+            return_circuit = self._y_patch_builder(
+                patch_type=patch_type,
+                state_init=initial_state,
                 fault_tolerant=self.fault_tolerant_y,
             )
-            reset_circuit.append("TICK")
             reset_circuit += return_circuit
-            flow_circuit += flow_creation_circuit
+            reset_circuit += self._add_y_state_flip(patch_type)
         else:
             reset_circuit += self._build_std_patch(
-                patch_type="control",
-                state_init=self.control_state_init,
+                patch_type=patch_type,
+                state_init=initial_state,
             )
 
-        # 3. Target Patch
-        if self.target_state_init in {"Y+", "Y-"}:
-            return_circuit, flow_creation_circuit = self._y_patch_builder(
-                patch_type="target",
-                state_init=self.target_state_init,
-                fault_tolerant=self.fault_tolerant_y,
-            )
-            reset_circuit.append("TICK")
-            reset_circuit += return_circuit
-            flow_circuit += flow_creation_circuit
-        else:
-            reset_circuit += self._build_std_patch(
-                patch_type="target",
-                state_init=self.target_state_init,
-            )
-
-        return reset_circuit, flow_circuit
+        return reset_circuit
 
     def _build_std_patch(self, patch_type: str, state_init: str) -> stim.Circuit:
         circ = stim.Circuit()
@@ -113,6 +97,7 @@ class SurgeryReset:
         # 1. Physical Qubit Reset
         if state_init in {"X+", "X-"}:
             circ.append("RX", data_idx)
+        # Reset in Z Basis for I and Z init State
         else:
             circ.append("R", data_idx)
 
@@ -122,7 +107,7 @@ class SurgeryReset:
         # 2. Logical Operators for state prep
         if state_init == "X-":
             circ.append("Z", log_z)
-        elif state_init == "Z1":
+        elif state_init in {"Z1", "I1"}:
             circ.append("X", log_x)
 
         return circ
@@ -132,7 +117,7 @@ class SurgeryReset:
         patch_type: str,
         state_init: str,
         fault_tolerant: bool,
-    ) -> tuple[stim.Circuit, stim.Circuit]:
+    ) -> stim.Circuit:
         """
         Builds a Y-Basis Patch Circuit
 
@@ -143,21 +128,19 @@ class SurgeryReset:
         """
 
         if fault_tolerant:
-            return self._ft_y_patch(patch_type, state_init)
+            return self._ft_y_patch(patch_type, STATE_TRANSLATOR[state_init])
         else:
-            return self._non_ft_y_patch(patch_type, state_init)
+            return self._non_ft_y_patch(patch_type)
 
     def _non_ft_y_patch(
         self,
         patch_type: str,
-        state_init: str,
-    ) -> tuple[stim.Circuit, stim.Circuit]:
+    ) -> stim.Circuit:
         # Get logical string
         log_strings = self.geometry.get_logical_strings()
 
         # Initialize Measurement Circuit
         reset_circuit = stim.Circuit()
-        flow_circuit = stim.Circuit()
 
         if patch_type == "control":
             # Control Patch Offset
@@ -175,15 +158,33 @@ class SurgeryReset:
         reset_circuit.append("RX", x_string)
         reset_circuit.append("RZ", z_string)
 
+        return reset_circuit
+
+    def _add_y_state_flip(self, patch_type:str):
+
+        # Get logical string
+        log_strings = self.geometry.get_logical_strings()
+
+        # Init Circuit
+        y_flip_circuit = stim.Circuit()
+
+        if patch_type == "control":
+            flipped_z = log_strings["c_z"]
+            flipped_x = log_strings["c_x"]
+            state_init = self.geometry.control_state_init
+        else:
+            flipped_z = log_strings["t_z"]
+            flipped_x = log_strings["t_x"]
+            state_init = self.geometry.target_state_init
+
         # Add Logical Flip if needed
         if state_init == "Y-":
-            reset_circuit.append("Y", [y_corner])
-            reset_circuit.append("Z", z_string)
-            reset_circuit.append("X", x_string)
+            y_flip_circuit.append("Z", flipped_z)
+            y_flip_circuit.append("X", flipped_x)
 
-        return reset_circuit, flow_circuit
+        return y_flip_circuit
 
-    def _ft_y_patch(self, patch_type: str, state_init: str) -> tuple[stim.Circuit, stim.Circuit]:
+    def _ft_y_patch(self, patch_type: str, state_init: str) -> stim.Circuit:
         """
         Implements the Fault Tolerant Y Basis Patch Reset + Initialization + Y-Memory + Y-Switch
         as proposed by Gidney. (arXiv:2302.07395)
@@ -240,7 +241,10 @@ class SurgeryReset:
             pairings_log_h=None,
         )
 
+        # Initalizing Circuits
         patch_circuit = stim.Circuit()
+        flow_circuit = stim.Circuit()
+        return_circuit = stim.Circuit()
 
         # 1. Data Qubits Reset
         resetter = SurfaceReset(master_geom, type="y_basis")
@@ -261,11 +265,16 @@ class SurgeryReset:
         patch_circuit += switch_circuit
 
         # Defining Flow Circuit for Logical Y Creation
-        flow_circuit = stim.Circuit()
         flow_circuit += repetition_circuit
         flow_circuit += switch_circuit
 
-        return patch_circuit, flow_circuit
+        # Adding Observables
+        observable_circuit = self._getting_y_observable(flow_circuit)
+
+        # Building return Circuit
+        return_circuit += patch_circuit + observable_circuit
+
+        return return_circuit
 
     def _getting_y_observable(self, circuit: stim.Circuit) -> stim.Circuit:
         # Init return circuit

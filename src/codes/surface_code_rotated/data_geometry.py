@@ -6,14 +6,14 @@ from src.codes.surface_code_rotated.surface_geom import SurfaceGeometry
 
 @dataclass
 class MasterGeometry:
-    geometry_std: SurfaceGeometry
-    geometry_ybasis: SurfaceGeometry
+    geometry_std: SurfaceGeometry | None
+    geometry_ybasis: SurfaceGeometry | None
 
 
 @dataclass
 class MasterPairings:
-    pairings_std: SurfacePairings
-    pairings_ybasis: SurfacePairings
-    pairings_ymemory: SurfacePairings
-    pairings_yswitch: SurfacePairings
-    pairings_log_h: SurfacePairings
+    pairings_std: SurfacePairings | None
+    pairings_ybasis: SurfacePairings | None
+    pairings_ymemory: SurfacePairings | None
+    pairings_yswitch: SurfacePairings | None
+    pairings_log_h: SurfacePairings | None

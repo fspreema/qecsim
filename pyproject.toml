@@ -12,13 +12,13 @@ requires-python = ">=3.10"
 name = "Fabian Spreemann"
 email = "f.spreemann@fz-juelich.de"
 dependencies = [
-	"numpy>=1.24",
-	"pymatching>=2.0",
-	"tqecd>=0.1.2",
-	"cvxpy>=1.7.3",
-	"ecos>=2.0",
-	"stim>=1.12",
-	"sinter>=1.15.0"
+    "numpy>=1.24",
+    "pymatching>=2.0",
+    "tqecd>=0.1.2",
+    "cvxpy>=1.7.3",
+    "ecos>=2.0",
+    "stim>=1.12",
+    "sinter>=1.15.0"
 ]
 
 [tool.setuptools.packages.find]
@@ -29,15 +29,17 @@ include = ["qecsim*"]
 line-length = 100
 target-version = "py310"
 exclude = [
-".venv",
-".ruff_cache",
-".pytest_cache",
-"playground",
-"qecsim.egg-info",
+    ".venv",
+    ".ruff_cache",
+    ".pytest_cache",
+    "playground",
+    "qecsim.egg-info",
+    "*.ipynb",
+    "**/*.ipynb",
 ]
 
 [tool.ruff.lint]
-select = ["E","F","W","I","B","UP","N","ARG","COM","ISC","Q"]
+select = ["E", "F", "W", "I", "B", "UP", "N", "ARG", "COM", "ISC", "Q"]
 ignore = ["W291", "W293"]
 
 [tool.ruff.lint.isort]

@@ -77,7 +77,7 @@ class SurgeryFinalMeasure:
             measurement_circuit.append("MX", x_string)
             measured_qubits = x_string
 
-        elif measure_basis == "Z":
+        elif measure_basis in {"Z", "I"}:
             measurement_circuit.append("MZ", z_string)
             measured_qubits = z_string
 
@@ -88,11 +88,13 @@ class SurgeryFinalMeasure:
             measurement_circuit.append("MZ", y_logical_string[2])
             measured_qubits = y_logical_string[0] + y_logical_string[1] + y_logical_string[2]
 
-        measurement_circuit.append(
-            "OBSERVABLE_INCLUDE",
-            [stim.target_rec(-len(measured_qubits) + k) for k in range(len(measured_qubits))],
-            0,
-        )
+        # Only add Observable if no Identity is selected
+        if measure_basis != "I":
+            measurement_circuit.append(
+                "OBSERVABLE_INCLUDE",
+                [stim.target_rec(-len(measured_qubits) + k) for k in range(len(measured_qubits))],
+                0,
+            )
 
         # Return Circuit
         return measurement_circuit

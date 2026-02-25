@@ -9,7 +9,7 @@ Geometry Class which build all Coordinates and converts them to Indices for the 
 
 
 class SurgeryGeometry(BaseGeometry):
-    VALID_STATES = {"I", "X+", "X-", "Y+", "Y-", "Z0", "Z1"}
+    VALID_STATES = {"I0", "I1", "X+", "X-", "Y+", "Y-", "Z0", "Z1"}
 
     def __init__(
         self,

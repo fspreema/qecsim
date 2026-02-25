@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 import pymatching
 import stim
@@ -66,7 +68,10 @@ class PTMCalculator:
 
         return ptm_matrix
 
-    def _build_mtx_for_ptm(self, exp_vals_per_basis_comb: dict[str, float]) -> np.ndarray:
+    def _build_mtx_for_ptm(
+        self,
+        exp_vals_per_basis_comb: dict[str, np.floating[Any]],
+    ) -> np.ndarray:
         """
         Converts the dictionary of expentation values into the PTM Matrix
 
@@ -213,15 +218,15 @@ class PTMCalculator:
     @staticmethod
     def _get_init_pairing_value(
         pair: tuple[int, int],
-        average_logical_state: dict[str, float],
-    ) -> float:
+        average_logical_state: dict[str, np.floating[Any]],
+    ) -> np.floating[Any]:
         """
         Given a pair of two states (e.g. (1, 0))) this function returns the corresponding
         measurement result
         """
 
         # Init parameters
-        state_order = {"X+": 0, "X-": 1, "Y+": 0, "Y-": 1, "Z0": 0, "Z1": 1}
+        state_order = {"X+": 0, "X-": 1, "Y+": 0, "Y-": 1, "Z0": 0, "Z1": 1, "I0": 0, "I1": 1}
         control_state, target_state = pair
 
         for curr_init_state_label, exp_val in average_logical_state.items():
@@ -241,7 +246,7 @@ class PTMCalculator:
     def _calc_entries_for_surface_patch(self):
         pass
 
-    def _calc_entries_for_surgery(self, only_non_zero: bool = False) -> dict[str, float]:
+    def _calc_entries_for_surgery(self, only_non_zero: bool = False) -> dict[str, np.floating[Any]]:
         """
         We can't directly use the DEM as we need the
         raw measurements to infer what logical state we have
@@ -251,7 +256,7 @@ class PTMCalculator:
         """
 
         # Init Save Dict for the expectation values of each basis combination
-        exp_vals_per_basis_comb: dict[str, float] = {}
+        exp_vals_per_basis_comb: dict[str, np.floating[Any]] = {}
 
         # Run through diagonal circuits
         for basis_combination, circuit_dict_and_meas_recs in self.circuits.items():
@@ -287,7 +292,7 @@ class PTMCalculator:
             #   We calc at the end (0+ - 1+) - (0- - 1-) / total samples     #
             ##################################################################
 
-            average_logical_state: dict[str, int] = {}
+            average_logical_state: dict[str, np.floating[Any]] = {}
 
             for curr_init_state_label, curr_circuit in circuit_dict.items():
                 # Buid the normal measurement smaples and sample n shots
@@ -321,6 +326,9 @@ class PTMCalculator:
                     logical_states_noisy,
                 )
 
+                # Expectation values should only be between -1, 1
+                assert np.isin(final_logical_states, [-1, 1]).all()
+
                 # Take the Average of the logical state over all samples
                 average_logical_state[curr_init_state_label] = np.average(final_logical_states)
 
@@ -330,15 +338,20 @@ class PTMCalculator:
             control_sgn = sgn_dict["control"]
 
             # Get the individual Terms for construction
+
+            """
+            UPDATE DISCRIPTION AS THIS CALUCLATION IS DIFFERENT TO THE ABOVE!
+            """
+
             term1 = self._get_init_pairing_value(
                 pair=(0, 0),
                 average_logical_state=average_logical_state,
             ) + target_sgn * self._get_init_pairing_value(
-                pair=(1, 0),
+                pair=(0, 1),
                 average_logical_state=average_logical_state,
             )
             term2 = self._get_init_pairing_value(
-                pair=(0, 1),
+                pair=(1, 0),
                 average_logical_state=average_logical_state,
             ) + target_sgn * self._get_init_pairing_value(
                 pair=(1, 1),
@@ -347,6 +360,6 @@ class PTMCalculator:
 
             # Get Exp. Value and add to final Value Dict
             exp_val = term1 + control_sgn * term2
-            exp_vals_per_basis_comb[basis_combination] = exp_val
+            exp_vals_per_basis_comb[basis_combination] = exp_val / 4
 
         return exp_vals_per_basis_comb
