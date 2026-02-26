@@ -137,6 +137,7 @@ class PTMCalculator:
         """
         Returns full logical measurement by xoring the needed measurements
         -> This is Vectorized to speed up the process as much as possible
+        -> If logical is flipped, measurement needs to be flipped as well
         """
 
         final_meas: np.ndarray = np.zeros(shape=(samples_from_sampler.shape[0],), dtype=np.int8)
@@ -295,6 +296,7 @@ class PTMCalculator:
             average_logical_state: dict[str, np.floating[Any]] = {}
 
             for curr_init_state_label, curr_circuit in circuit_dict.items():
+
                 # Buid the normal measurement smaples and sample n shots
                 sampler = curr_circuit.compile_sampler()
                 results_samples = sampler.sample(shots=self.samples)
@@ -333,12 +335,10 @@ class PTMCalculator:
                 average_logical_state[curr_init_state_label] = np.average(final_logical_states)
 
             # Calculate Sign for the current basis combination
-            sgn_dict = self._get_sgn(basis_combination)
-            target_sgn = sgn_dict["target"]
-            control_sgn = sgn_dict["control"]
+            sgn = self._get_sgn(basis_combination)
+            control_sgn, target_sgn = sgn["control"], sgn["target"]
 
             # Get the individual Terms for construction
-
             """
             UPDATE DISCRIPTION AS THIS CALUCLATION IS DIFFERENT TO THE ABOVE!
             """

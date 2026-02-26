@@ -11,12 +11,7 @@ Geometry Class which build all Coordinates and converts them to Indices for the 
 class SurgeryGeometry(BaseGeometry):
     VALID_STATES = {"I0", "I1", "X+", "X-", "Y+", "Y-", "Z0", "Z1"}
 
-    def __init__(
-        self,
-        distance: int,
-        control_state_init: str,
-        target_state_init: str,
-    ):
+    def __init__(self, distance: int, control_state_init: str, target_state_init: str, **kwargs):
         """
         Initializes Geometry Class for Lattice Surgery.
         Generates 3 patches (Ancilla, Target, Control) and connecting boundaries.
@@ -30,7 +25,7 @@ class SurgeryGeometry(BaseGeometry):
         #####################################
         # Check valid State Initializations #
         #####################################
-        # -> I skips complete Resets on that patch
+
         if control_state_init not in self.VALID_STATES:
             raise ValueError(
                 f"Invalid control_state_init: {control_state_init}. "
@@ -240,39 +235,43 @@ class SurgeryGeometry(BaseGeometry):
 
         return return_coords
 
-    def _get_filtered_x_stabilizers(self, merging_type=None) -> list[int]:
+    def get_patch_stabilizer_to_data_mapping(
+        self,
+        patch_coords: dict[complex, str],
+        type: str,
+    ) -> dict[int, list[int]]:
         """
-        Returns the filtered list of X stabilizer indices depending on the merging type
-        -> If no merging type is given, returns filtered list for initialization
-        -> If AT merging is selected, additional surgery stabilizers are added
-           (AC has only additional Z surgery stabilizers)
+        Returns the mapping from stabilizer indices to their neighboring data qubit indices
+        for a given patch
+
+        Parameters:
+            patch_coords: dict[complex, str]
+                Dictionary with coordinates as keys and labels as values for the patch
+            type: str
+                Type of the Stabilizer i.e., X or Z
         """
 
-        if merging_type == "AT":
-            combined_x_stab_idx = (
-                self.anc_x_stb_idx
-                + self.control_x_stb_idx
-                + self.target_x_stb_idx
-                + self.surgery_x_b_stb_idx
-                + self.surgery_x_m_stb_idx
-            )
-        elif merging_type in {None, "AC"}:
-            combined_x_stab_idx = (
-                self.anc_x_stb_idx + self.control_x_stb_idx + self.target_x_stb_idx
-            )
-        else:
-            raise ValueError("merging_type must be one of: None, 'AC', 'AT'")
+        valid_types = {"X", "Z"}
 
-        # Using set to avoid double indices
-        filtered_x_stab_idx = list(set(combined_x_stab_idx))
+        if type not in valid_types:
+            raise ValueError(f"Invalid type: {type}. Valid options are: {valid_types}")
 
-        return filtered_x_stab_idx
+        stab_idx_to_data_idx: dict[int, list[int]] = {}
+
+        for coord, label in patch_coords.items():
+            if label != "DATA":
+                stab_idx = self.q2i[coord]
+                neighboring_data = self.get_neighbours_from_stabilizer(coord, patch_coords)
+                if patch_coords[coord].startswith(type):
+                    stab_idx_to_data_idx[stab_idx] = neighboring_data
+
+        return stab_idx_to_data_idx
 
     def get_combined_xz_stabs_merging_lattice(
         self,
         merging_type=None,
         split_type=None,
-    ) -> list[int]:
+    ) -> tuple[list[int], list[int]]:
         """
         Returns the combined list of X and Z stabilizer coordinates depending on the merging type
         """
@@ -385,11 +384,39 @@ class SurgeryGeometry(BaseGeometry):
             },
         }
 
+    def _get_filtered_x_stabilizers(self, merging_type=None) -> list[int]:
+        """
+        Returns the filtered list of X stabilizer indices depending on the merging type
+        -> If no merging type is given, returns filtered list for initialization
+        -> If AT merging is selected, additional surgery stabilizers are added
+           (AC has only additional Z surgery stabilizers)
+        """
+
+        if merging_type == "AT":
+            combined_x_stab_idx = (
+                self.anc_x_stb_idx
+                + self.control_x_stb_idx
+                + self.target_x_stb_idx
+                + self.surgery_x_b_stb_idx
+                + self.surgery_x_m_stb_idx
+            )
+        elif merging_type in {None, "AC"}:
+            combined_x_stab_idx = (
+                self.anc_x_stb_idx + self.control_x_stb_idx + self.target_x_stb_idx
+            )
+        else:
+            raise ValueError("merging_type must be one of: None, 'AC', 'AT'")
+
+        # Using set to avoid double indices
+        filtered_x_stab_idx = list(set(combined_x_stab_idx))
+
+        return filtered_x_stab_idx
+
     def _get_central_labels(
         self,
         offset: complex,
         starting_stabilizer_x: bool,
-    ) -> dict[complex, str]:
+    ) -> dict[tuple[complex, complex], str]:
         """
         Returns the qubit coordinates depending on the type of the block
 
@@ -436,7 +463,7 @@ class SurgeryGeometry(BaseGeometry):
 
         return qubit_coords
 
-    def _get_boundary_labels(self) -> dict[complex, str]:
+    def _get_boundary_labels(self) -> None:
         """
         Adds the neseccary Boundary and Surgery Stabilizers needed
         """
@@ -504,34 +531,3 @@ class SurgeryGeometry(BaseGeometry):
             coord_control = complex((self.distance * 2), y + (self.distance * 2))
             self.coords_control[coord_control] = "X-STAB-BOUND-R-H"
 
-    def get_patch_stabilizer_to_data_mapping(
-        self,
-        patch_coords: dict[complex, str],
-        type: str,
-    ) -> dict[int, list[int]]:
-        """
-        Returns the mapping from stabilizer indices to their neighboring data qubit indices
-        for a given patch
-
-        Parameters:
-            patch_coords: dict[complex, str]
-                Dictionary with coordinates as keys and labels as values for the patch
-            type: str
-                Type of the Stabilizer i.e. X or Z
-        """
-
-        valid_types = {"X", "Z"}
-
-        if type not in valid_types:
-            raise ValueError(f"Invalid type: {type}. Valid options are: {valid_types}")
-
-        stab_idx_to_data_idx: dict[int, list[int]] = {}
-
-        for coord, label in patch_coords.items():
-            if label != "DATA":
-                stab_idx = self.q2i[coord]
-                neighboring_data = self.get_neighbours_from_stabilizer(coord, patch_coords)
-                if patch_coords[coord].startswith(type):
-                    stab_idx_to_data_idx[stab_idx] = neighboring_data
-
-        return stab_idx_to_data_idx

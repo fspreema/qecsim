@@ -108,7 +108,7 @@ class SurgeryReset:
         if state_init == "X-":
             circ.append("Z", log_z)
         elif state_init in {"Z1", "I1"}:
-            circ.append("X", log_x)
+           circ.append("X", log_x)
 
         return circ
 
@@ -136,25 +136,31 @@ class SurgeryReset:
         self,
         patch_type: str,
     ) -> stim.Circuit:
+
         # Get logical string
         log_strings = self.geometry.get_logical_strings()
 
         # Initialize Measurement Circuit
         reset_circuit = stim.Circuit()
 
+        # Get Patch specific Info
         if patch_type == "control":
-            # Control Patch Offset
-            y_corner = log_strings["c_y"]["y_corner"][0]
-            x_string = log_strings["c_y"]["x_string"]
-            z_string = log_strings["c_y"]["z_string"]
+            anc_qubits = self.geometry.control_x_stb_idx + self.geometry.control_z_stb_idx
+            key_prefix = "c"
+        elif patch_type == "target":
+            anc_qubits = self.geometry.target_x_stb_idx + self.geometry.target_z_stb_idx
+            key_prefix = "t"
         else:
-            # Target patch Offset
-            y_corner = log_strings["t_y"]["y_corner"][0]
-            x_string = log_strings["t_y"]["x_string"]
-            z_string = log_strings["t_y"]["z_string"]
+            raise ValueError("patch_type must be one of: 'control', 'target'")
+
+        y_info = log_strings[f"{key_prefix}_y"]
+        y_corner = y_info["y_corner"]
+        x_string = y_info["x_string"]
+        z_string = y_info["z_string"]
 
         # Add Measurements
-        reset_circuit.append("RY", [y_corner])
+        reset_circuit.append("RZ", anc_qubits)
+        reset_circuit.append("RY", y_corner)
         reset_circuit.append("RX", x_string)
         reset_circuit.append("RZ", z_string)
 
@@ -169,17 +175,14 @@ class SurgeryReset:
         y_flip_circuit = stim.Circuit()
 
         if patch_type == "control":
-            flipped_z = log_strings["c_z"]
             flipped_x = log_strings["c_x"]
             state_init = self.geometry.control_state_init
         else:
-            flipped_z = log_strings["t_z"]
             flipped_x = log_strings["t_x"]
             state_init = self.geometry.target_state_init
 
         # Add Logical Flip if needed
         if state_init == "Y-":
-            y_flip_circuit.append("Z", flipped_z)
             y_flip_circuit.append("X", flipped_x)
 
         return y_flip_circuit
@@ -282,6 +285,11 @@ class SurgeryReset:
 
         # Getting Logical Strings
         log_strings = self.geometry.get_logical_strings()
+
+        ######################## TO-DO #############################
+        # -> Check documentation for better handling of these flows
+        # -> This is a pure eyesore
+        ############################################################
 
         # 1) Control Flow:
         if self.control_state_init in {"Y+", "Y-"}:

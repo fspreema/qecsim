@@ -116,7 +116,11 @@ class PTMCircuits:
     """
 
     # Circuits
-    circuits: dict[str, tuple[dict[str, stim.Circuit], list[int]]] = field(default_factory=dict)
+    # Structure: {basis_combination: ({init_state_label:
+    # stim_circuit}, [meas_rec] )}
+    circuits: dict[str, tuple[dict[str, stim.Circuit], list[int]]] = field(
+        default_factory=dict,
+    )
 
 
 @dataclass

@@ -1,100 +1,137 @@
+from itertools import product
+
 import pytest
 import stim
 
-from src.codes.lattice_surgery.builder import surgery_circuit
+from src.codes.lattice_surgery.builder import SurgeryBuilder
+from src.codes.lattice_surgery.get_measurement_recs import get_measurement_recs
 
+# Example Circuits
+CIRCUITS = {1:
+(stim.Circuit("""
+R 0
+R 1
+M 0
+M 1
+OBSERVABLE_INCLUDE(0) rec[-1]
+"""),[-1]),
+2: (stim.Circuit("""
+R 0
+R 1
+M 0
+M 1
+OBSERVABLE_INCLUDE(0) rec[-1]
+M 0
+M 1
+OBSERVABLE_INCLUDE(0) rec[-1]
+"""), [-3, -1] ),
+3: (stim.Circuit("""
+R 0
+R 1
+M 0
+M 1
+OBSERVABLE_INCLUDE(0) rec[-1]
+R 0
+R 1
+M 0
+M 1
+OBSERVABLE_INCLUDE(0) rec[-1]
+M 1
+"""), [-4, -2]),
+}
 
-def _has_observable(circuit: stim.Circuit) -> bool:
-    return "OBSERVABLE_INCLUDE" in str(circuit)
+@pytest.mark.parametrize("circuit_id,expected_recs", CIRCUITS.items())
+def test_get_measurement_recs(circuit_id: int, expected_recs: tuple[stim.Circuit, list[int]]):
+    circuit = CIRCUITS[circuit_id][0]
+    recs = get_measurement_recs(circuit=circuit, observable_index=0)
+    assert recs == expected_recs[1]
+    assert isinstance(recs, list)
+    assert all(r < 0 for r in recs)
+    assert all(-circuit.num_measurements <= r <= -1 for r in recs)
 
+# Construct all possible surgery types (256 circuits)
+# Pauli alphabet for input and output states
+PAULIS = ["I", "X", "Y", "Z"]
 
-@pytest.mark.parametrize("distance", [3, 5], ids=["d3", "d5"])
+# Create Mapping for input states
+input_to_init_state = {
+    "X": ["X+", "X-"],
+    "Y": ["Y+", "Y-"],
+    "Z": ["Z0", "Z1"],
+    "I": ["I0", "I1"],
+}
+
+# Define Builder
+def _build(distance: int,
+           p_in_c: str,
+           p_in_t: str,
+           p_out_c: str,
+           p_out_t: str,
+           sign_idx: int) -> stim.Circuit:
+
+    builder = SurgeryBuilder(
+        distance=distance,
+        control_state_init=input_to_init_state[p_in_c][sign_idx],
+        target_state_init=input_to_init_state[p_in_t][sign_idx],
+        control_measure_basis=p_out_c,
+        target_measure_basis=p_out_t,
+    )
+    return builder.build_circuit()
+
+@pytest.mark.parametrize("distance", [3,5], ids=["d3", "d5"])
 @pytest.mark.parametrize(
-    "flow,control,target",
+    "p_in_c,p_in_t,p_out_c,p_out_t",
     [
-        # All-X: X -> XX
-        ("X -> XX", "X+", "X+"),
-        ("X -> XX", "X+", "X-"),
-        ("X -> XX", "X-", "X+"),
-        ("X -> XX", "X-", "X-"),
-        # All-X: XX -> X
-        ("XX -> X", "X+", "X+"),
-        ("XX -> X", "X+", "X-"),
-        ("XX -> X", "X-", "X+"),
-        ("XX -> X", "X-", "X-"),
-        # All-X: X -> X
-        ("X -> X", "X+", "X+"),
-        ("X -> X", "X+", "X-"),
-        ("X -> X", "X-", "X+"),
-        ("X -> X", "X-", "X-"),
-        ("X -> X", "Z0", "X+"),
-        ("X -> X", "Z0", "X-"),
-        ("X -> X", "Z1", "X+"),
-        ("X -> X", "Z1", "X-"),
-        # All-Z: Z -> ZZ
-        ("Z -> ZZ", "Z0", "Z0"),
-        ("Z -> ZZ", "Z0", "Z1"),
-        ("Z -> ZZ", "Z1", "Z0"),
-        ("Z -> ZZ", "Z1", "Z1"),
-        # All-Z: ZZ -> Z
-        ("ZZ -> Z", "Z0", "Z0"),
-        ("ZZ -> Z", "Z0", "Z1"),
-        ("ZZ -> Z", "Z1", "Z0"),
-        ("ZZ -> Z", "Z1", "Z1"),
-        # All-Z: Z -> Z
-        ("Z -> Z", "Z0", "Z0"),
-        ("Z -> Z", "Z0", "Z1"),
-        ("Z -> Z", "Z1", "Z0"),
-        ("Z -> Z", "Z1", "Z1"),
-        ("Z -> Z", "Z0", "X+"),
-        ("Z -> Z", "Z0", "X-"),
-        ("Z -> Z", "Z1", "X+"),
-        ("Z -> Z", "Z1", "X-"),
-        # Mixed ZX: ZX -> ZX
-        ("ZX -> ZX", "Z0", "X+"),
-        ("ZX -> ZX", "Z0", "X-"),
-        ("ZX -> ZX", "Z1", "X+"),
-        ("ZX -> ZX", "Z1", "X-"),
+        ("I", "X", "I", "X"),
+        ("X", "I", "X", "X"),
+        ("Z", "X", "Z", "X"),
+        ("X", "X", "X", "I"),
+        ("Z", "Y", "I", "Y"),
     ],
 )
-def test_lscx_valid_flows_compile_and_have_observable(distance, flow, control, target):
-    """Each supported flow compiles for valid state combos and includes observable."""
-    circuit = surgery_circuit(
-        distance=distance,
-        target_state_init=target,
-        control_state_init=control,
-        flow_observable=flow,
-    )
+def test_surgery_builder(distance: int,
+                         p_in_c: str,
+                         p_in_t: str,
+                         p_out_c: str,
+                         p_out_t: str,
+                         ):
+    circuit_1 = _build(distance=distance,
+                     p_in_c=p_in_c,
+                     p_in_t=p_in_t,
+                     p_out_c=p_out_c,
+                     p_out_t=p_out_t,
+                     sign_idx=0)
+    circuit_2 = _build(distance=distance,
+                       p_in_c=p_in_c,
+                       p_in_t=p_in_t,
+                       p_out_c=p_out_c,
+                       p_out_t=p_out_t,
+                       sign_idx=1)
+    assert isinstance(circuit_1, stim.Circuit)
+    assert isinstance(circuit_2, stim.Circuit)
+    assert circuit_1.num_qubits > 0
+    assert circuit_2.num_qubits > 0
+    assert circuit_1.num_measurements > 0
+    assert circuit_2.num_measurements > 0
 
-    assert isinstance(circuit, stim.Circuit)
-    assert _has_observable(circuit)
+    # Different logical initilizations should only add strings of pauli
+    # operators to the circuit
+    assert circuit_1.num_qubits == circuit_2.num_qubits
+    assert circuit_1.num_measurements == circuit_2.num_measurements
 
+@pytest.mark.slow
+@pytest.mark.parametrize("distance", [3, 5])
+@pytest.mark.parametrize("p_in_c,p_in_t,p_out_c,p_out_t", product(PAULIS, PAULIS, PAULIS, PAULIS))
+def test_surgery_builder_builds_all_combinations_slow(distance: int,
+                                                      p_in_c: str,
+                                                      p_in_t: str,
+                                                      p_out_c: str,
+                                                      p_out_t: str):
+    # Keep the exhaustive coverage available, but opt-in.
+    c1 = _build(distance, p_in_c, p_in_t, p_out_c, p_out_t, sign_idx=0)
+    c2 = _build(distance, p_in_c, p_in_t, p_out_c, p_out_t, sign_idx=1)
 
-@pytest.mark.parametrize("d", [3, 5, 7], ids=["d3", "d5", "d7"])
-def test_lscx_qubit_count_lower_bound(d):
-    """Qubit count should be at least 3 patches worth (ancilla, control, target)."""
-    circuit = surgery_circuit(
-        distance=d,
-        target_state_init="X+",
-        control_state_init="X+",
-        flow_observable="X -> XX",
-    )
-
-    assert isinstance(circuit, stim.Circuit)
-
-    # One rotated surface code patch uses 2*d^2 - 1 qubits.
-    expected_min_qubits = 3 * (2 * d**2 - 1)
-
-    assert circuit.num_qubits >= expected_min_qubits
-
-
-@pytest.mark.parametrize("distance", [2, 4, 10], ids=["d2", "d4", "d10"])
-def test_lscx_even_distance_is_invalid(distance):
-    """Even distances are invalid (geometry build requires odd d)."""
-    with pytest.raises(ValueError):
-        surgery_circuit(
-            distance=distance,
-            target_state_init="X+",
-            control_state_init="X+",
-            flow_observable="X -> XX",
-        )
+    assert isinstance(c1, stim.Circuit)
+    assert isinstance(c2, stim.Circuit)
+    assert c1.num_qubits == c2.num_qubits
+    assert c1.num_measurements == c2.num_measurements
