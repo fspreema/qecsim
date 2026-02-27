@@ -144,7 +144,7 @@ class SurgeryInitialization:
     def _adding_repeat_block(self) -> stim.Circuit:
         rep_init_circuit = stim.Circuit()
 
-        for _ in range(self.geometry.distance - 1):
+        for curr_round in range(self.geometry.distance - 1):
             # Adding reset from initial round
             rep_init_circuit.append("TICK")
             rep_init_circuit.append("R", self.geometry.control_target_all_stab_idx)
@@ -203,14 +203,14 @@ class SurgeryInitialization:
             rep_init_circuit.append("M", self.geometry.control_target_all_stab_idx)
 
             # Adding Detectors for Control and Target Initialization
-            # rep_init_circuit += self._get_detectors(
-            #     measured_qubits=self.geometry.control_target_all_stab_idx,
-            #     patch_type="Control_&_Target",
-            # )
-
-            self.measurement_tracker.add_measurements_to_tracker(
-                patch_type="None",
+            # -> Only add Detectors in the first round after init
+            #    (As Init is non fault tolerant!)
+            rep_init_circuit += self._get_detectors(
                 measured_qubits=self.geometry.control_target_all_stab_idx,
+                patch_type="Control_&_Target",
+                qubits_for_detectors= []
+                if curr_round == 0
+                else self.geometry.control_target_all_stab_idx,
             )
 
         return rep_init_circuit
