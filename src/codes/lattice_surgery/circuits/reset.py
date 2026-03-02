@@ -16,6 +16,10 @@ __all__ = ["SurgeryReset"]
 
 # Translation Layer needed between Surgery and Surface Classes
 STATE_TRANSLATOR = {"Y+": "+i", "Y-": "-i"}
+# Y Basis Fault Tolerant Setting
+# Currently only non-fault tolerant Y Basis fully functional
+# Fault tolerant every flow valid except YY -> XZ!
+FAULT_TOLERANT_Y = False
 
 class SurgeryReset:
     def __init__(self, geometry: SurgeryGeometry):
@@ -23,11 +27,6 @@ class SurgeryReset:
         self.geometry = geometry
         self.control_state_init = geometry.control_state_init
         self.target_state_init = geometry.target_state_init
-
-        # Y Basis Fault Tolerant Setting
-        # Currently only non-fault tolerant Y Basis fully functional
-        # Fault tolerant every flow valid except YY -> XZ!
-        self.fault_tolerant_y = False
 
     def build_circuit(self) -> stim.Circuit:
         return_circuit = stim.Circuit()
@@ -65,7 +64,7 @@ class SurgeryReset:
             return_circuit = self._y_patch_builder(
                 patch_type=patch_type,
                 state_init=initial_state,
-                fault_tolerant=self.fault_tolerant_y,
+                fault_tolerant=FAULT_TOLERANT_Y,
             )
             reset_circuit += return_circuit
             reset_circuit += self._add_y_state_flip(patch_type)
@@ -361,7 +360,8 @@ class SurgeryReset:
 
         return observable_circuit
 
-    def _debug_print_available_flows(self, flow_circuit: stim.Circuit, must_have: list[str] = None):
+    @staticmethod
+    def _debug_print_available_flows(flow_circuit: stim.Circuit, must_have: list[str] = None):
         """
         Returns all available flows or if must_have is specified only those containing all the
         strings listed

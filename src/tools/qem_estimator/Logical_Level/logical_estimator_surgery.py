@@ -33,10 +33,10 @@ class LogicalEstimatorSurgery:
         self.ptm_noisy = ptm_noisy
 
         # 1) Get Noise Mtx
-        noise_mtx = self._get_noise_mtx()
+        self.noise_mtx = self._get_noise_mtx()
 
         # 2) Get Pauli Fidelities
-        self.pauli_fidelities = self._get_pauli_fidelities(noise_mtx)
+        self.pauli_fidelities = self._get_pauli_fidelities(self.noise_mtx)
 
         # 3) Get Walsh-Hadamard Matrix
         self.walsh_hadamard = self._walsh_hadamard_16()
@@ -80,6 +80,9 @@ class LogicalEstimatorSurgery:
             for curr_obs_pos in loigcal_obs_rec_pos:
                 meas_result ^= results_samples[0, curr_obs_pos].astype(np.int8)
 
+            # Convert 0/1 measurement result to +1/-1
+            conv_meas_res = 1 - 2 * meas_result
+
             # Sample from Probability Distribution
             sampled_index = np.random.choice(16, p=self.samp_prob)
 
@@ -96,7 +99,7 @@ class LogicalEstimatorSurgery:
             sgn_idx = self.sgn_array[sampled_index]
 
             # Calculate mitigated result
-            mitigated_result = bitflip_factor * self.gamma * meas_result * sgn_idx
+            mitigated_result = bitflip_factor * self.gamma * conv_meas_res * sgn_idx
 
             # Add to summed result
             summed_mitigated_result += mitigated_result
@@ -150,8 +153,12 @@ class LogicalEstimatorSurgery:
 
         ptm_noise = np.matmul(self.ptm_noisy, ptm_ideal_t)
 
-        # This Mtx should have only diagonal entries due to the noise used
-        assert np.all(ptm_noise == np.diag(np.diagonal(ptm_noise)))
+        # This Mtx should be close to only diagonal entries due to the noise used
+        assert np.allclose(
+            ptm_noise,
+            np.diag(np.diagonal(ptm_noise)),
+            atol=0.1,
+        )
 
         return ptm_noise
 

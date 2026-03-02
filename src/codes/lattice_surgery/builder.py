@@ -17,8 +17,12 @@ from src.core.data_models import NoiseParameters
 
 __all__ = ["SurgeryBuilder"]
 
+# Currently fixed as FT also fixed to False
+FT_INIT = False
+FT_MEASUREMENT = False
 
 class SurgeryBuilder(BaseClassBuilder):
+
     def __init__(
         self,
         distance: int,
@@ -142,7 +146,11 @@ class SurgeryBuilder(BaseClassBuilder):
         self.return_circuit += self._adding_final_measurement_circuit()
 
         # Adding Noise Model if applicable
-        self.return_circuit = self.apply_noise(input_circuit=self.return_circuit, noise=self.noise)
+        self.return_circuit = self.apply_noise(input_circuit=self.return_circuit,
+                                               distance=self.distance,
+                                               noise=self.noise,
+                                               ft_init= FT_INIT,
+                                               ft_meas= FT_MEASUREMENT)
 
         return self.return_circuit
 

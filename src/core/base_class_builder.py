@@ -36,7 +36,10 @@ class BaseClassBuilder(ABC):
     def apply_noise(
         self,
         input_circuit: stim.Circuit,
+        distance:int ,
         noise: NoiseParameters = None,
+        ft_init: bool = False,
+        ft_meas: bool = False,
     ) -> stim.Circuit:
         """
         Method to apply noise models to the circuit.
@@ -69,7 +72,11 @@ class BaseClassBuilder(ABC):
             }
 
             # Apply Noise Model
-            circuit_noise_builder = CircuitNoise(circuit=input_circuit, noise=noise_dict)
+            circuit_noise_builder = CircuitNoise(circuit=input_circuit,
+                                                 noise=noise_dict,
+                                                 distance = distance,
+                                                 ft_init = ft_init,
+                                                 ft_measurements = ft_meas)
             input_circuit = circuit_noise_builder.apply()
 
         # 2) Biased Noise Model
