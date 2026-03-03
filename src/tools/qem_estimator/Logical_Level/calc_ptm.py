@@ -297,7 +297,7 @@ class PTMCalculator:
 
             for curr_init_state_label, curr_circuit in circuit_dict.items():
 
-                # Buid the normal measurement smaples and sample n shots
+                # Build the normal measurement samples and sample n shots
                 sampler = curr_circuit.compile_sampler()
                 results_samples = sampler.sample(shots=self.samples)
 
