@@ -71,10 +71,13 @@ class LogicalEstimatorSurgery:
 
         summed_mitigated_result = 0
 
+        # The circuit here is always the same, sampler can be build
+        # outside the loop
+        sampler = circuit.compile_sampler()
+
         for _ in range(shots):
 
             # Get real measurement result
-            sampler = circuit.compile_sampler()
             results_samples = sampler.sample(shots=1)
             meas_result = 0
             for curr_obs_pos in loigcal_obs_rec_pos:
@@ -164,8 +167,11 @@ class LogicalEstimatorSurgery:
 
     def _get_quasi_probabilities(self) -> np.ndarray:
         """
-        Get Quasiprob Nu by vector matrix multiplication
+        Get Quasiprob Nu by vector matrix multiplication. The Walsh_hadarmard mtx
+        is used as a transformation matrix between pauli fidelities and error
+        probabilites
 
+        -> Lambda_inv = W * Nu
         -> Nu = 1/16 * walsh_mtx * pauli_fidelities
         """
 
