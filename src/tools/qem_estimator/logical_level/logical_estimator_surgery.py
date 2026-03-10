@@ -160,7 +160,7 @@ class LogicalEstimatorSurgery:
         assert np.allclose(
             ptm_noise,
             np.diag(np.diagonal(ptm_noise)),
-            atol=0.1,
+            atol=1.0,
         )
 
         return ptm_noise

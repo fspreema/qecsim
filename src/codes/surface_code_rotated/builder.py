@@ -30,6 +30,8 @@ class SurfaceBuilder(BaseClassBuilder):
         log_obs: str,
         logical_h: bool = False,
         noise: NoiseParameters = None,
+        ft_init: bool = False,
+        ft_measurements: bool = False,
     ):
         """
         Generates Rotated-Surface-Code
@@ -63,6 +65,8 @@ class SurfaceBuilder(BaseClassBuilder):
         self.log_obs = log_obs
         self.logical_h = logical_h
         self.noise = noise
+        self.ft_init = ft_init
+        self.ft_measurements = ft_measurements
 
         # Setting Up Builder Parameters
         self.y_sections_required = state_init in {"+i", "-i"}
@@ -139,7 +143,11 @@ class SurfaceBuilder(BaseClassBuilder):
         return_circuit = self._adding_detectors(input_circuit=full_circuit)
 
         # Adding Noise if specified
-        return_circuit = self.apply_noise(input_circuit=return_circuit, noise=self.noise)
+        return_circuit = self.apply_noise(input_circuit=return_circuit, 
+                                        distance=self.distance,
+                                        noise=self.noise, 
+                                        ft_init=self.ft_init, 
+                                        ft_meas=self.ft_measurements)
 
         return return_circuit
 

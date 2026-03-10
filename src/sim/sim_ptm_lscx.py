@@ -5,6 +5,7 @@ from itertools import product
 import numpy as np
 import stim
 from tqdm import tqdm
+import pandas as pd
 
 from src.codes.lattice_surgery.builder import SurgeryBuilder
 from src.core.data_models import NoiseParameters, PTMCircuits
@@ -80,8 +81,7 @@ class GetPTMThreshold:
         noise_class = NoiseParameters(before_round_depol=noise,
                                       before_m_flip_prob=noise,
                                       after_r_flip=noise,
-                                      after_c_depol_prob=noise,
-                                      after_c_pauli_channel_prob=noise)
+                                      after_c_depol_prob=noise,)
 
         ############
         # Circuits #
@@ -164,3 +164,21 @@ class GetPTMThreshold:
         cls = LogicalEstimatorSurgery(ptm_clean=ptm_ideal, ptm_noisy=ptm_noisy)
 
         return cls.gamma
+
+
+# Run Simulation
+if __name__ == "__main__":
+    # Settings
+    ds = [3, 5, 7]
+    ps = np.concatenate([
+    np.geomspace(1e-5, 1e-3, 10),    # 10 points logscaling
+    np.linspace(1.1e-3, 0.015, 40)   # 40 dense linear points
+    ])
+    samples = 1_000
+    
+    # Execute
+    sim = GetPTMThreshold()
+    results = sim.run_simulation(distances=ds, physical_err_probs=ps, samples=samples)
+    
+    # Save to CSV
+    pd.DataFrame(results).to_csv("results.csv", index=False)
