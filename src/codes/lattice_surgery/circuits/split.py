@@ -292,9 +292,9 @@ class SurgerySplit:
             tag="AT_non_deterministic_measurements",
         )
 
-        for records in logical_obs_rec_tar_at:
-            for data in self.log_strings["t_z"]:
-                conditional_operations_circuit.append("CZ", [stim.target_rec(records + 8), data])
+        #for records in logical_obs_rec_tar_at:
+            #for data in self.log_strings["t_z"]:
+                #conditional_operations_circuit.append("CZ", [stim.target_rec(records + 8), data])
 
         ###################################
         # Measuring Ancilla in the Z Basis
@@ -313,20 +313,20 @@ class SurgerySplit:
 
         # Adding the conditional Gate on Control (XORing two measurements)
         # 1) Z measurements on data Ancilla
-        for rec_tar, index in enumerate(self.geometry.anc_data_idx):
-            if index in self.log_strings["a_z"]:
-                for data in self.log_strings["c_x"]:
-                    conditional_operations_circuit.append(
-                        "CX",
-                        [stim.target_rec(-len(self.geometry.anc_data_idx) + rec_tar), data],
-                    )
+        #for rec_tar, index in enumerate(self.geometry.anc_data_idx):
+            #if index in self.log_strings["a_z"]:
+                #for data in self.log_strings["c_x"]:
+                    #conditional_operations_circuit.append(
+                    #    "CX",
+                    #    [stim.target_rec(-len(self.geometry.anc_data_idx) + rec_tar), data],
+                    #)
 
         # 2) XOR from AC non deterministic ZZ measurement
-        for records in logical_obs_rec_tar_ac:
-            for data in self.log_strings["c_x"]:
-                conditional_operations_circuit.append(
-                    "CX",
-                    [stim.target_rec(records + 8), data],
-                )
+        #for records in logical_obs_rec_tar_ac:
+            #for data in self.log_strings["c_x"]:
+                #conditional_operations_circuit.append(
+                #    "CX",
+                #    [stim.target_rec(records + 8), data],
+                #)
 
         return conditional_operations_circuit
