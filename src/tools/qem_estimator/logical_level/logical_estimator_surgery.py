@@ -157,6 +157,8 @@ class LogicalEstimatorSurgery:
         ptm_noise = np.matmul(self.ptm_noisy, ptm_ideal_t)
 
         # This Mtx should be close to only diagonal entries due to the noise used
+        # Currently TOllerance set to a high value due to simulation runs with 
+        # relative high number of noise -> Not diagonal above threshold
         assert np.allclose(
             ptm_noise,
             np.diag(np.diagonal(ptm_noise)),

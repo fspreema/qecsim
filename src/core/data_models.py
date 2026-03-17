@@ -20,7 +20,7 @@ class NoiseParameters:
     """
 
     # For Bias Noise Model
-    before_round_p_xyz: list = None
+    before_round_p_xyz: list | None = field(default=None)
 
     # For regular circuit Noise Model
     before_round_depol: float = 0.0
@@ -28,7 +28,7 @@ class NoiseParameters:
     after_r_flip: float = 0.0
     after_c_depol_prob: float = 0.0
     after_c_pauli_channel_prob: float = 0.0
-    noise_bias: list[float] | None = None
+    noise_bias: list[float] | None = field(default=None)
 
 
 ### FOR FUTURE IMPLEMENTATION ###
@@ -121,19 +121,3 @@ class PTMCircuits:
     circuits: dict[str, tuple[dict[str, stim.Circuit], list[int]]] = field(
         default_factory=dict,
     )
-
-
-@dataclass
-class PTMExpectedResultsSurface:
-    """
-    Data model to store expected results of the deterministic diagonal
-    entries of the circuit for PTM calculations.
-    """
-
-
-@dataclass
-class PTMExpectedResultsSurgery:
-    """
-    Data model to store expected results of the deterministic diagonal
-    entries of the lattice surgery circuit for PTM calculations.
-    """

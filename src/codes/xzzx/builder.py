@@ -61,4 +61,7 @@ class XZZXBuilder(BaseClassBuilder):
         self.full_circuit += final_circ.build_final_measurement_circuit()
 
         # 5) Applying Noise Model
-        return self.apply_noise(input_circuit=self.full_circuit, noise=self.noise)
+        return self.apply_noise(input_circuit=self.full_circuit, 
+                                noise=self.noise, 
+                                geometry=self.geometry, 
+                                distance=self.geometry.distance)

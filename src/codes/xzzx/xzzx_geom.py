@@ -55,6 +55,10 @@ class XZZXGeometry(BaseGeometry):
         )
         self.stab_idx = self.stab_ver_idx + self.stab_hor_idx
 
+        # Getting data idx and stab idx for the noise model
+        self.data_idx = self.data_z_idx + self.data_x_idx
+        self.stab_idx = self.stab_ver_idx + self.stab_hor_idx
+
     def get_neighbors(self, coords: complex, qtype: str) -> list[int]:
         """
         Returns the list of neighboring qubit coords for a given ancilla qubit.

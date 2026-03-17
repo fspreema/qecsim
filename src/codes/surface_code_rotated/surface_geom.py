@@ -109,6 +109,7 @@ class SurfaceGeometry(BaseGeometry):
         # Inidces for reset in y-basis
         self.data_rx_idx, self.data_rz_idx = self._y_basis_initial_reset_qubits()
 
+
     def get_coords(self, y_basis: bool = False) -> dict[complex, str]:
         """
         Returns all qubit coordinates with their labels

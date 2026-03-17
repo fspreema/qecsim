@@ -1,9 +1,11 @@
 import numpy as np
 import stim
 
+from src.core.base_geometry import BaseGeometry
+
 from abc import ABC, abstractmethod
 
-FIRST_NOISY_RESET = 2
+FIRST_NOISY_RESET = 3
 CLIFFORD_OPERATIONS = ["H", "CX", "S", "S_DAG", "CZ", "XCY", "SQRT_X_DAG"]
 MEASUREMENT_OPERATIONS = ["M", "MX", "MY"]
 RESET_OPERATIONS = ["R", "RX", "RY", "RZ"]
@@ -14,6 +16,7 @@ class NoiseModel(ABC):
                  circuit: stim.Circuit, 
                  noise: dict, 
                  distance: int, 
+                 geometry: BaseGeometry,
                  ft_init: bool = True, 
                  ft_measurements: bool = True):
         
@@ -23,19 +26,18 @@ class NoiseModel(ABC):
         self.distance = distance
         self.ft_init = ft_init
         self.ft_measurements = ft_measurements
-        self.tracked_reset_idx = None
+        self.reset_qubits = {}
         self.curr_reset_num = 0
+        self.last_noisy_round = distance * 5 - 2
 
-        # FOR NOW THIS IS EMPTY AS ONE WOULD NEED THE GEOMETRY OF THE CIRCUIT
-        # -> CANNOT SPECIFY ADD THESE ERRORS ON DATA AFTER A GLOBAL RESET AS 
-        #    F.EX SURGERY HAS ANCILLA AND DATA/CONTROL RESETS AT DIFFERENT TIMES
-        #    WHILE FOR XZZX & SURFACE THIS WOULD WORK
-        self.data_qubits = set()
+        # Get Geometry for Noise Model
+        self.data_qubits = geometry.data_idx
+        self.ancilla_qubits = geometry.stab_idx
 
     def apply(self) -> stim.Circuit:
 
         # Reset Counters
-        self.tracked_reset_idx = None
+        self.reset_qubits = {}
         self.curr_reset_num = 0
         
         # Create Noisy Circuit
@@ -111,25 +113,29 @@ class NoiseModel(ABC):
             return True
 
         # Add Noise if first noisy Reset is reached and ft_init is false
-        if self.curr_reset_num >= FIRST_NOISY_RESET:
+        if self.last_noisy_round >= self.curr_reset_num >= FIRST_NOISY_RESET:
             return True
 
         return False
 
     def _track_resets(self, instruction: stim.CircuitInstruction) -> None:
 
-        # Check if anything is already tracked:
-        if self.tracked_reset_idx is None:
+        # Check if it is a reset operation
+        if instruction.name in RESET_OPERATIONS :
+            # Get qubit_idx for curr operation
+            qubit_idx = [t.value for t in instruction.targets_copy() if t.value in self.ancilla_qubits]
 
-            # Add Reset to Tracker if needed
-            if instruction.name in RESET_OPERATIONS :
-                self.curr_reset_num += 1
-                self.tracked_reset_idx = instruction.targets_copy()[0].value
+            for curr_idx in qubit_idx:
+                # Check if idx as key in dict, if not add it, if yes update number of resets for that idx
+                if curr_idx not in self.reset_qubits:
+                    self.reset_qubits[curr_idx] = 1
 
-        # If already tracked, check if the index is the same, if so add number of resets
-        else:
-            if instruction.targets_copy()[0].value == self.tracked_reset_idx:
-                self.curr_reset_num += 1
+                else:
+                    self.reset_qubits[curr_idx] += 1
+
+            # Update curr_reset_num to the minimum resets across all tracked ancillas
+            if self.reset_qubits:
+                self.curr_reset_num = min(self.reset_qubits.values())
 
     @abstractmethod
     def _append_clifford_noise(self, out: stim.Circuit, instruction: stim.CircuitInstruction) -> None:
@@ -198,9 +204,16 @@ class CircuitNoise(NoiseModel):
             # Check if Multi-Qubit gate has record targets
             # -> Skip complelty as this needs to be handled as single qubit gate
             if any(t.is_measurement_record_target for t in targets):
+                """
+                It really makes no sense to have any noise here as there correction would be implemented
+                as a pauli fram correction and therefore classically tracked. So there shouldn't be any
+                noise here...!
+                """
+                pass
+
                 # Single qubit Depolarize for rec dependent targets
-                qubits = [t.value for t in targets if t.is_qubit_target]
-                out.append("DEPOLARIZE1", qubits, self.after_c_depol_prob)
+                # qubits = [t.value for t in targets if t.is_qubit_target]
+                # out.append("DEPOLARIZE1", qubits, self.after_c_depol_prob)
             else:
                 qubits = [t.value for t in targets]
                 out.append("DEPOLARIZE2", qubits, self.after_c_depol_prob)
@@ -392,13 +405,20 @@ class BiasNoise(NoiseModel):
                  # Check if Multi-Qubit gate has record targets
                 # -> Skip complelty as this needs to be handled as single qubit gate
                 if any(t.is_measurement_record_target for t in instruction.targets_copy()) and np.any(self.after_c_p_xyz):
+                    """
+                    It really makes no sense to have any noise here as there correction would be implemented
+                    as a pauli fram correction and therefore classically tracked. So there shouldn't be any
+                    noise here...!
+                    """
+                    pass
+
                     # Single qubit Depolarize for rec dependent targets
-                    qubit = [t.value for t in instruction.targets_copy() if t.is_qubit_target]
-                    out.append(
-                        "PAULI_CHANNEL_1",
-                        qubit,
-                        self.after_c_p_xyz,
-                    )
+                    # qubit = [t.value for t in instruction.targets_copy() if t.is_qubit_target]
+                    # out.append(
+                    #     "PAULI_CHANNEL_1",
+                    #     qubit,
+                    #     self.after_c_p_xyz,
+                    # )
                 else:
                     # Multi-qubit gate
                     qubits = [t.value for t in instruction.targets_copy()]

@@ -39,6 +39,7 @@ class PTMCalculator:
         self,
         circuits: PTMCircuits,
         samples: int = 1_000,
+        pauli_channel_2_used: bool = False,
     ):
         """
         Building PTM by building each possible memory circuit and measurement combination
@@ -53,9 +54,12 @@ class PTMCalculator:
         Arguments:
             *circuits: Data model containing all circuits required for PTM calculation
             *samples: Number of samples to take for each circuit
+            *pauli_channel_2_used: Whether the Pauli Channel 2 is used or not in den Noise Model.
+                This is relevant for the construction of the DEM and Matcher
         """
 
         # Set perliminary attributes
+        self.pauli_channel_2_used = pauli_channel_2_used
         self.samples = samples
         self.circuits = circuits.circuits
 
@@ -171,12 +175,13 @@ class PTMCalculator:
     @staticmethod
     def _get_dem_and_matcher(
         circuit: stim.Circuit,
+        pauli_channel_2_used: bool = False,
     ) -> tuple[pymatching.Matching, stim.DetectorErrorModel]:
         """
         Creates for a given stim Circuit the detector error model as well as the pymachting matcher
         """
 
-        dem = circuit.detector_error_model(decompose_errors=True)
+        dem = circuit.detector_error_model(decompose_errors=True, approximate_disjoint_errors= pauli_channel_2_used)
         matcher = pymatching.Matching.from_detector_error_model(dem)
 
         return matcher, dem
@@ -308,7 +313,7 @@ class PTMCalculator:
                 )
 
                 # Build DEM and Matcher
-                matcher, dem = self._get_dem_and_matcher(circuit=curr_circuit)
+                matcher, dem = self._get_dem_and_matcher(circuit=curr_circuit, pauli_channel_2_used= self.pauli_channel_2_used)
 
                 # Converting the measurement sample into DEM sample and continue as usual
                 # with decoding

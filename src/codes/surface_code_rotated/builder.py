@@ -145,6 +145,7 @@ class SurfaceBuilder(BaseClassBuilder):
         # Adding Noise if specified
         return_circuit = self.apply_noise(input_circuit=return_circuit, 
                                         distance=self.distance,
+                                        geometry= self.master_geometry.geometry_std,
                                         noise=self.noise, 
                                         ft_init=self.ft_init, 
                                         ft_meas=self.ft_measurements)

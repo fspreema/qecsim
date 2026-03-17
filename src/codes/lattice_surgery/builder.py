@@ -148,6 +148,7 @@ class SurgeryBuilder(BaseClassBuilder):
         # Adding Noise Model if applicable
         self.return_circuit = self.apply_noise(input_circuit=self.return_circuit,
                                                distance=self.distance,
+                                               geometry=self.geometry,
                                                noise=self.noise,
                                                ft_init= FT_INIT,
                                                ft_meas= FT_MEASUREMENT)

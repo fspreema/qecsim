@@ -35,7 +35,9 @@ class GetPTMThreshold:
 
     def run_simulation(self,
                        distances: list[int],
-                       physical_err_probs: list[float],
+                       physical_err_probs: float, 
+                       noise_type: str, 
+                       bias: list[float], 
                        samples: int = 1_000) -> list[dict[str, float]]:
 
         # Init Result List
@@ -46,12 +48,18 @@ class GetPTMThreshold:
 
             # Construct the ideal PTMS
             # -> These do only need to be calculated once per distance!
-            ideal_ptm = self._build_ptm(distance=d, physical_err_prob=0.0, samples=samples)
+            ideal_ptm = self._build_ptm(distance=d, physical_err_probs=0.0, noise_type = noise_type, bias = bias, samples=samples)
             ptm_clean = ideal_ptm
 
             # Prepare tasks for workers for all physical error probabilites at this fixed distance
-            # Use partial function to fix distance and samples for the individual worker instances
-            worker_task = functools.partial(self._build_ptm, d, samples=samples)
+            # Use partial function to freeze everything except the physical error prob.
+            worker_task = functools.partial(
+                self._build_ptm, 
+                distance=d, 
+                noise_type=noise_type, 
+                bias=bias, 
+                samples=samples
+            )
 
             # Implementing parralel execution
             with ProcessPoolExecutor() as executor:
@@ -71,17 +79,31 @@ class GetPTMThreshold:
         return results
 
     @staticmethod
-    def _build_ptm(distance: int, physical_err_prob: float, samples: int = 1_000) -> np.ndarray:
+    def _build_ptm(physical_err_probs: float,
+                   distance: int,
+                   noise_type: str, 
+                   bias: list[float], 
+                   samples: int = 1_000) -> np.ndarray:
 
         #########################
         # Construct Noise Class #
         #########################
-        noise = physical_err_prob
 
-        noise_class = NoiseParameters(before_round_depol=noise,
-                                      before_m_flip_prob=noise,
-                                      after_r_flip=noise,
-                                      after_c_depol_prob=noise,)
+        if noise_type == "CircuitNoise":
+
+            noise_class = NoiseParameters(before_round_depol=physical_err_probs,
+                                        before_m_flip_prob=physical_err_probs,
+                                        after_r_flip=physical_err_probs,
+                                        after_c_depol_prob=physical_err_probs,)
+
+        elif noise_type == "BiasNoise":
+            noise_class = NoiseParameters(before_m_flip_prob=physical_err_probs,
+                                        after_r_flip=physical_err_probs,
+                                        after_c_pauli_channel_prob=physical_err_probs,
+                                        noise_bias= bias)
+
+        else:
+            raise ValueError(f"Invalid noise type: {noise_type}. Supported types are 'CircuitNoise' and 'BiasNoise'.")
 
         ############
         # Circuits #
@@ -148,8 +170,10 @@ class GetPTMThreshold:
         # Calculate the PTM-Matrix #
         ############################
 
-        ptm_calculator = PTMCalculator(PTMCircuits(circuits=circuits_surgery), samples= samples)
-        ptm_mtx = ptm_calculator.calc_ptm(only_non_zero=False)
+        ptm_calculator = PTMCalculator(PTMCircuits(circuits=circuits_surgery), 
+                                       samples= samples, 
+                                       pauli_channel_2_used= (noise_type == "BiasNoise"))
+        ptm_mtx = ptm_calculator.calc_ptm(only_non_zero=False, )
 
         return ptm_mtx
 
@@ -176,9 +200,28 @@ if __name__ == "__main__":
     ])
     samples = 1_000
     
-    # Execute
+    # Executing Simulation
     sim = GetPTMThreshold()
-    results = sim.run_simulation(distances=ds, physical_err_probs=ps, samples=samples)
     
-    # Save to CSV
-    pd.DataFrame(results).to_csv("results.csv", index=False)
+
+    # --- Experiment 1: Standard Depolarizing ---
+    results_std = sim.run_simulation(
+        distances=ds,
+        physical_err_probs=ps,
+        noise_type="CircuitNoise",
+        bias=[0, 0, 0], 
+        samples=samples
+    )
+    pd.DataFrame(results_std).to_csv("gamma_standard.csv")
+
+    """
+        # --- Experiment 2: Z-Biased Noise ---
+        results_bias = sim.run_simulation(
+            distances=ds,
+            physical_err_probs=ps,
+            noise_type="BiasNoise",
+            bias=[0.01, 0.01, 0.98],
+            samples=1000
+        )
+        pd.DataFrame(results_bias).to_csv("gamma_biased.csv")
+    """

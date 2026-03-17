@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 import stim
 
+from src.core.base_geometry import BaseGeometry
 from src.core.data_models import NoiseParameters
 from src.core.noise_models import BiasNoise, CircuitNoise
 
@@ -37,6 +38,7 @@ class BaseClassBuilder(ABC):
         self,
         input_circuit: stim.Circuit,
         distance:int ,
+        geometry: BaseGeometry,
         noise: NoiseParameters = None,
         ft_init: bool = False,
         ft_meas: bool = False,
@@ -70,6 +72,7 @@ class BaseClassBuilder(ABC):
             circuit_noise_builder = CircuitNoise(circuit=input_circuit,
                                                  noise=noise_dict,
                                                  distance = distance,
+                                                 geometry = geometry,
                                                  ft_init = ft_init,
                                                  ft_measurements = ft_meas)
             input_circuit = circuit_noise_builder.apply()
@@ -88,6 +91,7 @@ class BaseClassBuilder(ABC):
             bias_noise_builder = BiasNoise(circuit=input_circuit, 
                                             noise=noise_dict,
                                             distance = distance,
+                                            geometry = geometry,
                                             ft_init = ft_init,
                                             ft_measurements = ft_meas)
             input_circuit = bias_noise_builder.apply()
