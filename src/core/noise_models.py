@@ -28,7 +28,7 @@ class NoiseModel(ABC):
         self.ft_measurements = ft_measurements
         self.reset_qubits = {}
         self.curr_reset_num = 0
-        self.last_noisy_round = distance * 5 - 2
+        self.last_noisy_round = distance * 5 - (distance - 1)
 
         # Get Geometry for Noise Model
         self.data_qubits = geometry.data_idx

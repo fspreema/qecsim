@@ -5,6 +5,7 @@ import stim
 
 from src.codes.lattice_surgery.builder import SurgeryBuilder
 from src.codes.lattice_surgery.get_measurement_recs import get_measurement_recs
+from src.core.data_models import NoiseParameters
 
 # Example Circuits
 CIRCUITS = {1:
@@ -67,7 +68,8 @@ def _build(distance: int,
            p_in_t: str,
            p_out_c: str,
            p_out_t: str,
-           sign_idx: int) -> stim.Circuit:
+           sign_idx: int,
+           noise = None) -> stim.Circuit:
 
     builder = SurgeryBuilder(
         distance=distance,
@@ -75,6 +77,7 @@ def _build(distance: int,
         target_state_init=input_to_init_state[p_in_t][sign_idx],
         control_measure_basis=p_out_c,
         target_measure_basis=p_out_t,
+        noise= noise,
     )
     return builder.build_circuit()
 
@@ -119,8 +122,41 @@ def test_surgery_builder(distance: int,
     assert circuit_1.num_qubits == circuit_2.num_qubits
     assert circuit_1.num_measurements == circuit_2.num_measurements
 
+@pytest.mark.parametrize("distance", [3,5], ids=["d3", "d5"])
+@pytest.mark.parametrize(
+    "p_in_c,p_in_t,p_out_c,p_out_t",
+    [
+        ("I", "X", "I", "X"),
+        ("X", "I", "X", "X"),
+        ("Z", "X", "Z", "X"),
+        ("X", "X", "X", "I"),
+        ("Z", "Y", "I", "Y"),
+    ],
+)
+def test_noisy_surgery_builder(distance: int,
+                         p_in_c: str,
+                         p_in_t: str,
+                         p_out_c: str,
+                         p_out_t: str,
+                         ):
+    
+    noise = 1e-5
+
+    noise_class_circuit = NoiseParameters(before_m_flip_prob=noise,
+                                after_r_flip=noise,
+                                after_c_depol_prob=noise,
+                                before_round_depol=noise)
+    circuit_1 = _build(distance=distance,
+                     p_in_c=p_in_c,
+                     p_in_t=p_in_t,
+                     p_out_c=p_out_c,
+                     p_out_t=p_out_t,
+                     sign_idx=0,
+                     noise= noise_class_circuit)
+    
+
 @pytest.mark.slow
-@pytest.mark.parametrize("distance", [3, 5])
+@pytest.mark.parametrize("distance", [3, 5, 7])
 @pytest.mark.parametrize("p_in_c,p_in_t,p_out_c,p_out_t", product(PAULIS, PAULIS, PAULIS, PAULIS))
 def test_surgery_builder_builds_all_combinations_slow(distance: int,
                                                       p_in_c: str,

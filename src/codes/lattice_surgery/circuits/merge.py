@@ -183,7 +183,7 @@ class SurgeryMerge:
         # Defining Repeat Circuit
         merge_round_circuit = stim.Circuit()
 
-        for curr_round in range(self.geometry.distance - 1):
+        for curr_round in range(self.geometry.distance):
             # Reinitializing Stabilizers and add basis change where needed
             merge_round_circuit.append("TICK")
             merge_round_circuit.append(
@@ -221,7 +221,7 @@ class SurgeryMerge:
                 patch_type=f"Merge_{self.merging_type}",
                 tagged_qubits=self.non_det_stab_indices,
                 tag=f"{self.merging_type}_non_deterministic_measurements"
-                if curr_round == self.geometry.distance - 2
+                if curr_round == self.geometry.distance - 1
                 else None,
             )
 
