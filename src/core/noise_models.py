@@ -1,9 +1,9 @@
+from abc import ABC, abstractmethod
+
 import numpy as np
 import stim
 
 from src.core.base_geometry import BaseGeometry
-
-from abc import ABC, abstractmethod
 
 FIRST_NOISY_RESET = 3
 CLIFFORD_OPERATIONS = ["H", "CX", "S", "S_DAG", "CZ", "XCY", "SQRT_X_DAG"]

@@ -3,9 +3,9 @@ from concurrent.futures import ProcessPoolExecutor
 from itertools import product
 
 import numpy as np
+import pandas as pd
 import stim
 from tqdm import tqdm
-import pandas as pd
 
 from src.codes.lattice_surgery.builder import SurgeryBuilder
 from src.core.data_models import NoiseParameters, PTMCircuits
@@ -48,7 +48,11 @@ class GetPTMThreshold:
 
             # Construct the ideal PTMS
             # -> These do only need to be calculated once per distance!
-            ideal_ptm = self._build_ptm(distance=d, physical_err_probs=0.0, noise_type = noise_type, bias = bias, samples=samples)
+            ideal_ptm = self._build_ptm(distance=d, 
+                                        physical_err_probs=0.0, 
+                                        noise_type = noise_type, 
+                                        bias = bias, 
+                                        samples=samples)
             ptm_clean = ideal_ptm
 
             # Prepare tasks for workers for all physical error probabilites at this fixed distance
@@ -58,7 +62,7 @@ class GetPTMThreshold:
                 distance=d, 
                 noise_type=noise_type, 
                 bias=bias, 
-                samples=samples
+                samples=samples,
             )
 
             # Implementing parralel execution
@@ -173,7 +177,7 @@ class GetPTMThreshold:
         ptm_calculator = PTMCalculator(PTMCircuits(circuits=circuits_surgery), 
                                        samples= samples, 
                                        pauli_channel_2_used= (noise_type == "BiasNoise"))
-        ptm_mtx = ptm_calculator.calc_ptm(only_non_zero=False, )
+        ptm_mtx = ptm_calculator.calc_ptm(only_non_zero=False)
 
         return ptm_mtx
 
