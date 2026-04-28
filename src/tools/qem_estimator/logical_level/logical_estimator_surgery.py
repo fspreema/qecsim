@@ -36,7 +36,7 @@ class LogicalEstimatorSurgery:
         self.noise_mtx = self._get_noise_mtx()
 
         # 2) Get Pauli Fidelities
-        self.pauli_fidelities = self._get_pauli_fidelities(self.noise_mtx)
+        self.inv_pauli_fidelities = self._get_inverse_pauli_fidelities(self.noise_mtx)
 
         # 3) Get Walsh-Hadamard Matrix
         self.walsh_hadamard = self._walsh_hadamard_16()
@@ -52,7 +52,7 @@ class LogicalEstimatorSurgery:
 
     def sample_circuit(self,
                        circuit: stim.Circuit,
-                       loigcal_obs_rec_pos: list[int],
+                       logical_obs_rec_pos: list[int],
                        meas_basis: str,
                        shots: int) -> float:
 
@@ -80,7 +80,7 @@ class LogicalEstimatorSurgery:
             # Get real measurement result
             results_samples = sampler.sample(shots=1)
             meas_result = 0
-            for curr_obs_pos in loigcal_obs_rec_pos:
+            for curr_obs_pos in logical_obs_rec_pos:
                 meas_result ^= results_samples[0, curr_obs_pos].astype(np.int8)
 
             # Convert 0/1 measurement result to +1/-1
@@ -178,7 +178,7 @@ class LogicalEstimatorSurgery:
         """
 
         # Calc New Vector
-        new_vec = np.matmul(self.walsh_hadamard, self.pauli_fidelities)
+        new_vec = np.matmul(self.walsh_hadamard, self.inv_pauli_fidelities)
 
         # Return Nu
         nu = 1/16 * new_vec
@@ -214,7 +214,7 @@ class LogicalEstimatorSurgery:
         return sgn_array
 
     @staticmethod
-    def _get_pauli_fidelities(noisy_mtx: np.ndarray) -> np.ndarray:
+    def _get_inverse_pauli_fidelities(noisy_mtx: np.ndarray) -> np.ndarray:
         """
         This helper method returns the inverse of the diagonal noise PTM
         -> Essentially this tells us by how much we need to "amplify" each
@@ -227,19 +227,26 @@ class LogicalEstimatorSurgery:
 
         return lambda_inv
 
-    @staticmethod
-    def _walsh_hadamard_16() -> np.ndarray:
+    # Maybe this can be optimized as now unit testing is not really feasible without having viable PTMs
+    def _walsh_hadamard_16(self) -> np.ndarray:
         """
         Return the 16x16 Walsh–Hadamard transform matrix H where:
-            H[row, col] = (-1)^(i*j)
-            -> i * j is the bitwise dot product of row and col
+            H[row, col] = IDX_TO_PAULI[row] * IDX_TO_PAULI[col]
+            -> i * j is the commutation relation between the two pauli strings, i.e. 1 if commute 
+               and -1 if anticommute
         """
         n = 16
         walsh_hadamard = np.empty((n, n), dtype=int)
 
         for row in range(n):
             for col in range(n):
-                bitwdot = bin(row & col).count("1")
-                walsh_hadamard[row, col] = (-1) ** bitwdot
+                pauli_row = LogicalEstimatorSurgery.IDX_TO_PAULI[row]
+                pauli_col = LogicalEstimatorSurgery.IDX_TO_PAULI[col]
+
+                # Calculate the commutation relation
+                if self._does_commute(pauli_row, pauli_col):
+                    walsh_hadamard[row, col] = 1
+                else:
+                    walsh_hadamard[row, col] = -1
 
         return walsh_hadamard

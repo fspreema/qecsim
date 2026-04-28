@@ -200,9 +200,9 @@ if __name__ == "__main__":
     ds = [3, 5, 7]
     ps = np.concatenate([
     np.geomspace(1e-5, 1e-3, 10),    # 10 points logscaling
-    np.linspace(1.1e-3, 0.015, 40)   # 40 dense linear points
+    np.linspace(1.1e-3, 0.015, 40),   # 40 dense linear points
     ])
-    samples = 1_000
+    samples = 10_000
     
     # Executing Simulation
     sim = GetPTMThreshold()
@@ -214,7 +214,7 @@ if __name__ == "__main__":
         physical_err_probs=ps,
         noise_type="CircuitNoise",
         bias=[0, 0, 0], 
-        samples=samples
+        samples=samples,
     )
     pd.DataFrame(results_std).to_csv("gamma_standard.csv")
 

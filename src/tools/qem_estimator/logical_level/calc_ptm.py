@@ -107,7 +107,7 @@ class PTMCalculator:
             output_index = self._map_pauli_string_to_indices(output_pauli)
 
             # Populate the PTM Matrix
-            ptm_matrix[input_index, output_index] = exp_val
+            ptm_matrix[output_index, input_index] = exp_val
 
         return ptm_matrix
 
