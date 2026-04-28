@@ -197,12 +197,12 @@ class GetPTMThreshold:
 # Run Simulation
 if __name__ == "__main__":
     # Settings
-    ds = [3, 5, 7]
+    ds = [3, 5]
     ps = np.concatenate([
     np.geomspace(1e-5, 1e-3, 10),    # 10 points logscaling
     np.linspace(1.1e-3, 0.015, 40),   # 40 dense linear points
     ])
-    samples = 10_000
+    samples = 1_000
     
     # Executing Simulation
     sim = GetPTMThreshold()
