@@ -16,7 +16,7 @@ class PTMCalculator:
         "Z": ["Z0", "Z1"],
     }
 
-    NON_ZERO_FLOWS = [
+    NON_ZERO_FLOWS = {
         "II->II",
         "XI->XX",
         "IX->IX",
@@ -33,7 +33,26 @@ class PTMCalculator:
         "XY->YZ",
         "XZ->YY",
         "ZY->IY",
-    ]
+    }
+
+    DIAGONAL_FLOWS = {
+        "II->II",
+        "IX->IX",
+        "IY->IY",
+        "IZ->IZ",
+        "XI->XI",
+        "XX->XX",
+        "XY->XY",
+        "XZ->XZ",
+        "YI->YI",
+        "YX->YX",
+        "YY->YY",
+        "YZ->YZ",
+        "ZI->ZI",
+        "ZX->ZX",
+        "ZY->ZY",
+        "ZZ->ZZ",
+    }
 
     def __init__(
         self,
@@ -63,9 +82,13 @@ class PTMCalculator:
         self.samples = samples
         self.circuits = circuits.circuits
 
-    def calc_ptm(self, only_non_zero: bool = False) -> np.ndarray:
+    def calc_ptm(self, sparse_ideal_ptm: bool = False, sparse_noisy_ptm: bool = False) -> np.ndarray:
+        # Validate input parameters
+        if sparse_ideal_ptm and sparse_noisy_ptm:
+            raise ValueError("Both sparse_ideal_ptm and sparse_noisy_ptm cannot be True at the same time.")
+
         # Calculate the expectation values for each basis combination
-        exp_vals_per_basis_comb = self._calc_entries_for_surgery(only_non_zero=only_non_zero)
+        exp_vals_per_basis_comb = self._calc_entries_for_surgery(sparse_ideal_ptm=sparse_ideal_ptm, sparse_noisy_ptm=sparse_noisy_ptm)
 
         # Build the PTM Matrix out of the expectation values
         ptm_matrix = self._build_mtx_for_ptm(exp_vals_per_basis_comb)
@@ -252,7 +275,7 @@ class PTMCalculator:
     def _calc_entries_for_surface_patch(self):
         pass
 
-    def _calc_entries_for_surgery(self, only_non_zero: bool = False) -> dict[str, np.floating[Any]]:
+    def _calc_entries_for_surgery(self, sparse_ideal_ptm: bool = False, sparse_noisy_ptm: bool = False) -> dict[str, np.floating[Any]]:
         """
         We can't directly use the DEM as we need the
         raw measurements to infer what logical state we have
@@ -266,7 +289,10 @@ class PTMCalculator:
 
         # Run through diagonal circuits
         for basis_combination, circuit_dict_and_meas_recs in self.circuits.items():
-            if only_non_zero and basis_combination not in self.NON_ZERO_FLOWS:
+            if sparse_ideal_ptm and basis_combination not in self.NON_ZERO_FLOWS:
+                continue
+
+            if sparse_noisy_ptm and basis_combination not in (self.NON_ZERO_FLOWS | self.DIAGONAL_FLOWS):
                 continue
 
             circuit_dict, meas_rec = circuit_dict_and_meas_recs
