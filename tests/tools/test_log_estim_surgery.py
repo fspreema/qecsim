@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from src.tools.qem_estimator.logical_level.logical_estimator_surgery import LogicalEstimatorSurgery
+from src.tools.qem_estimator.logical_level.old.logical_estimator_surgery import LogicalEstimatorSurgery
 
 COMMUTE_CASES = [
     ("XZ", "IZ", True),

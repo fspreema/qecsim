@@ -123,6 +123,9 @@ class PTMCalculator:
         # Initialize empty PTM Matrix
         ptm_matrix = np.zeros((len_mtx, len_mtx))
 
+        # Ensure Trace Preserving by setting the II->II entry to 1
+        ptm_matrix[0, 0] = 1
+
         # Define mapping from Pauli String to Matrix Indices
         for pauli_comb, exp_val in exp_vals_per_basis_comb.items():
             input_pauli, output_pauli = pauli_comb.split("->")

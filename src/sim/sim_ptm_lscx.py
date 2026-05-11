@@ -11,7 +11,7 @@ from tqdm import tqdm
 from src.codes.lattice_surgery.builder import SurgeryBuilder
 from src.core.data_models import NoiseParameters, PTMCircuits
 from src.tools.qem_estimator.logical_level.calc_ptm import PTMCalculator
-from src.tools.qem_estimator.logical_level.logical_estimator_surgery import LogicalEstimatorSurgery
+from src.tools.qem_estimator.logical_level.old.logical_estimator_surgery import LogicalEstimatorSurgery
 
 __all__ = ["GetPTMThreshold"]
 
