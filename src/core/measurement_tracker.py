@@ -1,6 +1,7 @@
 import stim
 
 from src.codes.lattice_surgery.surgery_geom import SurgeryGeometry
+from src.codes.surface_code_rotated.surface_geom import SurfaceGeometry
 
 __all__ = ["MeasurementTracker"]
 
@@ -23,23 +24,37 @@ class MeasurementTracker:
         "Final_Measurement_T",
     }
 
-    def __init__(self, geometry: SurgeryGeometry):
+    VALID_SURFACE_DETECTOR_TYPES = {
+        "STD_PATCH",
+        "None",
+    }
+
+
+    def __init__(self, geometry: SurgeryGeometry | SurfaceGeometry):
         """
         Initializes the MeasurementTracker with no measurements and an empty tag dictionary.
         """
         self.geometry = geometry
+
+        if isinstance(geometry, SurgeryGeometry):
+            self.VALID_DETECTOR_TYPES = self.VALID_SURGERY_DETECTOR_TYPES
+        elif isinstance(geometry, SurfaceGeometry):
+            self.VALID_DETECTOR_TYPES = self.VALID_SURFACE_DETECTOR_TYPES
+        else:
+            raise ValueError("Invalid geometry type provided to MeasurementTracker.")
+
         self.total_measurements = 0
         # Tags store: {"tag_name": [indices of measurements associated with this tag]}
         self.tags: dict[str, list[int]] = {}
         # Dictionary to store the Detector information for each qubit index
         self.detector_dict: dict[str, list[tuple[int, int]]] = {
-            pt: [] for pt in self.VALID_SURGERY_DETECTOR_TYPES
+            pt: [] for pt in self.VALID_DETECTOR_TYPES
         }
         # Dictionary to store split measurements that await their partner from the other patch
         self.storage_for_split_matching: dict[int, list[int, int, int]] = {}
         # Dict to store the complete measurement history
         self.full_measurement_history: dict[str, list[tuple[int, int]]] = {
-            pt: [] for pt in self.VALID_SURGERY_DETECTOR_TYPES
+            pt: [] for pt in self.VALID_DETECTOR_TYPES
         }
 
     def add_previous_measurements(self, count: int):
@@ -120,10 +135,10 @@ class MeasurementTracker:
         # Check Validity of Method Arguemnts #
         ######################################
 
-        if patch_type not in self.VALID_SURGERY_DETECTOR_TYPES:
+        if patch_type not in self.VALID_DETECTOR_TYPES:
             raise ValueError(
                 f"Invalid patch type '{patch_type}'. Expected"
-                f" one of {self.VALID_SURGERY_DETECTOR_TYPES}.",
+                f" one of {self.VALID_DETECTOR_TYPES}.",
             )
 
         ########################
@@ -212,10 +227,10 @@ class MeasurementTracker:
         # Check Validity of Method Arguemnts #
         ######################################
 
-        if patch_type not in self.VALID_SURGERY_DETECTOR_TYPES:
+        if patch_type not in self.VALID_DETECTOR_TYPES:
             raise ValueError(
                 f"Invalid patch type '{patch_type}'. Expected"
-                f" one of {self.VALID_SURGERY_DETECTOR_TYPES}.",
+                f" one of {self.VALID_DETECTOR_TYPES}.",
             )
 
         #####################
@@ -225,6 +240,7 @@ class MeasurementTracker:
         if patch_type in {
             "Ancilla",
             "Control_&_Target",
+            "STD_PATCH",
         }:
             records = self._get_regular_records(patch_type)
 

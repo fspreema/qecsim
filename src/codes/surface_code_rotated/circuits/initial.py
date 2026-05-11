@@ -2,22 +2,27 @@ import stim
 
 from src.codes.surface_code_rotated.data_geometry import MasterGeometry, MasterPairings
 from src.core.cx_builder import cx_builder
+from src.core.measurement_tracker import MeasurementTracker
 
 __all__ = ["SurfaceInitialization"]
 
 
 class SurfaceInitialization:
-    def __init__(self, master_geometry: MasterGeometry, master_pairings: MasterPairings, type: str):
-        if type not in {"standard", "y_basis", "log_h"}:
+    def __init__(self, master_geometry: MasterGeometry, 
+                 master_pairings: MasterPairings, 
+                 type: str, 
+                 tracker: MeasurementTracker):
+        if type not in {"standard", "y_basis", "log_h", "non_ft_init"}:
             raise ValueError(
                 f"Invalid type '{type}' for SurfaceInitialization. Must be 'standard'"
-                f", 'y_basis' or 'log_h'.",
+                f", 'y_basis', 'log_h' or 'non_ft_init'.",
             )
 
         self.type = type
+        self.tracker = tracker
 
         # Initialize Geometry and Pairings depending on the type
-        if type == "standard":
+        if type in {"standard", "non_ft_init"}:
             self.geometry = master_geometry.geometry_std
             self.pairings = master_pairings.pairings_std
         elif type == "y_basis":
@@ -82,7 +87,11 @@ class SurfaceInitialization:
         init_circuit.append("H", self.geometry.stab_x_idx)
         init_circuit.append("TICK")
         init_circuit.append("M", self.geometry.stab_x_idx + self.geometry.stab_z_idx)
-        init_circuit.append("SHIFT_COORDS", arg=(0, 0, 1))
         init_circuit.append("TICK")
+
+        self.tracker.add_measurements_to_tracker(
+            patch_type="None",
+            measured_qubits=self.geometry.stab_x_idx + self.geometry.stab_z_idx,
+        )
 
         return init_circuit

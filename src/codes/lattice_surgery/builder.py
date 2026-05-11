@@ -10,10 +10,10 @@ from src.codes.lattice_surgery.data_geometry import MasterPairings
 from src.codes.lattice_surgery.get_flows import SurgeryFlowObservables
 from src.codes.lattice_surgery.get_measurement_recs import get_measurement_recs
 from src.codes.lattice_surgery.get_stab_pairings import LatticeSurgeryPairings
-from src.codes.lattice_surgery.measurement_tracker import MeasurementTracker
 from src.codes.lattice_surgery.surgery_geom import SurgeryGeometry
 from src.core.base_class_builder import BaseClassBuilder
 from src.core.data_models import NoiseParameters
+from src.core.measurement_tracker import MeasurementTracker
 
 __all__ = ["SurgeryBuilder"]
 

@@ -13,6 +13,7 @@ from src.codes.surface_code_rotated.get_stab_pairings import SurfacePairings
 from src.codes.surface_code_rotated.surface_geom import SurfaceGeometry
 from src.core.base_class_builder import BaseClassBuilder
 from src.core.data_models import NoiseParameters
+from src.core.measurement_tracker import MeasurementTracker
 
 Coord = complex
 Label = str
@@ -40,6 +41,12 @@ class SurfaceBuilder(BaseClassBuilder):
             Distance (int): Distance of the surface code i.e. lattice size
             Rounds (int): Number of syndrome measurement rounds per Shot
             noise (float): Probability for x y and z error in Pauli-Channel
+            state_init (str): Initial State of the logical qubit: "0", "1", "+", "-", "+i", "-i"
+            log_obs (str): Logical Observable to be measured: "X", "Y", "Z"
+            logical_h (bool): Whether to add transversal H section for logical H state preparation
+            -> THIS ALSO DOES NOT REALLY WORK AS THE QUBITS NEED TO BE ROTATED AFTER THE 
+                TRANSVERSAL H (Currently just flipping X and Z type)
+            ft_init (bool): If True -> Perform inplace Y-access (Gidney) DOES NOT WORK CURRENTLY!!
 
         Information:
             Logical Operator is Z Operator and pre-Defined!
@@ -69,7 +76,9 @@ class SurfaceBuilder(BaseClassBuilder):
         self.ft_measurements = ft_measurements
 
         # Setting Up Builder Parameters
-        self.y_sections_required = state_init in {"+i", "-i"}
+        self.y_sections_required = state_init in {"+i", "-i"} and ft_init
+
+        print(self.y_sections_required)
 
         # Initialize Geometries for standard and y-basis
         self.master_geometry = MasterGeometry(
@@ -85,6 +94,9 @@ class SurfaceBuilder(BaseClassBuilder):
                 y_basis=True,
             ),
         )
+
+        # Initiate Measurement Tracker
+        self.tracker = MeasurementTracker(geometry=self.master_geometry.geometry_std)
 
         # Initialize Pairings for standard and y-basis
         self.master_pairings = MasterPairings(
@@ -118,39 +130,47 @@ class SurfaceBuilder(BaseClassBuilder):
 
     def build_circuit(self) -> stim.Circuit:
         # Initialize Empty Circuit
-        full_circuit = stim.Circuit()
+        self.full_circuit = stim.Circuit()
 
         # Adding Setup Resets
-        full_circuit += self._adding_setup_resets()
+        self.full_circuit += self._adding_setup_resets()
 
         # Adding Initialiazion Circuit
-        full_circuit += self._adding_initilization()
+        self.full_circuit += self._adding_initilization()
 
         # Addings Repetion Circuit
-        full_circuit += self._adding_repetition()
+        self.full_circuit += self._adding_repetition()
 
         # Adding Conditional Circuits depending on Y Basis or Transversal H
         if self.y_sections_required:
-            full_circuit += self._adding_y_basis_sections()
+            self.full_circuit += self._adding_y_basis_sections()
         elif self.logical_h is True:
-            full_circuit += self._adding_logical_h_sections()
+            self.full_circuit += self._adding_logical_h_sections()
 
-        # Adding Final Measurement Circuit -> Not for Y Basis
+        # Adding Final Measurement Circuit -> Not for FT Y Basis
         if not self.y_sections_required:
-            full_circuit += self._adding_final_measurement()
-
-        # Adding Detectors
-        return_circuit = self._adding_detectors(input_circuit=full_circuit)
+            self.full_circuit += self._adding_final_measurement()
 
         # Adding Noise if specified
-        return_circuit = self.apply_noise(input_circuit=return_circuit, 
+        self.full_circuit = self.apply_noise(input_circuit=self.full_circuit, 
                                         distance=self.distance,
                                         geometry= self.master_geometry.geometry_std,
                                         noise=self.noise, 
                                         ft_init=self.ft_init, 
                                         ft_meas=self.ft_measurements)
 
-        return return_circuit
+        return self.full_circuit
+    
+    def _curr_type(self):
+        # Determine type of circuit
+        if not self.ft_init and self.state_init in {"+i", "-i"}:
+            curr_type = "non_ft_init"
+        elif self.ft_init and self.state_init in {"+i", "-i"}:
+            curr_type = "y_basis"
+        else:
+            curr_type = "standard"
+
+        return curr_type
 
     def get_logical_meas_rec(self) -> list[int]:
         """
@@ -168,20 +188,27 @@ class SurfaceBuilder(BaseClassBuilder):
         return rec_list
 
     def _adding_setup_resets(self) -> stim.Circuit:
+
         # Adding Reset Circuit
         reset_circ = SurfaceReset(
             master_geometry=self.master_geometry,
-            type="standard" if self.state_init not in {"+i", "-i"} else "y_basis",
+            type=self._curr_type(),
         )
 
         return reset_circ.build_circuit()
 
     def _adding_initilization(self) -> stim.Circuit:
+        # Updating Measurement Tracker
+        self.tracker.add_previous_measurements(
+            count=self.full_circuit.num_measurements,
+        )
+
         # Init Circuit depending on Y Basis or Standard
         init_circ = SurfaceInitialization(
             master_geometry=self.master_geometry,
             master_pairings=self.master_pairings,
-            type="standard" if self.state_init not in {"+i", "-i"} else "y_basis",
+            type=self._curr_type(),
+            tracker=self.tracker,
         )
 
         return init_circ.build_circuit()
@@ -191,7 +218,8 @@ class SurfaceBuilder(BaseClassBuilder):
         repet_circ = SurfaceRepetitionCircuit(
             master_geometry=self.master_geometry,
             master_pairings=self.master_pairings,
-            type="standard" if self.state_init not in {"+i", "-i"} else "y_basis",
+            type=self._curr_type(),
+            tracker=self.tracker,
         )
 
         # Setting rec_list
@@ -298,16 +326,3 @@ class SurfaceBuilder(BaseClassBuilder):
         meas_circ = final_meas_circ.build_final_measurement_circuit()
 
         return meas_circ
-
-    @staticmethod
-    def _adding_detectors(input_circuit: stim.Circuit) -> stim.Circuit:
-        """
-        Calculates all Detectors needed by using the tqecd package
-        """
-
-        # Annotate Detectors Automatically
-        annotated_circuit = annotate_detectors_automatically(
-            circuit=input_circuit,
-        )
-
-        return annotated_circuit

@@ -13,16 +13,25 @@ class SurfaceReset:
         master_geometry: MasterGeometry,
         type: str,
     ):
-        if type not in {"standard", "log_h", "y_basis"}:
+        """
+        Initializes the Surface Reset Circuit.
+
+        Args:
+            master_geometry (MasterGeometry)
+            type (str): Type of reset circuit to build 
+            -> If non_ft Y obs added by reset XX Y ZZ for d=3 f.ex.
+        """
+
+        if type not in {"standard", "y_basis", "non_ft_init"}:
             raise ValueError(
                 f"Invalid type '{type}' for SurfaceReset. "
-                f"Must be 'standard', 'log_h', or 'y_basis'.",
+                f"Must be 'standard', 'y_basis', or 'non_ft_init'.",
             )
 
         # Initialize Geometry depending on the type
         self.type = type
 
-        if self.type in {"standard", "log_h"}:
+        if self.type in {"standard", "non_ft_init"}:
             self.geometry = master_geometry.geometry_std
         elif self.type == "y_basis":
             self.geometry = master_geometry.geometry_ybasis
@@ -68,9 +77,24 @@ class SurfaceReset:
                 # Create logical Z Data String:
                 reset_circuit.append("Z", self.geometry.get_logical_observables("Z"))
 
-        elif self.geometry.state_init in {"+i", "-i"}:
+        elif self.geometry.state_init in {"+i", "-i"} and self.type == "y_basis":
+            
             reset_circuit.append("RX", self.geometry.data_rx_idx)
             reset_circuit.append("RZ", self.geometry.data_rz_idx)
+
+        elif self.geometry.state_init in {"+i", "-i"} and self.type == "non_ft_init":
+            mx_idx, my_idx, mz_idx = self.geometry.get_logical_observables(
+                    "Y",
+                    fixed_coord=(self.geometry.distance * 2 - 1),
+                )
+            
+            reset_circuit.append("RX", mx_idx)
+            reset_circuit.append("RZ", mz_idx)
+            reset_circuit.append("RY", my_idx)
+
+            if self.geometry.state_init == "-i":
+                # Create logical Y Data String:
+                reset_circuit.append("X", self.geometry.get_logical_observables("X"))
 
         return reset_circuit
 
@@ -130,5 +154,23 @@ class SurfaceReset:
                     + [f"Z{index}" for index in mz_idx],
                     0,
                 )
+
+        # If NON-FT we do not have an observable defined between the y siwtch and y reverse siwtch,
+        # as we do not have these subsections -> Need to remove directly before the reset
+
+        elif self.geometry.state_init in {"+i", "-i"} and self.type == "non_ft_init":
+            if self.geometry.obs == "X":
+                # Getting corresponding logical string and rec
+                log_x = self.geometry.get_logical_observables("X")
+
+                # XORing the observable away
+                log_circuit.append("OBSERVABLE_INCLUDE", [f"X{index}" for index in log_x], 0)
+            
+            elif self.geometry.obs == "Z":
+                # Getting corresponding logical string and rec
+                log_z = self.geometry.get_logical_observables("Z")
+
+                # XORing the observable away
+                log_circuit.append("OBSERVABLE_INCLUDE", [f"Z{index}" for index in log_z], 0)
 
         return log_circuit

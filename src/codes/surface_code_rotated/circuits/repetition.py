@@ -2,6 +2,7 @@ import stim
 
 from src.codes.surface_code_rotated.data_geometry import MasterGeometry, MasterPairings
 from src.core.cx_builder import cx_builder
+from src.core.measurement_tracker import MeasurementTracker
 
 Coord = complex
 
@@ -14,6 +15,7 @@ class SurfaceRepetitionCircuit:
         master_geometry: MasterGeometry,
         master_pairings: MasterPairings,
         type: str,
+        tracker: MeasurementTracker,
     ):
         """
         Initialize the Surface Repetition Circuit
@@ -28,13 +30,14 @@ class SurfaceRepetitionCircuit:
 
         """
 
-        if type not in {"standard", "y_memory", "y_basis", "log_h"}:
+        if type not in {"standard", "y_memory", "y_basis", "log_h", "non_ft_init"}:
             raise ValueError(
                 f"Unknown repetition circuit type: {type}. "
-                f"Type must be one of 'standard', 'y_memory', 'y_basis', 'log_h'.",
+                f"Type must be one of 'standard', 'y_memory', 'y_basis', 'log_h', 'non_ft_init'.",
             )
 
         self.type = type
+        self.tracker = tracker
 
         # Initialize Geometry and Pairings depending on the type
         if self.type == "y_memory":
@@ -76,7 +79,7 @@ class SurfaceRepetitionCircuit:
             # Set number of rounds
             self.rounds = self.geometry.distance - 1
 
-        elif self.type == "standard":
+        elif self.type in {"standard", "non_ft_init"}:
             # Get Geometry and Pairings for standard repetition or y-basis repetition
             self.geometry = master_geometry.geometry_std
             self.pairings = master_pairings.pairings_std
@@ -93,7 +96,7 @@ class SurfaceRepetitionCircuit:
         circuit = stim.Circuit()
 
         # If normal repetition (Non y-basis)
-        if self.type in {"standard", "log_h", "y_basis"}:
+        if self.type in {"standard", "log_h", "y_basis", "non_ft_init"}:
             circuit += self._adding_repetition_rounds()
 
         elif self.type == "y_memory":
@@ -107,6 +110,32 @@ class SurfaceRepetitionCircuit:
         if self.type == "y_memory":
             return self._y_basis_add_non_det_obs()[1]
         return []
+    
+    def _get_detectors(
+        self,
+        measured_qubits: list[int],
+        patch_type: str,
+        qubits_for_detectors: list[int] | None = None,
+    ) -> stim.Circuit:
+        # Initialization Circuit
+        detector_circuit = stim.Circuit()
+
+        self.tracker.add_measurements_to_tracker(
+            measured_qubits=measured_qubits,
+            qubits_for_detectors=qubits_for_detectors,
+            patch_type=patch_type,
+        )
+
+        det_record_pairings = self.tracker.get_records_for_detectors(
+            patch_type=patch_type,
+        )
+        for curr_pairing in det_record_pairings:
+            detector_circuit.append("DETECTOR", curr_pairing)
+
+        # Shifting Coords
+        detector_circuit.append("SHIFT_COORDS")
+
+        return detector_circuit
 
     def _y_basis_memory_prep_circuit(self) -> stim.Circuit:
         # Init reset Circuit
@@ -182,27 +211,38 @@ class SurfaceRepetitionCircuit:
     def _adding_repetition_rounds(self) -> stim.Circuit:
         repetition_circ = stim.Circuit()
 
-        # -----BUILDING-REPETITION-CIRC------
-        repetition_circ.append("R", self.stab_idx)
-        repetition_circ.append("TICK")
+        for curr_round in range(self.rounds):
 
-        # 1) Reset/ Basis
-        repetition_circ.append("H", self.stab_x_idx)
-        repetition_circ.append("TICK")
+            # -----BUILDING-REPETITION-CIRC------
+            repetition_circ.append("R", self.stab_idx)
+            repetition_circ.append("TICK")
 
-        # 2) CX Operations
-        cx_builder(
-            q2i=self.geometry.q2i,
-            stab_to_data=self.pairings.stab_to_data,
-            circuit=repetition_circ,
-            excluded_index=self.geometry.y_index if self.type == "y_basis" else None,
-        )
+            # 1) Reset/ Basis
+            repetition_circ.append("H", self.stab_x_idx)
+            repetition_circ.append("TICK")
 
-        # 3) Basis/ Measurement
-        repetition_circ.append("H", self.stab_x_idx)
-        repetition_circ.append("TICK")
-        repetition_circ.append("M", self.stab_idx)
-        repetition_circ.append("SHIFT_COORDS", arg=(0, 0, 1))
-        repetition_circ.append("TICK")
+            # 2) CX Operations
+            cx_builder(
+                q2i=self.geometry.q2i,
+                stab_to_data=self.pairings.stab_to_data,
+                circuit=repetition_circ,
+                excluded_index=self.geometry.y_index if self.type == "y_basis" else None,
+            )
 
-        return repetition_circ * self.rounds
+            # 3) Basis/ Measurement
+            repetition_circ.append("H", self.stab_x_idx)
+            repetition_circ.append("TICK")
+            repetition_circ.append("M", self.stab_idx)
+
+            # 4) Adding Detectors
+            repetition_circ += self._get_detectors(
+                measured_qubits=self.stab_idx,
+                patch_type="STD_PATCH",
+                qubits_for_detectors= []
+                if curr_round == 0
+                else self.stab_idx,
+            )
+
+            repetition_circ.append("TICK")
+
+        return repetition_circ

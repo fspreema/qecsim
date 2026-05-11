@@ -35,6 +35,7 @@ class FinalMeasureCircuit:
         # Initialize Geometry and Pairings depending on the type
         if self.type == "standard":
             # Get Geometry and Pairings for standard final measurement
+            # -> This includes non-FT emasurement of Y OBS
             self.geometry = master_geometry.geometry_std
             self.pairings = master_pairings.pairings_std
 
@@ -42,17 +43,6 @@ class FinalMeasureCircuit:
             # Get Geometry and Pairings for logical H final measurement
             self.geometry = master_geometry.geometry_std
             self.pairings = master_pairings.pairings_log_h
-
-        # Defining Non deterministic pairing flag
-        self.non_deterministic_pairing = (
-            False
-            if (
-                (self.geometry.state_init in {"0", "1"} and self.geometry.obs == "Z")
-                or (self.geometry.state_init in {"+", "-"} and self.geometry.obs == "X")
-                or (self.geometry.state_init in {"+i", "-i"} and self.geometry.obs == "Y")
-            )
-            else True
-        )
 
     def build_final_measurement_circuit(self) -> stim.Circuit:
         final_circuit = stim.Circuit()
@@ -97,12 +87,12 @@ class FinalMeasureCircuit:
         final_circuit = stim.Circuit()
 
         if self.geometry.obs == "Z":
-            final_circuit.append("MZ", self.geometry.data_idx)
+            final_circuit.append("MZ", self.geometry.get_logical_observables("Z"))
 
         elif self.geometry.obs == "X":
-            final_circuit.append("MX", self.geometry.data_idx)
+            final_circuit.append("MX", self.geometry.get_logical_observables("X"))
 
-        elif self.geometry.obs == "Y" and self.non_deterministic_pairing:
+        elif self.geometry.obs == "Y":
             idx_mx, idx_my, idx_mz = self.geometry.get_logical_observables(
                 "Y",
                 fixed_coord=(self.geometry.distance * 2 - 1),
@@ -112,91 +102,29 @@ class FinalMeasureCircuit:
             final_circuit.append("MY", idx_my)
             final_circuit.append("MZ", idx_mz)
 
+            print(idx_mx, idx_my, idx_mz)
+
         return final_circuit
-
-    @staticmethod
-    def _get_rec_targets(indicies: list[int], measured_qubits: list[int]) -> list[int]:
-        """
-        Finds the record targets for given qubit indicies
-
-        Parameters:
-            indicies : list[int]
-                -> List of qubit indicies to find rec targets for
-            measured_qubits : list[int]
-                -> List of all measured qubits to find correct record targets from
-        """
-
-        tar_rec = []
-
-        for rec_pos, index in enumerate(measured_qubits):
-            if index in indicies:
-                tar_rec.append(rec_pos)
-
-        return tar_rec
-
-    def _what_qubits_measured(self) -> list[int]:
-        """
-        Finds which qubits are measured depending on the observable type
-
-        Returns:
-            list[int] : List of measured qubit indicies
-        """
-
-        if self.geometry.obs in {"X", "Z"}:
-            measured_qubits = self.geometry.data_idx
-        else:
-            measured_qubits = (
-                self.geometry.get_logical_observables("Y")[0]
-                + self.geometry.get_logical_observables("Y")[1]
-                + self.geometry.get_logical_observables("Y")[2]
-            )
-
-        return measured_qubits
 
     def _apply_observables(self) -> stim.Circuit:
         # Defining Observable Circuit
         observable_circuit = stim.Circuit()
 
-        # Defining Logical Observables
-        if self.non_deterministic_pairing:
-            # Non-deterministic observables are added by Pauli Indexes
-            if self.geometry.obs in {"X", "Z"}:
-                log_indices = self.geometry.get_logical_observables(self.geometry.obs)
+        if self.geometry.obs == "Y":
+            flat_obs_idx = [
+                qubit_idx
+                for qubit_type_list in self.geometry.get_logical_observables(self.geometry.obs)
+                for qubit_idx in qubit_type_list
+            ]
+        else:
+            flat_obs_idx = self.geometry.get_logical_observables(self.geometry.obs)
 
-                observable_circuit.append(
-                    "OBSERVABLE_INCLUDE",
-                    [f"{self.geometry.obs}{index}" for index in log_indices],
-                    0,
-                )
-
-            elif self.geometry.obs in {"Y"}:
-                log_x, log_y, log_z = self.geometry.get_logical_observables(
-                    "Y",
-                    fixed_coord=(self.geometry.distance * 2 - 1),
-                )
-
-                observable_circuit.append(
-                    "OBSERVABLE_INCLUDE",
-                    [f"X{index}" for index in log_x]
-                    + [f"Y{index}" for index in log_y]
-                    + [f"Z{index}" for index in log_z],
-                    0,
-                )
-
-        # As the logical Y obsesrvable inside the y basis is measured by stabilizers in the reverse
-        # switch, we do not need to add any observable here
-        elif not self.non_deterministic_pairing and self.geometry.obs in {"X", "Z"}:
-            # Determinstic observables implemented by real rec targets
-            observable_circuit.append(
-                "OBSERVABLE_INCLUDE",
-                [
-                    stim.target_rec(-len(self._what_qubits_measured()) + i)
-                    for i in self._get_rec_targets(
-                        indicies=self.geometry.get_logical_observables(self.geometry.obs),
-                        measured_qubits=self._what_qubits_measured(),
-                    )
-                ],
-                0,
-            )
+        observable_circuit.append(
+            "OBSERVABLE_INCLUDE",
+            [
+                stim.target_rec(-i) for i in range(1, len(flat_obs_idx) + 1)
+            ],
+            0,
+        )
 
         return observable_circuit

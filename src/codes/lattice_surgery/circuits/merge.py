@@ -1,7 +1,7 @@
 import stim
 
 from src.codes.lattice_surgery.data_geometry import MasterPairings
-from src.codes.lattice_surgery.measurement_tracker import MeasurementTracker
+from src.core.measurement_tracker import MeasurementTracker
 from src.codes.lattice_surgery.surgery_geom import SurgeryGeometry
 from src.core.cx_builder import cx_builder
 
