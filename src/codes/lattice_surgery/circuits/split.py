@@ -1,9 +1,9 @@
 import stim
 
 from src.codes.lattice_surgery.data_geometry import MasterPairings
-from src.core.measurement_tracker import MeasurementTracker
 from src.codes.lattice_surgery.surgery_geom import SurgeryGeometry
 from src.core.cx_builder import cx_builder
+from src.core.measurement_tracker import MeasurementTracker
 
 Coord = complex
 
@@ -32,12 +32,16 @@ class SurgerySplit:
             self.combined_x_stab_merging_lattices, self.combined_z_stab_merging_lattices = (
                 self.geometry.get_combined_xz_stabs_merging_lattice(split_type="AT")
             )
+            # We need to do 2d rounds of inital as d rounds are needed to ensure FT with non-FT
+            # init. To still have d noisy rounds we do 2*d rounds in total...
+            self.needed_rep_rounds = (self.geometry.distance * 2) - 1
         elif split_type == "AC":
             self.x_stab_index_untouched_circ = self.geometry.target_x_stb_idx
             self.z_stab_index_untouched_circ = self.geometry.target_z_stb_idx
             self.combined_x_stab_merging_lattices, self.combined_z_stab_merging_lattices = (
                 self.geometry.get_combined_xz_stabs_merging_lattice(split_type="AC")
             )
+            self.needed_rep_rounds = self.geometry.distance - 1
         else:
             raise ValueError("No valid splitting Type in Function selected!")
 
@@ -192,7 +196,7 @@ class SurgerySplit:
         # Implementing Repeat Block
         split_repeat_circuit = stim.Circuit()
 
-        for curr_round in range(self.geometry.distance - 1):
+        for curr_round in range(self.needed_rep_rounds):
             # Reset Ancilla and prepare measurement basis
             split_repeat_circuit.append("TICK")
             split_repeat_circuit.append("R", self.geometry.control_target_all_stab_idx)
@@ -262,7 +266,7 @@ class SurgerySplit:
             # Adding Conditional Operations depending on non-deterministic measurements
             # Corrections appliead after all splits/ merges i.e. in AT split
             # This is done in the last round!
-            if self.split_type in {"AT"} and curr_round == self.geometry.distance - 2:
+            if self.split_type in {"AT"} and curr_round == self.needed_rep_rounds - 1:
                 split_repeat_circuit.append("TICK")
                 split_repeat_circuit += self._get_conditional_operations()
 

@@ -1,9 +1,9 @@
 import stim
 
 from src.codes.lattice_surgery.data_geometry import MasterPairings
-from src.core.measurement_tracker import MeasurementTracker
 from src.codes.lattice_surgery.surgery_geom import SurgeryGeometry
 from src.core.cx_builder import cx_builder
+from src.core.measurement_tracker import MeasurementTracker
 
 Coord = complex
 
@@ -183,6 +183,8 @@ class SurgeryMerge:
         # Defining Repeat Circuit
         merge_round_circuit = stim.Circuit()
 
+
+        ### CHECK IF RANGE NOT OFF BY ONE AKA DISTANCE - 1
         for curr_round in range(self.geometry.distance):
             # Reinitializing Stabilizers and add basis change where needed
             merge_round_circuit.append("TICK")

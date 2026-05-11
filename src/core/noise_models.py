@@ -5,7 +5,6 @@ import stim
 
 from src.core.base_geometry import BaseGeometry
 
-FIRST_NOISY_RESET = 3
 CLIFFORD_OPERATIONS = ["H", "CX", "S", "S_DAG", "CZ", "XCY", "SQRT_X_DAG"]
 MEASUREMENT_OPERATIONS = ["M", "MX", "MY"]
 RESET_OPERATIONS = ["R", "RX", "RY", "RZ"]
@@ -17,6 +16,8 @@ class NoiseModel(ABC):
                  noise: dict, 
                  distance: int, 
                  geometry: BaseGeometry,
+                 num_tick_first_noise: int,
+                 num_tick_last_noise: int,
                  ft_init: bool = True, 
                  ft_measurements: bool = True):
         
@@ -26,9 +27,9 @@ class NoiseModel(ABC):
         self.distance = distance
         self.ft_init = ft_init
         self.ft_measurements = ft_measurements
-        self.reset_qubits = {}
-        self.curr_reset_num = 0
-        self.last_noisy_round = distance * 5 - (distance - 1)
+        self.curr_tick = 0
+        self.num_tick_last_noise = num_tick_last_noise
+        self.num_tick_first_noise = num_tick_first_noise
 
         # Get Geometry for Noise Model
         self.data_qubits = geometry.data_idx
@@ -36,9 +37,8 @@ class NoiseModel(ABC):
 
     def apply(self) -> stim.Circuit:
 
-        # Reset Counters
-        self.reset_qubits = {}
-        self.curr_reset_num = 0
+        # Reset tick count
+        self.curr_tick = 0
         
         # Create Noisy Circuit
         noisy_circuit = self._apply_recursive_noise_operations(circuit=self.circuit)
@@ -60,12 +60,12 @@ class NoiseModel(ABC):
                     # Add Clifford gate
                     noisy_circuit.append(instruction)
                     # Add Noise
-                    if self._should_apply_noise(instruction=instruction):
+                    if self._should_apply_noise():
                         self._append_clifford_noise(noisy_circuit, instruction)
 
                 elif instruction.name in MEASUREMENT_OPERATIONS:
                         # Add Noise
-                        if self._should_apply_noise(instruction=instruction):
+                        if self._should_apply_noise():
                             self._append_measurement_noise(noisy_circuit, instruction)
                         # Add Measurement
                         noisy_circuit.append(instruction)
@@ -73,84 +73,81 @@ class NoiseModel(ABC):
                 elif instruction.name in RESET_OPERATIONS:
                     # Add Reset
                     noisy_circuit.append(instruction)
-                    # Track Resets
-                    self._track_resets(instruction)
                     # Add Noise
-                    if self._should_apply_noise(instruction=instruction):
+                    if self._should_apply_noise():
                         self._append_reset_noise(noisy_circuit, instruction)
                         self._append_before_round_depol(noisy_circuit, instruction)
+
+                elif instruction.name == "TICK":
+                    # Track Ticks
+                    self.curr_tick += 1
+                    noisy_circuit.append(instruction)
 
                 else:
                     noisy_circuit.append(instruction)
 
             # Filter Out Repeat-Blocks
             elif isinstance(instruction, stim.CircuitRepeatBlock):
-                inner_noisy = self._apply_recursive_noise_operations(instruction.body_copy())
+                body = instruction.body_copy()
+                inner_noisy = self._apply_recursive_noise_operations(body)
                 noisy_circuit += inner_noisy * instruction.repeat_count
+
+                # Count ticks in inner noisy circuit
+                # -> If nested blocks are used, then the if condition needs 
+                # to include isinstance check
+                ticks_inner_bdy = sum(1 for instr in body if instr.name == "TICK")
+                
+                # Update tick count as the TICK of inner_noiusy was only counted once
+                self.curr_tick += (instruction.repeat_count - 1) * ticks_inner_bdy
 
             else:
                 noisy_circuit.append(instruction)
 
         return noisy_circuit
 
-    def _should_apply_noise(self, instruction: stim.CircuitInstruction) -> bool:
+    def _should_apply_noise(self) -> bool:
         """
         Noise gating rule:
         - If ft_measurements is False, do not add noise to the final small measurement cluster.
         - If ft_init is enabled, apply noise from the start.
         - Otherwise, only apply noise once the first "noisy reset" threshold is reached.
         """
-        # If ft_measurements is False, do not add noise to the final small measurement cluster.
-        if (
-                not self.ft_measurements
-                and instruction.name in MEASUREMENT_OPERATIONS
-                and len(instruction.targets_copy()) <= self.distance
-        ):
+        # If ft_init is False, skip noise until the first noisy reset threshold is reached
+        if not self.ft_init and self.curr_tick < self.num_tick_first_noise:
             return False
-
-        # Add noise everywhere if ft_init is true
-        if self.ft_init:
-            return True
-
-        # Add Noise if first noisy Reset is reached and ft_init is false
-        if self.last_noisy_round >= self.curr_reset_num >= FIRST_NOISY_RESET:
-            return True
-
-        return False
-
-    def _track_resets(self, instruction: stim.CircuitInstruction) -> None:
-
-        # Check if it is a reset operation
-        if instruction.name in RESET_OPERATIONS :
-            # Get qubit_idx for curr operation
-            qubit_idx = [t.value for t in instruction.targets_copy() if t.value in self.ancilla_qubits]
-
-            for curr_idx in qubit_idx:
-                # Check if idx as key in dict, if not add it, if yes update number of resets for that idx
-                if curr_idx not in self.reset_qubits:
-                    self.reset_qubits[curr_idx] = 1
-
-                else:
-                    self.reset_qubits[curr_idx] += 1
-
-            # Update curr_reset_num to the minimum resets across all tracked ancillas
-            if self.reset_qubits:
-                self.curr_reset_num = min(self.reset_qubits.values())
+        
+        # If ft_measurements is False, skip noise after the last noisy reset threshold is reached
+        if not self.ft_measurements and self.curr_tick >= self.num_tick_last_noise:
+            return False
+        
+        return True
 
     @abstractmethod
-    def _append_clifford_noise(self, out: stim.Circuit, instruction: stim.CircuitInstruction) -> None:
+    def _append_clifford_noise(self, 
+                               out: stim.Circuit, 
+                               instruction: stim.CircuitInstruction,
+                               ) -> None:
         pass
 
     @abstractmethod
-    def _append_measurement_noise(self, out: stim.Circuit, instruction: stim.CircuitInstruction) -> None:
+    def _append_measurement_noise(self, 
+                                  out: stim.Circuit, 
+                                  instruction: stim.CircuitInstruction,
+                                  ) -> None:
         pass
 
     @abstractmethod
-    def _append_reset_noise(self, out: stim.Circuit, instruction: stim.CircuitInstruction) -> None:
+    def _append_reset_noise(self, 
+                            out: stim.Circuit, 
+                            instruction: stim.CircuitInstruction,
+                            ) -> None:
         pass
 
     @abstractmethod
-    def _append_before_round_depol(self, out: stim.Circuit, instruction: stim.CircuitInstruction) -> None:
+    def _append_before_round_depol(self, 
+                                   out: stim.Circuit, 
+                                   instruction: stim.CircuitInstruction,
+                                   ) -> None:
         pass
 
 class CircuitNoise(NoiseModel):
@@ -169,7 +166,8 @@ class CircuitNoise(NoiseModel):
                 - before_m_flip_prob: Probability of x error happening before measurement
                 - after_r_flip: Probability of x error after reset
                 - after_c_depol_prob: Probability of depolarizing noise for Clifford gates
-                - before_round_depol: Probability of depolarizing noise before each round on data qubits
+                - before_round_depol: Probability of depolarizing noise before each round on 
+                  data qubits
             distance: Distance of the code patch to determine which measurement are the last
             ft_init: Boolean to indicate if the noise should be applied at the beginning of the
                      circuit (If not ft init, noise is not added to the first round of ancilla
@@ -205,9 +203,9 @@ class CircuitNoise(NoiseModel):
             # -> Skip complelty as this needs to be handled as single qubit gate
             if any(t.is_measurement_record_target for t in targets):
                 """
-                It really makes no sense to have any noise here as there correction would be implemented
-                as a pauli fram correction and therefore classically tracked. So there shouldn't be any
-                noise here...!
+                It really makes no sense to have any noise here as there correction would be 
+                implemented as a pauli fram correction and therefore classically tracked. 
+                So there shouldn't be any noise here...!
                 """
                 pass
 
@@ -271,8 +269,8 @@ class BiasNoise(NoiseModel):
             circuit (stim.Circuit): The input quantum circuit to which noise will be added.
             noise (dict): A dictionary specifying the noise parameters. Expected keys are:
                 - bias: List of bias values [b_x, b_y, b_z] for Pauli channels
-                - after_c_custom_noise: The complete Probability of An error happening after Clifford
-                                        gates
+                - after_c_custom_noise: The complete Probability of An error happening 
+                  after Clifford gates
                     -> This is the probability which gets split up depending on the bias values
 
         Returns:
@@ -404,11 +402,12 @@ class BiasNoise(NoiseModel):
             if np.any(self.after_c_p_xyz_multi):
                  # Check if Multi-Qubit gate has record targets
                 # -> Skip complelty as this needs to be handled as single qubit gate
-                if any(t.is_measurement_record_target for t in instruction.targets_copy()) and np.any(self.after_c_p_xyz):
+                if (any(t.is_measurement_record_target for t in instruction.targets_copy())
+                    and np.any(self.after_c_p_xyz)):
                     """
-                    It really makes no sense to have any noise here as there correction would be implemented
-                    as a pauli fram correction and therefore classically tracked. So there shouldn't be any
-                    noise here...!
+                    It really makes no sense to have any noise here as there correction 
+                    would be implemented as a pauli fram correction and therefore classically 
+                    tracked. So there shouldn't be any noise here...!
                     """
                     pass
 

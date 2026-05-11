@@ -8,7 +8,6 @@ from src.codes.lattice_surgery.circuits.reset import SurgeryReset
 from src.codes.lattice_surgery.circuits.split import SurgerySplit
 from src.codes.lattice_surgery.data_geometry import MasterPairings
 from src.codes.lattice_surgery.get_flows import SurgeryFlowObservables
-from src.codes.lattice_surgery.get_measurement_recs import get_measurement_recs
 from src.codes.lattice_surgery.get_stab_pairings import LatticeSurgeryPairings
 from src.codes.lattice_surgery.surgery_geom import SurgeryGeometry
 from src.core.base_class_builder import BaseClassBuilder
@@ -65,6 +64,12 @@ class SurgeryBuilder(BaseClassBuilder):
         self.target_measure_basis = target_measure_basis
         self.noise = noise
         self.return_circuit = stim.Circuit()
+
+        # Setting Up tick information for noise model construction
+        # Used for construction of the noise model
+        # -> Num Ticks Until d rounds have passed
+        # -> Num Tikcs Until only d rounds are left (i.e. d noisy rounds have passed)
+        self.tick_dict : dict[int, str] = {}
 
         # Initilize Geometry
         self.geometry = SurgeryGeometry(
@@ -146,29 +151,18 @@ class SurgeryBuilder(BaseClassBuilder):
         self.return_circuit += self._adding_final_measurement_circuit()
 
         # Adding Noise Model if applicable
-        self.return_circuit = self.apply_noise(input_circuit=self.return_circuit,
-                                               distance=self.distance,
-                                               geometry=self.geometry,
-                                               noise=self.noise,
-                                               ft_init= FT_INIT,
-                                               ft_meas= FT_MEASUREMENT)
-
-        return self.return_circuit
-
-    def get_logical_meas_rec(self, observable_index: int) -> list[int]:
-        """
-        Returns the measurement records that build up the logical operator
-        """
-
-        if self.return_circuit is None:
-            raise ValueError("Circuit has not been built yet. Please build the circuit first.")
-
-        measurement_records = get_measurement_recs(
-            circuit=self.return_circuit,
-            observable_index=observable_index,
+        self.return_circuit = self.apply_noise(
+            input_circuit=self.return_circuit,
+            distance=self.distance,
+            geometry=self.geometry,
+            noise=self.noise,
+            ft_init=FT_INIT,
+            ft_meas=FT_MEASUREMENT,
+            num_tick_first_noise=self._get_noisy_tick(beginning=True),
+            num_tick_last_noise=self._get_noisy_tick(beginning=False),
         )
 
-        return measurement_records
+        return self.return_circuit
 
     def _adding_reset_circuit(self) -> stim.Circuit:
         # Building Reset Circuit
@@ -176,6 +170,9 @@ class SurgeryBuilder(BaseClassBuilder):
             geometry=self.geometry,
         )
         self.reset_circuit = reset_circuit_builder.build_circuit()
+
+        # Adding TICK info
+        self.tick_dict["reset"] = self.reset_circuit.num_ticks
 
         return self.reset_circuit
 
@@ -201,6 +198,13 @@ class SurgeryBuilder(BaseClassBuilder):
         )
         self.init_circuit = init_circuit_builder.build_circuit()
 
+        # Adding TICK info
+        self.tick_dict["init_single"] = 10
+        self.tick_dict["init_repeat_per_round"] = (
+            (self.init_circuit.num_ticks - self.tick_dict["init_single"]) //
+            ((2 * self.distance) - 1)
+        )
+
         return self.init_circuit
 
     def _adding_merge(self, merge_type: str) -> stim.Circuit:
@@ -213,6 +217,10 @@ class SurgeryBuilder(BaseClassBuilder):
         )
         merge_circuit = merge_circuit_builder.build_circuit()
 
+        # Adding TICK info
+        self.tick_dict["merge_init"] = 8
+        self.tick_dict["merge_repeat_per_round"] = (merge_circuit.num_ticks - 8) // (self.distance)
+
         return merge_circuit
 
     def _adding_split(self, split_type: str) -> stim.Circuit:
@@ -224,6 +232,17 @@ class SurgeryBuilder(BaseClassBuilder):
             tracker=self.tracker,
         )
         split_circuit = split_circuit_builder.build_circuit()
+
+        # Adding TICK info
+        self.tick_dict["split_init"] = 8
+        if split_type == "AC":
+            self.tick_dict["split_repeat_per_round_AC"] = (
+                (split_circuit.num_ticks - 8) // (self.distance - 1)
+            )
+        else:
+            self.tick_dict["split_repeat_per_round_AT"] = (
+                (split_circuit.num_ticks - 8) // ((self.distance * 2) - 1)
+            )
 
         return split_circuit
 
@@ -286,3 +305,28 @@ class SurgeryBuilder(BaseClassBuilder):
             return False
         else:
             return True
+        
+    def _get_noisy_tick(self, beginning: bool) -> int:
+    
+        """
+        Get the number of ticks until noise should be applied for the first time 
+        (if beginning = True) or the last time (if beginning = False)
+        """
+
+        if beginning:
+            num_tick = self.tick_dict.get("reset") \
+                    + self.tick_dict.get("init_single") \
+                    + (self.tick_dict.get("init_repeat_per_round") * (self.distance - 1))
+            
+        else:
+            num_tick = self.tick_dict.get("reset") \
+                    + self.tick_dict.get("init_single") \
+                    + (self.tick_dict.get("init_repeat_per_round") * ((2 * self.distance) - 1))\
+                    + self.tick_dict.get("merge_init") * 2\
+                    + (self.tick_dict.get("merge_repeat_per_round") * self.distance) * 2\
+                    + self.tick_dict.get("split_init") * 2\
+                    + (self.tick_dict.get("split_repeat_per_round_AC") * (self.distance - 1))\
+                    + (self.tick_dict.get("split_repeat_per_round_AT") * ((self.distance * 2) - 2))
+
+        return num_tick
+                    

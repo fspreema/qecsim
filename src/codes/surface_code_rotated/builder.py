@@ -1,5 +1,4 @@
 import stim
-from tqecd import annotate_detectors_automatically
 
 from src.codes.surface_code_rotated.circuits.final_measure import FinalMeasureCircuit
 from src.codes.surface_code_rotated.circuits.initial import SurfaceInitialization
@@ -21,6 +20,15 @@ Index = int
 Pair = tuple[Coord, Coord]
 
 __all__ = ["SurfaceBuilder"]
+
+
+# Both currently set to false as detector construciton of ft y-basis is not
+# correct and therefore currently not working!
+FT_INIT = False
+FT_MEAS = False
+
+# Currently also not tested properly!
+LOGICAL_H = False
 
 
 class SurfaceBuilder(BaseClassBuilder):
@@ -70,15 +78,19 @@ class SurfaceBuilder(BaseClassBuilder):
         self.distance = distance
         self.state_init = state_init
         self.log_obs = log_obs
-        self.logical_h = logical_h
+        self.logical_h = LOGICAL_H
         self.noise = noise
-        self.ft_init = ft_init
-        self.ft_measurements = ft_measurements
+        self.ft_init = FT_INIT
+        self.ft_measurements = FT_MEAS
+
+        # Setting Up tick information for noise model construction
+        # Used for construction of the noise model
+        # -> Num Ticks Until d rounds have passed
+        # -> Num Tikcs Until only d rounds are left (i.e. d noisy rounds have passed)
+        self.tick_dict : dict[int, str] = {}
 
         # Setting Up Builder Parameters
-        self.y_sections_required = state_init in {"+i", "-i"} and ft_init
-
-        print(self.y_sections_required)
+        self.y_sections_required = state_init in {"+i", "-i"} and self.ft_init
 
         # Initialize Geometries for standard and y-basis
         self.master_geometry = MasterGeometry(
@@ -130,36 +142,40 @@ class SurfaceBuilder(BaseClassBuilder):
 
     def build_circuit(self) -> stim.Circuit:
         # Initialize Empty Circuit
-        self.full_circuit = stim.Circuit()
+        self.return_circuit = stim.Circuit()
 
         # Adding Setup Resets
-        self.full_circuit += self._adding_setup_resets()
+        self.return_circuit += self._adding_setup_resets()
 
         # Adding Initialiazion Circuit
-        self.full_circuit += self._adding_initilization()
+        self.return_circuit += self._adding_initialization()
 
         # Addings Repetion Circuit
-        self.full_circuit += self._adding_repetition()
+        self.return_circuit += self._adding_repetition()
 
         # Adding Conditional Circuits depending on Y Basis or Transversal H
         if self.y_sections_required:
-            self.full_circuit += self._adding_y_basis_sections()
+            self.return_circuit += self._adding_y_basis_sections()
         elif self.logical_h is True:
-            self.full_circuit += self._adding_logical_h_sections()
+            self.return_circuit += self._adding_logical_h_sections()
 
         # Adding Final Measurement Circuit -> Not for FT Y Basis
         if not self.y_sections_required:
-            self.full_circuit += self._adding_final_measurement()
+            self.return_circuit += self._adding_final_measurement()
 
         # Adding Noise if specified
-        self.full_circuit = self.apply_noise(input_circuit=self.full_circuit, 
-                                        distance=self.distance,
-                                        geometry= self.master_geometry.geometry_std,
-                                        noise=self.noise, 
-                                        ft_init=self.ft_init, 
-                                        ft_meas=self.ft_measurements)
+        self.return_circuit = self.apply_noise(
+            input_circuit=self.return_circuit, 
+            distance=self.distance,
+            geometry=self.master_geometry.geometry_std,
+            noise=self.noise, 
+            ft_init=FT_INIT, 
+            ft_meas=FT_MEAS,
+            num_tick_first_noise=self._get_noisy_tick(beginning=True),
+            num_tick_last_noise=self._get_noisy_tick(beginning=False),
+        )
 
-        return self.full_circuit
+        return self.return_circuit
     
     def _curr_type(self):
         # Determine type of circuit
@@ -172,21 +188,6 @@ class SurfaceBuilder(BaseClassBuilder):
 
         return curr_type
 
-    def get_logical_meas_rec(self) -> list[int]:
-        """
-        Returns the list of measurement record positions that need to be xored together
-        to get the final logical measurement
-
-        -> This is used for Caluclation of the PTM
-        """
-
-        if self.y_sections_required:
-            pass
-        else:
-            rec_list = self._get_x_z_basis_measurement_recs()
-
-        return rec_list
-
     def _adding_setup_resets(self) -> stim.Circuit:
 
         # Adding Reset Circuit
@@ -195,12 +196,15 @@ class SurfaceBuilder(BaseClassBuilder):
             type=self._curr_type(),
         )
 
+        # Adding TICK info
+        self.tick_dict["reset"] = reset_circ.num_ticks
+
         return reset_circ.build_circuit()
 
-    def _adding_initilization(self) -> stim.Circuit:
+    def _adding_initialization(self) -> stim.Circuit:
         # Updating Measurement Tracker
         self.tracker.add_previous_measurements(
-            count=self.full_circuit.num_measurements,
+            count=self.return_circuit.num_measurements,
         )
 
         # Init Circuit depending on Y Basis or Standard
@@ -210,6 +214,9 @@ class SurfaceBuilder(BaseClassBuilder):
             type=self._curr_type(),
             tracker=self.tracker,
         )
+
+        # Adding TICK info
+        self.tick_dict["init"] = init_circ.num_ticks
 
         return init_circ.build_circuit()
 
@@ -221,6 +228,9 @@ class SurfaceBuilder(BaseClassBuilder):
             type=self._curr_type(),
             tracker=self.tracker,
         )
+
+        # Adding TICK info
+        self.tick_dict["repetition_per_round"] = repet_circ.num_ticks // ((self.distance * 3) - 1)
 
         # Setting rec_list
         self.rec_list = repet_circ.rec_list()
@@ -301,18 +311,6 @@ class SurfaceBuilder(BaseClassBuilder):
 
         return h_section_circuits
 
-    def _get_x_z_basis_measurement_recs(self) -> list[int]:
-        final_meas_circ = FinalMeasureCircuit(
-            master_geometry=self.master_geometry,
-            master_pairings=self.master_pairings,
-            type=("log_h" if self.logical_h is True else "standard"),
-        )
-
-        # Get Measurement records for everything except the y basis
-        rec_list = final_meas_circ.build_observable_meas_rec()
-
-        return rec_list
-
     def _adding_final_measurement(self) -> stim.Circuit:
         # Adding Final Measurement Circuit -> Not for Y Basis
 
@@ -326,3 +324,19 @@ class SurfaceBuilder(BaseClassBuilder):
         meas_circ = final_meas_circ.build_final_measurement_circuit()
 
         return meas_circ
+    
+    def _get_noisy_tick(self, beginning: bool) -> int:
+        """
+        Get the number of ticks until noise should be applied for the first time 
+        (if beginning = True) or the last time (if beginning = False)
+        """
+
+        if beginning:
+            num_tick = self.tick_dict.get("reset") \
+                        + self.tick_dict.get("init")
+        else:
+            num_tick = self.tick_dict.get("reset") \
+                    + self.tick_dict.get("init") \
+                    + (self.tick_dict.get("repetition_per_round") * ((self.distance * 3) - 2))
+            
+        return num_tick

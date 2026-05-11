@@ -4,7 +4,7 @@ import pytest
 import stim
 
 from src.codes.lattice_surgery.builder import SurgeryBuilder
-from src.codes.lattice_surgery.get_measurement_recs import get_measurement_recs
+from src.core.get_measurement_recs import get_measurement_recs
 from src.core.data_models import NoiseParameters
 
 # Example Circuits

@@ -4,6 +4,7 @@ import stim
 
 from src.core.base_geometry import BaseGeometry
 from src.core.data_models import NoiseParameters
+from src.core.get_measurement_recs import get_measurement_recs
 from src.core.noise_models import BiasNoise, CircuitNoise
 
 
@@ -11,6 +12,7 @@ class BaseClassBuilder(ABC):
     @abstractmethod
     def __init__(self):
         self.noise = None
+        self.return_circuit = None
         pass
 
     @abstractmethod
@@ -23,22 +25,28 @@ class BaseClassBuilder(ABC):
         """
         pass
 
-    @abstractmethod
     def get_logical_meas_rec(self, observable_index: int) -> list[int]:
         """
-        Abstract Method to get the list of measurement record positions that need to be
-        xored together to get the final logical measurement.
-
-        Returns:
-            list[int]: List of measurement record positions
+        Returns the measurement records that build up the logical operator
         """
-        pass
+
+        if self.return_circuit is None:
+            raise ValueError("Circuit has not been built yet. Please build the circuit first.")
+
+        measurement_records = get_measurement_recs(
+            circuit=self.return_circuit,
+            observable_index=observable_index,
+        )
+
+        return measurement_records
 
     def apply_noise(
         self,
         input_circuit: stim.Circuit,
         distance:int ,
         geometry: BaseGeometry,
+        num_tick_first_noise: int,
+        num_tick_last_noise: int,
         noise: NoiseParameters = None,
         ft_init: bool = False,
         ft_meas: bool = False,
@@ -74,7 +82,9 @@ class BaseClassBuilder(ABC):
                                                  distance = distance,
                                                  geometry = geometry,
                                                  ft_init = ft_init,
-                                                 ft_measurements = ft_meas)
+                                                 ft_measurements = ft_meas,
+                                                 num_tick_first_noise = num_tick_first_noise,
+                                                 num_tick_last_noise = num_tick_last_noise,)
             input_circuit = circuit_noise_builder.apply()
 
         # 2) Biased Noise Model
@@ -93,7 +103,9 @@ class BaseClassBuilder(ABC):
                                             distance = distance,
                                             geometry = geometry,
                                             ft_init = ft_init,
-                                            ft_measurements = ft_meas)
+                                            ft_measurements = ft_meas,
+                                            num_tick_first_noise = num_tick_first_noise,
+                                            num_tick_last_noise = num_tick_last_noise)
             input_circuit = bias_noise_builder.apply()
 
         return input_circuit

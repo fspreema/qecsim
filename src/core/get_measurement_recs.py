@@ -24,6 +24,10 @@ def get_measurement_recs(circuit: stim.Circuit, observable_index: int) -> list[i
             if int(instruction.gate_args_copy()[0]) == observable_index:
                 # Get absolute measurement indices
                 for target in instruction.targets_copy():
+                    # Check if observable tracks records and not indices -> Else skip
+                    if not target.is_measurement_record_target:
+                        continue
+
                     # absolute_index = current_total_measurements + target_value
                     measurement_records.append(total_measurements + target.value)
 

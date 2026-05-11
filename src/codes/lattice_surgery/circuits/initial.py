@@ -1,9 +1,9 @@
 import stim
 
 from src.codes.lattice_surgery.data_geometry import MasterPairings
-from src.core.measurement_tracker import MeasurementTracker
 from src.codes.lattice_surgery.surgery_geom import SurgeryGeometry
 from src.core.cx_builder import cx_builder
+from src.core.measurement_tracker import MeasurementTracker
 
 Coord = complex
 
@@ -144,7 +144,9 @@ class SurgeryInitialization:
     def _adding_repeat_block(self) -> stim.Circuit:
         rep_init_circuit = stim.Circuit()
 
-        for curr_round in range(self.geometry.distance - 1):
+        # We need to do 2d rounds of inital as d rounds are needed to ensure FT with non-FT
+        # init. To still have d noisy rounds we do 2*d rounds in total...
+        for curr_round in range((2 * self.geometry.distance) - 1):
             # Adding reset from initial round
             rep_init_circuit.append("TICK")
             rep_init_circuit.append("R", self.geometry.control_target_all_stab_idx)
