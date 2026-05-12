@@ -214,7 +214,7 @@ class SurfaceRepetitionCircuit:
         # We need to do *3 rounds as we currently only do non-ft and therefore need
         # d rounds prioir and d rounds after which are nosieless. To ensure that for every
         # d we still have d noisy rounds we do 3*d rounds in total...
-        for curr_round in range((self.rounds * 3) - 1):
+        for curr_round in range((self.geometry.distance * 3) - 1):
 
             # -----BUILDING-REPETITION-CIRC------
             repetition_circ.append("R", self.stab_idx)

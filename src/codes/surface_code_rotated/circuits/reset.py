@@ -63,26 +63,26 @@ class SurfaceReset:
         # Init Coords
         reset_circuit = stim.Circuit()
         # Depending on init state add resets and logical operator
-        if self.geometry.state_init in {"0", "1"}:
+        if self.geometry.state_init in {"Z0", "Z1", "I0", "I1"}:
             reset_circuit.append("RZ", self.geometry.data_idx)
 
-            if self.geometry.state_init == "1":
+            if self.geometry.state_init in {"Z1", "I1"}:
                 # Create logical X Data String:
                 reset_circuit.append("X", self.geometry.get_logical_observables("X"))
 
-        elif self.geometry.state_init in {"+", "-"}:
+        elif self.geometry.state_init in {"X+", "X-"}:
             reset_circuit.append("RX", self.geometry.data_idx)
 
-            if self.geometry.state_init == "-":
+            if self.geometry.state_init == "X-":
                 # Create logical Z Data String:
                 reset_circuit.append("Z", self.geometry.get_logical_observables("Z"))
 
-        elif self.geometry.state_init in {"+i", "-i"} and self.type == "y_basis":
+        elif self.geometry.state_init in {"Y+", "Y-"} and self.type == "y_basis":
             
             reset_circuit.append("RX", self.geometry.data_rx_idx)
             reset_circuit.append("RZ", self.geometry.data_rz_idx)
 
-        elif self.geometry.state_init in {"+i", "-i"} and self.type == "non_ft_init":
+        elif self.geometry.state_init in {"Y+", "Y-"} and self.type == "non_ft_init":
             mx_idx, my_idx, mz_idx = self.geometry.get_logical_observables(
                     "Y",
                     fixed_coord=(self.geometry.distance * 2 - 1),
@@ -92,7 +92,7 @@ class SurfaceReset:
             reset_circuit.append("RZ", mz_idx)
             reset_circuit.append("RY", my_idx)
 
-            if self.geometry.state_init == "-i":
+            if self.geometry.state_init == "Y-":
                 # Create logical Y Data String:
                 reset_circuit.append("X", self.geometry.get_logical_observables("X"))
 
@@ -109,7 +109,7 @@ class SurfaceReset:
         """
         log_circuit = stim.Circuit()
 
-        if self.geometry.state_init in {"0", "1"}:
+        if self.geometry.state_init in {"Z0", "Z1", "I0", "I1"}:
             if self.geometry.obs == "X" and self.type == "standard":
                 # Getting corresponding logical string and rec
                 log_x = self.geometry.get_logical_observables("X")
@@ -132,7 +132,7 @@ class SurfaceReset:
                     0,
                 )
 
-        elif self.geometry.state_init in {"+", "-"}:
+        elif self.geometry.state_init in {"X+", "X-"}:
             if self.geometry.obs == "Z" and self.type == "standard":
                 # Getting corresponding logical string and rec
                 log_z = self.geometry.get_logical_observables("Z")
@@ -158,7 +158,7 @@ class SurfaceReset:
         # If NON-FT we do not have an observable defined between the y siwtch and y reverse siwtch,
         # as we do not have these subsections -> Need to remove directly before the reset
 
-        elif self.geometry.state_init in {"+i", "-i"} and self.type == "non_ft_init":
+        elif self.geometry.state_init in {"Y+", "Y-"} and self.type == "non_ft_init":
             if self.geometry.obs == "X":
                 # Getting corresponding logical string and rec
                 log_x = self.geometry.get_logical_observables("X")

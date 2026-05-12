@@ -9,6 +9,8 @@ Geometry Class which build all Coordinates and converts them to Indices for the 
 
 
 class SurfaceGeometry(BaseGeometry):
+    VALID_STATES = {"I0", "I1", "X+", "X-", "Y+", "Y-", "Z0", "Z1"}
+
     def __init__(
         self,
         distance: int,
@@ -28,8 +30,11 @@ class SurfaceGeometry(BaseGeometry):
                 Case where the indices are already defined (e.g. in Lattice Surgery)
                 -> Need to reuse the same indices as in the global lattice
         """
-        if state_init not in {"1", "0", "+", "-", "+i", "-i"}:
-            raise ValueError("state_init must be one of '1', '0', '+', '-', '+i', '-i'")
+        if state_init not in self.VALID_STATES:
+            raise ValueError(
+                f"Invalid state_init: {state_init}. "
+                f"Valid options are: {self.VALID_STATES}",
+            )
 
         if logical_observable not in {"X", "Y", "Z"}:
             raise ValueError("logical_observable must be one of 'X', 'Y', 'Z'")

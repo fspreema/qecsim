@@ -184,7 +184,7 @@ class GeneralLogicalEstimator:
         ptm_noise = np.matmul(self.ptm_noisy, ptm_ideal_inv)
 
         # We force the noise mtx to be diagonal as non-pauli noise is not supported
-        ptm_noise = np.diag(ptm_noise)
+        ptm_noise = np.diag(np.diag(ptm_noise))
 
         # Invert noise mtx to get pauli fidelities
         ptm_noise_inv = np.linalg.inv(ptm_noise)

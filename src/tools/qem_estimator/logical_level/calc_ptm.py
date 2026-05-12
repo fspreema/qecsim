@@ -17,6 +17,7 @@ class PTMCalculator:
     }
 
     NON_ZERO_FLOWS = {
+        # CNOT CASE
         "II->II",
         "XI->XX",
         "IX->IX",
@@ -33,9 +34,15 @@ class PTMCalculator:
         "XY->YZ",
         "XZ->YY",
         "ZY->IY",
+
+        # SINGLE QUBIT MEMORY (IDENTITY)
+        "X->X",
+        "Y->Y",
+        "Z->Z",
     }
 
     DIAGONAL_FLOWS = {
+        # CNOT CASE
         "II->II",
         "IX->IX",
         "IY->IY",
@@ -52,6 +59,11 @@ class PTMCalculator:
         "ZX->ZX",
         "ZY->ZY",
         "ZZ->ZZ",
+
+        # SINGLE QUBIT CASE
+        "X->X",
+        "Y->Y",
+        "Z->Z",
     }
 
     def __init__(
@@ -88,7 +100,7 @@ class PTMCalculator:
             raise ValueError("Both sparse_ideal_ptm and sparse_noisy_ptm cannot be True at the same time.")
 
         # Calculate the expectation values for each basis combination
-        exp_vals_per_basis_comb = self._calc_entries_for_surgery(sparse_ideal_ptm=sparse_ideal_ptm, sparse_noisy_ptm=sparse_noisy_ptm)
+        exp_vals_per_basis_comb = self._calc_ptm_entries(sparse_ideal_ptm=sparse_ideal_ptm, sparse_noisy_ptm=sparse_noisy_ptm)
 
         # Build the PTM Matrix out of the expectation values
         ptm_matrix = self._build_mtx_for_ptm(exp_vals_per_basis_comb)
@@ -116,14 +128,14 @@ class PTMCalculator:
         len_mtx = 0
 
         if n_qubits == 1:
-            len_mtx = 3
+            len_mtx = 4
         elif n_qubits == 2:
             len_mtx = 16
 
         # Initialize empty PTM Matrix
         ptm_matrix = np.zeros((len_mtx, len_mtx))
 
-        # Ensure Trace Preserving by setting the II->II entry to 1
+        # Ensure Trace Preserving by setting the II->II/I->I entry to 1
         ptm_matrix[0, 0] = 1
 
         # Define mapping from Pauli String to Matrix Indices
@@ -144,13 +156,13 @@ class PTMCalculator:
         the corresponding input and output pauli indices
         """
 
+        pauli_to_num = {"I": 0,"X": 1, "Y": 2, "Z": 3}
+
         # Single Pauli Case
         if len(pauli_str) == 1:
-            pauli_to_num = {"X": 0, "Y": 1, "Z": 2}
             return pauli_to_num[pauli_str]
 
         elif len(pauli_str) == 2:
-            pauli_to_num = {"I": 0, "X": 1, "Y": 2, "Z": 3}
             pauli_1, pauli_2 = pauli_str
 
             return_index = pauli_to_num[pauli_1] * 4 + pauli_to_num[pauli_2]
@@ -213,7 +225,7 @@ class PTMCalculator:
         return matcher, dem
 
     @staticmethod
-    def _get_sgn(curr_basis_combination: str) -> dict[str, int]:
+    def _get_sgn_two_qubit(curr_basis_combination: str) -> dict[str, int]:
         """
         For a given Basis determine if the current combination is an identity combination
         or not i.e. if a sign flip is needed for the expectation value calculation or not
@@ -221,6 +233,8 @@ class PTMCalculator:
 
         # Split sign
         input_pauli = curr_basis_combination.split("->")[0]
+        
+        # 2 Qubit Case
         control_basis, target_basis = input_pauli
 
         # Convention used later: we want a SUM for identity and a DIFFERENCE for non-identity.
@@ -229,6 +243,19 @@ class PTMCalculator:
             "control": 1 if control_basis == "I" else -1,
             "target": 1 if target_basis == "I" else -1,
         }
+    
+    @staticmethod
+    def _get_sgn_one_qubit(curr_basis_combination: str) -> dict[str, int]:
+        """
+        For a given Basis determine if the current combination is an identity combination
+        or not i.e. if a sign flip is needed for the expectation value calculation or not
+        """
+
+        # Split sign
+        input_pauli = curr_basis_combination.split("->")[0]
+
+        # 1 Qubit case
+        return 1 if input_pauli == "I" else -1
 
     @staticmethod
     def _split_label(init_state_label: str) -> tuple[str, str]:
@@ -248,7 +275,7 @@ class PTMCalculator:
         return parts[0], parts[1]
 
     @staticmethod
-    def _get_init_pairing_value(
+    def _get_multi_qubit_pairing_value(
         pair: tuple[int, int],
         average_logical_state: dict[str, np.floating[Any]],
     ) -> np.floating[Any]:
@@ -274,11 +301,31 @@ class PTMCalculator:
         raise ValueError(
             f"Could not find matching init state for pair: {pair}.",
         )
+    
+    @staticmethod
+    def _get_single_qubit_pairing_value(
+        state_idx: int,
+        average_logical_state: dict[str, np.floating[Any]],
+    ) -> np.floating[Any]:
+        """
+        Analgoues to the above:
+        -> Translation layer between strings and ints to get the needed measurements for 
+            the final combosition of the measurements which create one entry of the PTM
 
-    def _calc_entries_for_surface_patch(self):
-        pass
-
-    def _calc_entries_for_surgery(self, sparse_ideal_ptm: bool = False, sparse_noisy_ptm: bool = False) -> dict[str, np.floating[Any]]:
+        In theory one could just save the samples itself with these tulples or state_idx
+        but this makes reading the circuit sampling loop harder so this is kindof a good
+        trade off I think...
+        """
+        
+        state_order = {"X+": 0, "X-": 1, "Y+": 0, "Y-": 1, "Z0": 0, "Z1": 1, "I0": 0, "I1": 1}
+        
+        for label, exp_val in average_logical_state.items():
+            if state_order[label] == state_idx:
+                return exp_val
+            
+        raise ValueError(f"Could not find state with index {state_idx}!")
+    
+    def _calc_ptm_entries(self, sparse_ideal_ptm: bool = False, sparse_noisy_ptm: bool = False) -> dict[str, np.floating[Any]]:
         """
         We can't directly use the DEM as we need the
         raw measurements to infer what logical state we have
@@ -290,8 +337,17 @@ class PTMCalculator:
         # Init Save Dict for the expectation values of each basis combination
         exp_vals_per_basis_comb: dict[str, np.floating[Any]] = {}
 
+        # Check num qubits of given circuits (Checking one is sufficient)
+        n_qubit = len(next(iter(self.circuits)).split("->")[0])
+
         # Run through diagonal circuits
         for basis_combination, circuit_dict_and_meas_recs in self.circuits.items():
+
+            # If one qubit skip all identity ...->I circs
+            # -> No obs defined here so not able to sample
+            if n_qubit == 1 and basis_combination.split("->")[1] == "I":
+                continue 
+
             if sparse_ideal_ptm and basis_combination not in self.NON_ZERO_FLOWS:
                 continue
 
@@ -331,6 +387,9 @@ class PTMCalculator:
 
             for curr_init_state_label, curr_circuit in circuit_dict.items():
 
+                # For n=1 qubits we need to skip all ->I flows as these cannot be
+                # calculated as per def no obs is defined
+
                 # Build the normal measurement samples and sample n shots
                 sampler = curr_circuit.compile_sampler()
                 results_samples = sampler.sample(shots=self.samples)
@@ -367,33 +426,46 @@ class PTMCalculator:
 
                 # Take the Average of the logical state over all samples
                 average_logical_state[curr_init_state_label] = np.average(final_logical_states)
+                
+            # One Qubit Case
+            if n_qubit == 1:
 
-            # Calculate Sign for the current basis combination
-            sgn = self._get_sgn(basis_combination)
-            control_sgn, target_sgn = sgn["control"], sgn["target"]
+                # Get Sign for current basis
+                single_qubit_sgn = self._get_sgn_one_qubit(basis_combination)
 
-            # Get the individual Terms for construction
-            """
-            UPDATE DISCRIPTION AS THIS CALUCLATION IS DIFFERENT TO THE ABOVE!
-            """
+                term1 = self._get_single_qubit_pairing_value(0, average_logical_state)
+                term2 = self._get_single_qubit_pairing_value(1, average_logical_state)
 
-            term1 = self._get_init_pairing_value(
-                pair=(0, 0),
-                average_logical_state=average_logical_state,
-            ) + target_sgn * self._get_init_pairing_value(
-                pair=(0, 1),
-                average_logical_state=average_logical_state,
-            )
-            term2 = self._get_init_pairing_value(
-                pair=(1, 0),
-                average_logical_state=average_logical_state,
-            ) + target_sgn * self._get_init_pairing_value(
-                pair=(1, 1),
-                average_logical_state=average_logical_state,
-            )
+                # Get Exp. Value and add to final Value Dict
+                exp_val = term1 + single_qubit_sgn * term2
+                exp_vals_per_basis_comb[basis_combination] = exp_val / 2
 
-            # Get Exp. Value and add to final Value Dict
-            exp_val = term1 + control_sgn * term2
-            exp_vals_per_basis_comb[basis_combination] = exp_val / 4
+            else:
+
+                # Calculate Sign for the current basis combination
+                sgn = self._get_sgn_two_qubit(basis_combination)
+
+                # Get Information of control and target
+                control_sgn, target_sgn = sgn["control"], sgn["target"]
+
+                # Get the individual Terms for construction
+                term1 = self._get_multi_qubit_pairing_value(
+                    pair=(0, 0),
+                    average_logical_state=average_logical_state,
+                ) + target_sgn * self._get_multi_qubit_pairing_value(
+                    pair=(0, 1),
+                    average_logical_state=average_logical_state,
+                )
+                term2 = self._get_multi_qubit_pairing_value(
+                    pair=(1, 0),
+                    average_logical_state=average_logical_state,
+                ) + target_sgn * self._get_multi_qubit_pairing_value(
+                    pair=(1, 1),
+                    average_logical_state=average_logical_state,
+                )
+
+                # Get Exp. Value and add to final Value Dict
+                exp_val = term1 + control_sgn * term2
+                exp_vals_per_basis_comb[basis_combination] = exp_val / 4
 
         return exp_vals_per_basis_comb

@@ -90,7 +90,7 @@ class SurfaceBuilder(BaseClassBuilder):
         self.tick_dict : dict[int, str] = {}
 
         # Setting Up Builder Parameters
-        self.y_sections_required = state_init in {"+i", "-i"} and self.ft_init
+        self.y_sections_required = state_init in {"Y+", "Y-"} and self.ft_init
 
         # Initialize Geometries for standard and y-basis
         self.master_geometry = MasterGeometry(
@@ -179,9 +179,9 @@ class SurfaceBuilder(BaseClassBuilder):
     
     def _curr_type(self):
         # Determine type of circuit
-        if not self.ft_init and self.state_init in {"+i", "-i"}:
+        if not self.ft_init and self.state_init in {"Y+", "Y-"}:
             curr_type = "non_ft_init"
-        elif self.ft_init and self.state_init in {"+i", "-i"}:
+        elif self.ft_init and self.state_init in {"Y+", "Y-"}:
             curr_type = "y_basis"
         else:
             curr_type = "standard"
@@ -191,15 +191,17 @@ class SurfaceBuilder(BaseClassBuilder):
     def _adding_setup_resets(self) -> stim.Circuit:
 
         # Adding Reset Circuit
-        reset_circ = SurfaceReset(
+        reset_builder = SurfaceReset(
             master_geometry=self.master_geometry,
             type=self._curr_type(),
         )
 
+        reset_circ = reset_builder.build_circuit()
+
         # Adding TICK info
         self.tick_dict["reset"] = reset_circ.num_ticks
 
-        return reset_circ.build_circuit()
+        return reset_circ
 
     def _adding_initialization(self) -> stim.Circuit:
         # Updating Measurement Tracker
@@ -208,34 +210,37 @@ class SurfaceBuilder(BaseClassBuilder):
         )
 
         # Init Circuit depending on Y Basis or Standard
-        init_circ = SurfaceInitialization(
+        init_builder = SurfaceInitialization(
             master_geometry=self.master_geometry,
             master_pairings=self.master_pairings,
             type=self._curr_type(),
             tracker=self.tracker,
         )
+
+        init_circ = init_builder.build_circuit()
 
         # Adding TICK info
         self.tick_dict["init"] = init_circ.num_ticks
 
-        return init_circ.build_circuit()
+        return init_circ
 
     def _adding_repetition(self) -> stim.Circuit:
         # Repetition Circuit depending on Y Basis or Standard
-        repet_circ = SurfaceRepetitionCircuit(
+        repet_builder = SurfaceRepetitionCircuit(
             master_geometry=self.master_geometry,
             master_pairings=self.master_pairings,
             type=self._curr_type(),
             tracker=self.tracker,
         )
 
+        # Setting rec_list and getting circ
+        repet_circ = repet_builder.build_circuit()
+        self.rec_list = repet_builder.rec_list()
+
         # Adding TICK info
         self.tick_dict["repetition_per_round"] = repet_circ.num_ticks // ((self.distance * 3) - 1)
 
-        # Setting rec_list
-        self.rec_list = repet_circ.rec_list()
-
-        return repet_circ.build_circuit()
+        return repet_circ
 
     def _adding_y_basis_sections(self) -> stim.Circuit:
         # Y BASIS ONLY: Add Switch/Memory/Rev-Switch Circuits
@@ -333,10 +338,11 @@ class SurfaceBuilder(BaseClassBuilder):
 
         if beginning:
             num_tick = self.tick_dict.get("reset") \
-                        + self.tick_dict.get("init")
+                        + self.tick_dict.get("init")\
+                        + self.tick_dict.get("repetition_per_round") * (self.distance - 1)
         else:
             num_tick = self.tick_dict.get("reset") \
                     + self.tick_dict.get("init") \
-                    + (self.tick_dict.get("repetition_per_round") * ((self.distance * 3) - 2))
+                    + (self.tick_dict.get("repetition_per_round") * ((self.distance * 2) - 1))
             
         return num_tick

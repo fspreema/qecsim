@@ -102,8 +102,6 @@ class FinalMeasureCircuit:
             final_circuit.append("MY", idx_my)
             final_circuit.append("MZ", idx_mz)
 
-            print(idx_mx, idx_my, idx_mz)
-
         return final_circuit
 
     def _apply_observables(self) -> stim.Circuit:
