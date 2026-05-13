@@ -11,7 +11,7 @@ from tqdm import tqdm
 from src.codes.lattice_surgery.builder import SurgeryBuilder
 from src.core.data_models import NoiseParameters, PTMCircuits
 from src.tools.qem_estimator.logical_level.calc_ptm import PTMCalculator
-from src.tools.qem_estimator.logical_level.old.logical_estimator_surgery import LogicalEstimatorSurgery
+from src.tools.qem_estimator.logical_level.logical_estimator import GeneralLogicalEstimator
 
 __all__ = ["GetPTMThreshold"]
 
@@ -237,7 +237,8 @@ class GetPTMThreshold:
         ptm_noisy[0, 0] = 1
 
         # Building Class
-        cls = LogicalEstimatorSurgery(ptm_clean=ptm_ideal, ptm_noisy=ptm_noisy)
+        cls = GeneralLogicalEstimator(ptm_ideal=ptm_ideal, ptm_noisy=ptm_noisy)
+        cls.setup_estimator()
 
         return cls.gamma
 
@@ -261,10 +262,10 @@ if __name__ == "__main__":
         physical_err_probs=ps,
         noise_type="CircuitNoise",
         save_ptm_files=True,
-        output_folder="ptm_matrices",
+        output_folder="ptm_matrices_surgery",
         bias=[0, 0, 0]
     )
-    pd.DataFrame(results_std).to_csv("gamma_standard.csv")
+    pd.DataFrame(results_std).to_csv("gamma_surgery.csv")
 
     """
         # --- Experiment 2: Z-Biased Noise ---

@@ -100,7 +100,7 @@ class StandardLatticePairings(BasePairings):
                 self._assign_orders(
                     self.stab_to_data,
                     pairs,
-                    ["5-CX", "6-CX"],
+                    ["6-CX", "5-CX"],
                 )
 
             elif string == "X-STAB-BOUND-A-A":
@@ -126,7 +126,7 @@ class StandardLatticePairings(BasePairings):
                 self._assign_orders(
                     self.stab_to_data,
                     pairs,
-                    ["5-CX", "6-CX"],
+                    ["6-CX", "5-CX"],
                 )
 
             elif string == "Z-STAB-BOUND-R-T":
@@ -142,7 +142,7 @@ class StandardLatticePairings(BasePairings):
                 self._assign_orders(
                     self.stab_to_data,
                     pairs,
-                    ["5-CX", "6-CX"],
+                    ["6-CX", "5-CX"],
                 )
 
             elif string == "X-STAB-BOUND-B-T":
@@ -158,7 +158,7 @@ class StandardLatticePairings(BasePairings):
                 self._assign_orders(
                     self.stab_to_data,
                     pairs,
-                    ["5-CX", "6-CX"],
+                    ["6-CX", "5-CX"],
                 )
 
             elif string == "Z-STAB-BOUND-R-C":

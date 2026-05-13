@@ -200,9 +200,6 @@ class GetPTMThreshold:
         ptm_ideal[0, 0] = 1
         ptm_noisy[0, 0] = 1
 
-        print(ptm_ideal)
-        print(ptm_noisy)
-
         # Building Class
         cls = GeneralLogicalEstimator(ptm_ideal=ptm_ideal, ptm_noisy=ptm_noisy)
         cls.setup_estimator()
@@ -228,10 +225,10 @@ if __name__ == "__main__":
         physical_err_probs=ps,
         noise_type="CircuitNoise",
         save_ptm_files=True,
-        output_folder="ptm_matrices",
+        output_folder="ptm_matrices_memory",
         bias=[0, 0, 0]
     )
-    pd.DataFrame(results_std).to_csv("gamma_standard.csv")
+    pd.DataFrame(results_std).to_csv("gamma_memory.csv")
 
     """
         # --- Experiment 2: Z-Biased Noise ---

@@ -199,7 +199,7 @@ class SurgeryBuilder(BaseClassBuilder):
         self.init_circuit = init_circuit_builder.build_circuit()
 
         # Adding TICK info
-        self.tick_dict["init_single"] = 10
+        self.tick_dict["init_single"] = 14
         self.tick_dict["init_repeat_per_round"] = (
             (self.init_circuit.num_ticks - self.tick_dict["init_single"]) //
             ((2 * self.distance) - 1)
@@ -218,8 +218,12 @@ class SurgeryBuilder(BaseClassBuilder):
         merge_circuit = merge_circuit_builder.build_circuit()
 
         # Adding TICK info
-        self.tick_dict["merge_init"] = 8
-        self.tick_dict["merge_repeat_per_round"] = (merge_circuit.num_ticks - 8) // (self.distance)
+        if merge_type == "AT":
+            self.tick_dict["merge_full_AT"] = merge_circuit.num_ticks
+
+        else:
+            self.tick_dict["merge_full_AC"] = merge_circuit.num_ticks
+        
 
         return merge_circuit
 
@@ -234,14 +238,14 @@ class SurgeryBuilder(BaseClassBuilder):
         split_circuit = split_circuit_builder.build_circuit()
 
         # Adding TICK info
-        self.tick_dict["split_init"] = 8
+        self.tick_dict["split_init"] = 14
         if split_type == "AC":
-            self.tick_dict["split_repeat_per_round_AC"] = (
-                (split_circuit.num_ticks - 8) // (self.distance - 1)
+            self.tick_dict["split_repeat_AC"] = (
+                (split_circuit.num_ticks - self.tick_dict["split_init"])
             )
         else:
             self.tick_dict["split_repeat_per_round_AT"] = (
-                (split_circuit.num_ticks - 8) // ((self.distance * 2) - 1)
+                (split_circuit.num_ticks - self.tick_dict["split_init"]) // ((self.distance * 2) - 1)
             )
 
         return split_circuit
@@ -310,23 +314,26 @@ class SurgeryBuilder(BaseClassBuilder):
     
         """
         Get the number of ticks until noise should be applied for the first time 
-        (if beginning = True) or the last time (if beginning = False)
+        (if beginning = True) or when it should be applied
+        for the last time (if beginning = False)
         """
 
         if beginning:
             num_tick = self.tick_dict.get("reset") \
                     + self.tick_dict.get("init_single") \
-                    + (self.tick_dict.get("init_repeat_per_round") * (self.distance - 1))
+                    + self.tick_dict.get("init_repeat_per_round") * 1\
+                    + 1 \
             
         else:
             num_tick = self.tick_dict.get("reset") \
                     + self.tick_dict.get("init_single") \
                     + (self.tick_dict.get("init_repeat_per_round") * ((2 * self.distance) - 1))\
-                    + self.tick_dict.get("merge_init") * 2\
-                    + (self.tick_dict.get("merge_repeat_per_round") * self.distance) * 2\
+                    + self.tick_dict.get("merge_full_AT")\
+                    + self.tick_dict.get("merge_full_AC")\
                     + self.tick_dict.get("split_init") * 2\
-                    + (self.tick_dict.get("split_repeat_per_round_AC") * (self.distance - 1))\
-                    + (self.tick_dict.get("split_repeat_per_round_AT") * ((self.distance * 2) - 2))
+                    + self.tick_dict.get("split_repeat_AC")\
+                    + (self.tick_dict.get("split_repeat_per_round_AT") * ((self.distance * 1) - 1))\
+                    - 150 \
 
         return num_tick
                     

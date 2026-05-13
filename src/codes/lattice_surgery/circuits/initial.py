@@ -84,7 +84,6 @@ class SurgeryInitialization:
         )
 
         # Basis Change and Measurement of Ancilla Stabilizers
-        anc_init_circuit.append("TICK")
         anc_init_circuit.append("H", self.geometry.anc_x_stb_idx)
         anc_init_circuit.append("TICK")
         anc_init_circuit.append("M", self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx)
@@ -118,7 +117,6 @@ class SurgeryInitialization:
         )
 
         # Basis Change and Measurement of Control and Target Stabilizers
-        ct_init_circuit.append("TICK")
         ct_init_circuit.append(
             "H",
             self.geometry.control_x_stb_idx + self.geometry.target_x_stb_idx,
