@@ -333,7 +333,7 @@ class SurgeryBuilder(BaseClassBuilder):
                     + self.tick_dict.get("split_init") * 2\
                     + self.tick_dict.get("split_repeat_AC")\
                     + (self.tick_dict.get("split_repeat_per_round_AT") * ((self.distance * 1) - 1))\
-                    - 150 \
+                    # - 150 \
 
         return num_tick
                     

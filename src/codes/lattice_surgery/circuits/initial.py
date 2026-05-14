@@ -49,11 +49,11 @@ class SurgeryInitialization:
             patch_type=patch_type,
         )
 
-        det_record_pairings = self.measurement_tracker.get_records_for_detectors(
+        det_record_pairings, det_coords = self.measurement_tracker.get_records_for_detectors(
             patch_type=patch_type,
         )
-        for curr_pairing in det_record_pairings:
-            detector_circuit.append("DETECTOR", curr_pairing)
+        for curr_pairing, curr_coords in zip(det_record_pairings, det_coords):
+            detector_circuit.append("DETECTOR", curr_pairing, arg=(curr_coords.real, curr_coords.imag, 0))
 
         # Shifting Coords
         detector_circuit.append("SHIFT_COORDS")

@@ -76,11 +76,11 @@ class SurgerySplit:
             tagged_qubits=tagged_qubits,
         )
 
-        det_record_pairings = self.tracker.get_records_for_detectors(
+        det_record_pairings, det_coords = self.tracker.get_records_for_detectors(
             patch_type=patch_type,
         )
-        for curr_pairing in det_record_pairings:
-            detector_circuit.append("DETECTOR", curr_pairing)
+        for curr_pairing, curr_coords in zip(det_record_pairings, det_coords):
+            detector_circuit.append("DETECTOR", curr_pairing, arg=(curr_coords.real, curr_coords.imag, 0))
 
         # Shifting Coords
         detector_circuit.append("SHIFT_COORDS")
@@ -97,11 +97,11 @@ class SurgerySplit:
             measured_qubits=self.geometry.anc_x_stb_idx + self.geometry.anc_z_stb_idx,
             patch_type=f"Ancilla_Split_{self.split_type}",
         )
-        detector_pairings = self.tracker.get_records_for_detectors(
+        detector_pairings, det_coords = self.tracker.get_records_for_detectors(
             patch_type=f"Ancilla_Split_{self.split_type}",
         )
-        for curr_pairing in detector_pairings:
-            detector_circuit.append("DETECTOR", curr_pairing)
+        for curr_pairing, curr_coords in zip(detector_pairings, det_coords):
+            detector_circuit.append("DETECTOR", curr_pairing, arg=(curr_coords.real, curr_coords.imag, 0))
 
         # Adding Shift Coords
         detector_circuit.append("SHIFT_COORDS")
@@ -112,11 +112,11 @@ class SurgerySplit:
             measured_qubits=self.geometry.control_target_all_stab_idx,
             patch_type=f"Control_&_Target_Split_{self.split_type}",
         )
-        detector_pairings = self.tracker.get_records_for_detectors(
+        detector_pairings, det_coords = self.tracker.get_records_for_detectors(
             patch_type=f"Control_&_Target_Split_{self.split_type}",
         )
-        for curr_pairing in detector_pairings:
-            detector_circuit.append("DETECTOR", curr_pairing)
+        for curr_pairing, curr_coords in zip(detector_pairings, det_coords):
+            detector_circuit.append("DETECTOR", curr_pairing, arg=(curr_coords.real, curr_coords.imag, 0))
 
         # Adding Shift Coords
         detector_circuit.append("SHIFT_COORDS")

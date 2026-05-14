@@ -201,7 +201,7 @@ class MeasurementTracker:
     def get_records_for_detectors(
         self,
         patch_type: str,
-    ) -> list[list[stim.GateTarget]]:
+    ) -> tuple[list[list[stim.GateTarget]], list[complex]]:
         """
         *Return:
             Returns List of Lists with measurements of the same qubit index on different
@@ -242,7 +242,7 @@ class MeasurementTracker:
             "Control_&_Target",
             "STD_PATCH",
         }:
-            records = self._get_regular_records(patch_type)
+            records, qbt_coords = self._get_regular_records(patch_type)
 
         #######################
         # SPLITTING DETECTORS #
@@ -254,7 +254,7 @@ class MeasurementTracker:
             "Control_&_Target_Split_AC",
             "Control_&_Target_Split_AT",
         }:
-            records = self._get_splitting_records(patch_type)
+            records, qbt_coords = self._get_splitting_records(patch_type)
 
         #####################
         # MERGING DETECTORS #
@@ -264,32 +264,34 @@ class MeasurementTracker:
             "Merge_AC_untouched",
             "Merge_AT_untouched",
         }:
-            records = self._get_untouched_merging_records(patch_type)
+            records, qbt_coords = self._get_untouched_merging_records(patch_type)
 
         elif patch_type in {
             "Merge_AC",
             "Merge_AT",
         }:
-            records = self._get_merging_records(patch_type)
+            records, qbt_coords = self._get_merging_records(patch_type)
 
         elif patch_type in {
             "Final_Measurement_Anc",
             "Final_Measurement_C",
             "Final_Measurement_T",
         }:
-            records = self._get_final_measurement_records(patch_type)
+            records, qbt_coords = self._get_final_measurement_records(patch_type)
 
         elif patch_type == "None":
             records = []
+            qbt_coords = []
 
         else:
             raise ValueError(f"Unknown patch type encountered: {patch_type}")
 
-        return records
+        return records, qbt_coords
 
-    def _get_regular_records(self, patch_type: str) -> list[list[stim.GateTarget]]:
+    def _get_regular_records(self, patch_type: str) -> tuple[list[list[stim.GateTarget]], list[complex]]:
         # Initialize empty records list
         records: list[list[stim.GateTarget]] = []
+        qbt_coords: list[complex] = []
 
         for qubit, curr_abs_idx in self.detector_dict[patch_type]:
             # Find all entries in the full history dict for the same qubit index
@@ -303,6 +305,7 @@ class MeasurementTracker:
             # If there is only one entry in the full history dict, add the current rec just once
             if len(full_history_entries) == 1:
                 records.append([stim.target_rec(current_rel_idx)])
+                qbt_coords.append(self.geometry.i2q[qubit])
             # If there are two entries, add both to the records list
             elif len(full_history_entries) == 2:
                 # Calculate the Relative Index for the previous measurement (for stim)
@@ -310,16 +313,18 @@ class MeasurementTracker:
                 records.append(
                     [stim.target_rec(current_rel_idx), stim.target_rec(previous_rel_idx)],
                 )
+                qbt_coords.append(self.geometry.i2q[qubit])
             else:
                 raise ValueError(
                     f"Unexpected number of entries for qubit {qubit} in full measurement history.",
                 )
 
-        return records
+        return records, qbt_coords
 
-    def _get_untouched_merging_records(self, patch_type: str) -> list[list[stim.GateTarget]]:
+    def _get_untouched_merging_records(self, patch_type: str) -> tuple[list[list[stim.GateTarget]], list[complex]]:
         # Initialize empty records list
         records: list[list[stim.GateTarget]] = []
+        qbt_coords: list[complex] = []
 
         # Determine the previous patch type based on the current untouched merging patch type
         if patch_type == "Merge_AC_untouched":
@@ -342,6 +347,7 @@ class MeasurementTracker:
                 records.append(
                     [stim.target_rec(current_rel_idx), stim.target_rec(previous_rel_idx)],
                 )
+                qbt_coords.append(self.geometry.i2q[qubit])
 
             # If only 1 entry in full history, this is the first time - check special cases
             elif len(full_history_entries) == 1:
@@ -356,15 +362,17 @@ class MeasurementTracker:
                                 stim.target_rec(previous_rel_idx_ct),
                             ],
                         )
+                        qbt_coords.append(self.geometry.i2q[qubit])
 
                         # Found the latest measurement entry
                         break
 
-        return records
+        return records, qbt_coords
 
-    def _get_merging_records(self, patch_type: str) -> list[list[stim.GateTarget]]:
+    def _get_merging_records(self, patch_type: str) -> tuple[list[list[stim.GateTarget]], list[complex]]:
         # Initialize empty records list
         records: list[list[stim.GateTarget]] = []
+        qbt_coords: list[complex] = []
 
         # Determine the previous patch type based on the current merging patch type
         if patch_type == "Merge_AC":
@@ -395,6 +403,7 @@ class MeasurementTracker:
                 records.append(
                     [stim.target_rec(current_rel_idx), stim.target_rec(previous_rel_idx)],
                 )
+                qbt_coords.append(self.geometry.i2q[qubit])
 
             # If only 1 entry in full history, this is the first time - check special cases
             elif len(full_history_entries) == 1:
@@ -414,6 +423,7 @@ class MeasurementTracker:
                                 stim.target_rec(previous_rel_idx_anc),
                             ],
                         )
+                        qbt_coords.append(self.geometry.i2q[qubit])
 
                         # Found the latest measurement entry
                         partner_found = True
@@ -441,6 +451,8 @@ class MeasurementTracker:
                                     stim.target_rec(previous_rel_idx_ct),
                                 ],
                             )
+                            qbt_coords.append(self.geometry.i2q[qubit])
+
                             # Found the latest measurement entry
                             break
 
@@ -457,6 +469,8 @@ class MeasurementTracker:
                                     stim.target_rec(stored_rel_married_idx),
                                 ],
                             )
+                            qbt_coords.append(self.geometry.i2q[qubit])
+
                             # Found the latest measurement entry
                             break
 
@@ -465,11 +479,12 @@ class MeasurementTracker:
                     f"Unexpected number of entries for qubit {qubit} in detector dict.",
                 )
 
-        return records
+        return records, qbt_coords
 
-    def _get_splitting_records(self, patch_type: str) -> list[list[stim.GateTarget]]:
+    def _get_splitting_records(self, patch_type: str) -> tuple[list[list[stim.GateTarget]], list[complex]]:
         # Initialize empty records list and boolean
         records: list[list[stim.GateTarget]] = []
+        qbt_coords: list[complex] = []
 
         # Define seperated stab indices
         all_seperated_stab_indices = (
@@ -481,11 +496,13 @@ class MeasurementTracker:
             previous_patch_type_untouched = "Merge_AC_untouched"
             previous_patch_type_merged = "Merge_AC"
             specific_seperated_stab_indices = self.geometry.anc_x_bdy_b_stb_idx
+            specific_untouched_stab_indices = self.geometry.anc_z_bdy_r_stb_idx
 
         elif patch_type in {"Ancilla_Split_AT", "Control_&_Target_Split_AT"}:
             previous_patch_type_untouched = "Merge_AT_untouched"
             previous_patch_type_merged = "Merge_AT"
             specific_seperated_stab_indices = self.geometry.anc_z_bdy_r_stb_idx
+            specific_untouched_stab_indices = self.geometry.anc_x_bdy_b_stb_idx
 
         for qubit, curr_abs_idx in self.detector_dict[patch_type]:
             # Initialize boolean to track if a partner record has been found
@@ -506,10 +523,45 @@ class MeasurementTracker:
                 records.append(
                     [stim.target_rec(current_rel_idx), stim.target_rec(previous_rel_idx)],
                 )
+                qbt_coords.append(self.geometry.i2q[qubit])
 
             # If only one record exists, find older measurements inside Merge Dict
             # and add to records list
             elif len(full_history_entries) == 1:
+
+                # Check manually for the individual non merged boudnary stabs
+                if qubit in specific_untouched_stab_indices and patch_type in {"Ancilla_Split_AC", "Ancilla_Split_AT"}:
+                    # Look in the merge dict 
+                    for qubit_merge, abs_idx_merge in self.detector_dict[previous_patch_type_merged]:
+                        if qubit_merge == qubit:
+                            previous_rel_idx_merge = abs_idx_merge - self.total_measurements
+                            records.append(
+                                [
+                                    stim.target_rec(current_rel_idx),
+                                    stim.target_rec(previous_rel_idx_merge),
+                                ],
+                            )
+                            qbt_coords.append(self.geometry.i2q[qubit])
+
+                            partner_found = True
+                            break
+                
+                if qubit in specific_untouched_stab_indices and patch_type in {"Control_&_Target_Split_AC", "Control_&_Target_Split_AT"}:
+                    # Look in the seperated Dict
+                    for qubit_merge, abs_idx_merge in self.detector_dict[previous_patch_type_untouched]:
+                        if qubit_merge == qubit:
+                            previous_rel_idx_merge = abs_idx_merge - self.total_measurements
+                            records.append(
+                                [
+                                    stim.target_rec(current_rel_idx),
+                                    stim.target_rec(previous_rel_idx_merge),
+                                ],
+                            )
+                            qbt_coords.append(self.geometry.i2q[qubit])
+
+                            partner_found = True
+                            break
+
                 # Look for regular stabilizers in both Merge Dicts (merged and untouched)
                 # and add to the combined dict
                 for qubit_merge, abs_idx_merge in self.detector_dict[previous_patch_type_untouched]:
@@ -521,6 +573,8 @@ class MeasurementTracker:
                                 stim.target_rec(previous_rel_idx_merge),
                             ],
                         )
+                        qbt_coords.append(self.geometry.i2q[qubit])
+
                         partner_found = True
                         break
 
@@ -537,6 +591,7 @@ class MeasurementTracker:
                                     stim.target_rec(previous_rel_idx_merge),
                                 ],
                             )
+                            qbt_coords.append(self.geometry.i2q[qubit])
                             break
 
                 # Look for divorced stabilizers in the Merge Dict and add to the combined dict
@@ -561,6 +616,7 @@ class MeasurementTracker:
                                     stim.target_rec(stored_list[0] - self.total_measurements),
                                 ],
                             )
+                            qbt_coords.append(self.geometry.i2q[qubit])
                             # After finding both records for the divorced stabilizer, we can
                             # remove the entry from the storage dict
                             self.storage_for_split_matching.pop(qubit)
@@ -575,9 +631,9 @@ class MeasurementTracker:
                     f"Unexpected number of entries for qubit {qubit} in full measurement history.",
                 )
 
-        return records
+        return records, qbt_coords
 
-    def _get_final_measurement_records(self, patch_type: str) -> list[list[stim.GateTarget]]:
+    def _get_final_measurement_records(self, patch_type: str) -> tuple[list[list[stim.GateTarget]], list[complex]]:
         """
         Helper Function to create Target Recod Pairs for Detectors out of the final Measuerement
         created by data measruements and the last measurement of real ancillary qubits
@@ -588,6 +644,7 @@ class MeasurementTracker:
 
         # Initialize empty records list
         records: list[list[stim.GateTarget]] = []
+        qbt_coords: list[complex] = []
 
         # Create dict stab_idx to data_idx
         if patch_type == "Final_Measurement_Anc":
@@ -636,7 +693,7 @@ class MeasurementTracker:
                 stim.target_rec(curr_abs_idx - self.total_measurements)
                 for curr_abs_idx in stored_list_of_abs_idx
             ]
-
             records.append(curr_record_list)
+            qbt_coords.append(self.geometry.i2q[qubit])
 
-        return records
+        return records, qbt_coords
