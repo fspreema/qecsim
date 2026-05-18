@@ -8,9 +8,10 @@ from src.tools.qem_estimator.logical_level.calc_ptm import PTMCalculator
 
 PAULI_STRING_TO_INDEX_CASES = [
     # Single Pauli case
-    ("X", 0),
-    ("Y", 1),
-    ("Z", 2),
+    ("I", 0),
+    ("X", 1),
+    ("Y", 2),
+    ("Z", 3),
     # Two-Pauli case
     ("II", 0),
     ("IX", 1),
@@ -35,18 +36,30 @@ def test_map_pauli_string_to_indices(pauli_str: str, expected_index: int) -> Non
     map_pauli_string_to_index = PTMCalculator._map_pauli_string_to_indices
     assert map_pauli_string_to_index(pauli_str) == expected_index
 
-SGN_CASES = {
+SGN_CASES_TWO_QUBIT = {
     "XI->XI": {"control": -1, "target": 1},
     "IX->IX": {"control": 1, "target": -1},
     "XI->XX": {"control": -1, "target": 1},
     "IX->ZX": {"control": 1, "target": -1},
 }
 
-@pytest.mark.parametrize(("curr_flow", "expected_sgn"), SGN_CASES.items())
-def test_get_sgn(curr_flow: str, expected_sgn: dict[str, int]):
-    sgn = PTMCalculator._get_sgn(curr_basis_combination= curr_flow)
+@pytest.mark.parametrize(("curr_flow", "expected_sgn"), SGN_CASES_TWO_QUBIT.items())
+def test_get_sgn_two_qubit(curr_flow: str, expected_sgn: dict[str, int]) -> None:
+    sgn = PTMCalculator._get_sgn_two_qubit(curr_basis_combination= curr_flow)
     assert sgn == expected_sgn
 
+SGN_CASES_ONE_QUBIT = {
+    "I->X": 1,
+    "X->X": -1,
+    "Y->Z": -1,
+    "Z->Z": -1,
+    "I->Y": 1
+}
+
+@pytest.mark.parametrize(("curr_flow", "expected_sgn"), SGN_CASES_ONE_QUBIT.items())
+def test_get_sgn_one_qubit(curr_flow: str, expected_sgn: dict[str, int]) -> None:
+    sgn = PTMCalculator._get_sgn_one_qubit(curr_basis_combination= curr_flow)
+    assert sgn == expected_sgn
 
 LABEL_CASES = {
     "X+,Z0": ("X+", "Z0"),
@@ -55,26 +68,25 @@ LABEL_CASES = {
 }
 
 @pytest.mark.parametrize(("joint_label", "split_label"), LABEL_CASES.items())
-def test_split_label(joint_label: str, split_label: tuple[str, str]):
+def test_split_label(joint_label: str, split_label: tuple[str, str]) -> None:
     label_splitted = PTMCalculator._split_label(init_state_label= joint_label)
     assert label_splitted == split_label
 
-def test_get_entires_for_surgery():
-    """
-    Test if the get entries for surgery is working as expted
-    -> Using flows which should have expectation value of 1
-    -> Test Flow IX -> IX
-    """
-
-    # Create Circuits for testing
-    SurgeryBuilder(
-        distance=3,
-        control_state_init="Z0",
-        target_state_init="X+",
-        control_measure_basis="Z",
-        target_measure_basis="X",
+XOR_TEST_CASES = [
+    # (decoder_prediction, logical_state_meas, expected)
+    (
+        np.array([[False], [False], [False]]), 
+        np.array([0, 1, 0]), 
+        np.array([1, -1, 1])
+    ),
+    (
+        np.array([[False], [True], [False]]), 
+        np.array([0, 1, 0]), 
+        np.array([1, 1, 1])
     )
+]
 
-    # Adding all Circuit to the Dict
-
-    pass
+@pytest.mark.parametrize(("decoder_prediction", "logical_state_meas", "expected"), XOR_TEST_CASES)
+def test_xor_meas_and_decoder_no_flip(decoder_prediction, logical_state_meas, expected) -> None:
+    result = PTMCalculator._xor_meas_and_decoder(decoder_prediction, logical_state_meas)
+    np.testing.assert_array_equal(result, expected)

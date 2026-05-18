@@ -26,7 +26,6 @@ email = "f.spreemann@fz-juelich.de"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["qecsim*"]
 
 [tool.ruff]
 line-length = 100

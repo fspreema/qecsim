@@ -8,7 +8,7 @@ import stim
 import os
 from tqdm import tqdm
 
-from src.codes.lattice_surgery.builder import SurgeryBuilder
+from src.codes.surface_code_rotated.builder import SurfaceBuilder
 from src.core.data_models import NoiseParameters, PTMCircuits
 from src.tools.qem_estimator.logical_level.calc_ptm import PTMCalculator
 from src.tools.qem_estimator.logical_level.logical_estimator import GeneralLogicalEstimator
@@ -18,32 +18,12 @@ __all__ = ["GetPTMThreshold"]
 # Pauli alphabet for input and output states
 PAULIS = ["I", "X", "Y", "Z"]
 
-NON_ZERO_FLOWS = {
-    ("I", "I", "I", "I"),
-    ("X", "X", "X", "I"),
-    ("I", "X", "I", "X"),
-    ("X", "I", "X", "X"),
-    ("Z", "I", "Z", "I"),
-    ("Z", "Z", "I", "Z"),
-    ("I", "Z", "Z", "Z"),
-    ("Z", "X", "Z", "X"),
-    ("X", "Y", "Y", "Z"),
-    ("Y", "I", "Y", "X"),
-    ("Y", "X", "Y", "I"),
-    ("X", "Z", "Y", "Y"),
-    ("Z", "Y", "I", "Y"),
-    ("Y", "Z", "X", "Y"),
-    ("Y", "Y", "X", "Z"),
-    ("I", "Y", "Z", "Y"),
-}
-
-DIAGONAL_FLOWS = {
-    (p1, p2, p1, p2) for p1 in ["I", "X", "Y", "Z"] for p2 in ["I", "X", "Y", "Z"]
-}
+# Non Zeor and Diagonal Flows
+DIAG_NON_ZERO = {(p, p) for p in ["X", "Y", "Z"]}
 
 class GetPTMThreshold:
 
-    def __init__(self, samples: int, sparse_ideal_ptm: bool, sparse_noisy_ptm: bool):
+    def __init__(self, samples: int, only_diag: bool):
         """
         This file executes the simulation for the creation of the threshold diagram
         including the overhead factor gamma of the porbabilistic error cancellation technique
@@ -58,8 +38,7 @@ class GetPTMThreshold:
         """
 
         self.samples = samples
-        self.sparse_ideal_ptm = sparse_ideal_ptm
-        self.sparse_noisy_ptm = sparse_noisy_ptm
+        self.only_diag = only_diag
 
     def run_simulation(self,
                        distances: list[int],
@@ -84,7 +63,7 @@ class GetPTMThreshold:
                                         physical_err_probs=0.0, 
                                         noise_type = noise_type, 
                                         bias = bias,
-                                        sparse_ideal=self.sparse_ideal_ptm,)
+                                        )
 
             
             if save_ptm_files:
@@ -98,7 +77,6 @@ class GetPTMThreshold:
                 distance=d, 
                 noise_type=noise_type, 
                 bias=bias, 
-                sparse_noisy=self.sparse_noisy_ptm
             )
 
             # Implementing parralel execution
@@ -126,8 +104,7 @@ class GetPTMThreshold:
                    distance: int,
                    noise_type: str, 
                    bias: list[float],
-                   sparse_ideal: bool = False,
-                   sparse_noisy: bool = False) -> np.ndarray:
+                   ) -> np.ndarray:
 
         # Input checks
         assert noise_type in ["CircuitNoise", "BiasNoise"], "Invalid noise type. Supported types are 'CircuitNoise' and 'BiasNoise'."
@@ -164,68 +141,55 @@ class GetPTMThreshold:
             "I": ["I0", "I1"],
         }
 
-        circuits_surgery: dict[str, tuple[dict[str, stim.Circuit], list[int]]] = {}
+        circuits_memory: dict[str, tuple[dict[str, stim.Circuit], list[int]]] = {}
 
-        if sparse_ideal:
-            total_combinations = NON_ZERO_FLOWS
-        elif sparse_noisy:
-            total_combinations = NON_ZERO_FLOWS | DIAGONAL_FLOWS
+        if self.only_diag:
+            total_combinations = DIAG_NON_ZERO
         else:
-            # We combine the products so the progress bar tracks all 256 combinations
-            total_combinations = list(product(PAULIS, PAULIS, PAULIS, PAULIS))
+            # We combine the products so the progress bar tracks all 16 combinations
+            total_combinations = list(product(PAULIS, PAULIS))
 
-        for p_out_c, p_out_t, p_in_c, p_in_t in total_combinations:
-
-            # Initialize current measurement records and Circuit list
-            curr_meas_rec: list[int] = []
-            all_circuits: list[stim.Circuit] = []
+        for p_out, p_in in total_combinations:
 
             # Creating Label
-            label_basis = f"{p_in_c}{p_in_t}->{p_out_c}{p_out_t}"
+            label_basis = f"{p_in}->{p_out}"
 
-            # As the II->II flow has no observable, no flip prediction
-            # by the decoder can be made!
-            if label_basis == "II->II":
+            # As all ...->I flows have no observable, sampling is not possible
+            if p_out == "I":
                 continue
 
             # Creating inner dict
             inner_dict: dict[str, stim.Circuit] = {}
 
             # Inner loop for the 4 initial states
-            for init_state_c, init_state_t in product(input_to_init_state[p_in_c], input_to_init_state[p_in_t]):
-                # Creating state Label
-                state_label = f"{init_state_c},{init_state_t}"
+            for init_state in input_to_init_state[p_in]:
 
-                builder = SurgeryBuilder(
-                    distance= distance,
-                    control_state_init=init_state_c,
-                    target_state_init=init_state_t,
-                    control_measure_basis=p_out_c,
-                    target_measure_basis=p_out_t,
-                    noise=noise_class,
-                )
+                builder = SurfaceBuilder(distance=distance, 
+                                         state_init= init_state, 
+                                         log_obs= p_out, 
+                                         noise=noise_class)
 
                 circuit = builder.build_circuit()
-                all_circuits.append(circuit)
 
                 # It doesnt matter which records we get as the logical observable stays the same
                 # in this loop
                 curr_meas_rec = builder.get_logical_meas_rec(observable_index=0)
 
                 # Adding the circuit to the inner dict
-                inner_dict[state_label] = circuit
+                inner_dict[init_state] = circuit
 
             # Adding to your existing dict
-            circuits_surgery[label_basis] = (inner_dict, curr_meas_rec)
+            circuits_memory[label_basis] = (inner_dict, curr_meas_rec)
 
         ############################
         # Calculate the PTM-Matrix #
         ############################
 
-        ptm_calculator = PTMCalculator(PTMCircuits(circuits=circuits_surgery), 
+        ptm_calculator = PTMCalculator(PTMCircuits(circuits=circuits_memory), 
                                        samples= self.samples, 
                                        pauli_channel_2_used= (noise_type == "BiasNoise"))
-        ptm_mtx = ptm_calculator.calc_ptm(sparse_ideal_ptm=sparse_ideal, sparse_noisy_ptm=sparse_noisy)
+        # Doesnt matter as reuqirements for bot are the same
+        ptm_mtx = ptm_calculator.calc_ptm(sparse_ideal_ptm= False, sparse_noisy_ptm= True)
 
         return ptm_mtx
 
@@ -242,7 +206,6 @@ class GetPTMThreshold:
 
         return cls.gamma
 
-
 # Run Simulation
 if __name__ == "__main__":
     # Settings
@@ -253,7 +216,7 @@ if __name__ == "__main__":
     ])
     
     # Executing Simulation
-    sim = GetPTMThreshold(samples=10_000, sparse_ideal_ptm=True, sparse_noisy_ptm=True)
+    sim = GetPTMThreshold(samples=10_000, only_diag=True)
     
 
     # --- Experiment 1: Standard Depolarizing ---
@@ -262,10 +225,10 @@ if __name__ == "__main__":
         physical_err_probs=ps,
         noise_type="CircuitNoise",
         save_ptm_files=True,
-        output_folder="ptm_matrices_surgery",
+        output_folder="thesis/data/ptm_matrices_memory",
         bias=[0, 0, 0]
     )
-    pd.DataFrame(results_std).to_csv("gamma_surgery.csv")
+    pd.DataFrame(results_std).to_csv("thesis/data/gamma_memory.csv")
 
     """
         # --- Experiment 2: Z-Biased Noise ---

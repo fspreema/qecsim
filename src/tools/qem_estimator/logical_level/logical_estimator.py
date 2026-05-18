@@ -133,7 +133,7 @@ class GeneralLogicalEstimator:
         """
         This helper method returns the basis gates for the given measurement basis.
 
-        -> For 1 qubit: I, X, Y, Z & Clifford gates
+        -> For 1 qubit: I, X, Y, Z
         -> For 2 qubit: tensor products of the above gates
         -> For n qubits: tensor products of the above gates
         """

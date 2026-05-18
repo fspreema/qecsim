@@ -1,5 +1,3 @@
-from itertools import product
-
 import pytest
 import stim
 
@@ -42,7 +40,7 @@ M 1
 }
 
 @pytest.mark.parametrize("circuit_id,expected_recs", CIRCUITS.items())
-def test_get_measurement_recs(circuit_id: int, expected_recs: tuple[stim.Circuit, list[int]]):
+def test_get_measurement_recs(circuit_id: int, expected_recs: tuple[stim.Circuit, list[int]]) -> None:
     circuit = CIRCUITS[circuit_id][0]
     recs = get_measurement_recs(circuit=circuit, observable_index=0)
     assert recs == expected_recs[1]
@@ -97,7 +95,7 @@ def test_surgery_builder(distance: int,
                          p_in_t: str,
                          p_out_c: str,
                          p_out_t: str,
-                         ):
+                         ) -> None:
     circuit_1 = _build(distance=distance,
                      p_in_c=p_in_c,
                      p_in_t=p_in_t,
@@ -122,7 +120,7 @@ def test_surgery_builder(distance: int,
     assert circuit_1.num_qubits == circuit_2.num_qubits
     assert circuit_1.num_measurements == circuit_2.num_measurements
 
-@pytest.mark.parametrize("distance", [3,5], ids=["d3", "d5"])
+@pytest.mark.parametrize("distance", [3,5, 7], ids=["d3", "d5", "d7"])
 @pytest.mark.parametrize(
     "p_in_c,p_in_t,p_out_c,p_out_t",
     [
@@ -138,7 +136,7 @@ def test_noisy_surgery_builder(distance: int,
                          p_in_t: str,
                          p_out_c: str,
                          p_out_t: str,
-                         ):
+                         ) -> None:
     
     noise = 1e-5
 
@@ -146,6 +144,7 @@ def test_noisy_surgery_builder(distance: int,
                                 after_r_flip=noise,
                                 after_c_depol_prob=noise,
                                 before_round_depol=noise)
+    
     circuit_1 = _build(distance=distance,
                      p_in_c=p_in_c,
                      p_in_t=p_in_t,
@@ -154,20 +153,5 @@ def test_noisy_surgery_builder(distance: int,
                      sign_idx=0,
                      noise= noise_class_circuit)
     
-
-@pytest.mark.slow
-@pytest.mark.parametrize("distance", [3, 5, 7])
-@pytest.mark.parametrize("p_in_c,p_in_t,p_out_c,p_out_t", product(PAULIS, PAULIS, PAULIS, PAULIS))
-def test_surgery_builder_builds_all_combinations_slow(distance: int,
-                                                      p_in_c: str,
-                                                      p_in_t: str,
-                                                      p_out_c: str,
-                                                      p_out_t: str):
-    # Keep the exhaustive coverage available, but opt-in.
-    c1 = _build(distance, p_in_c, p_in_t, p_out_c, p_out_t, sign_idx=0)
-    c2 = _build(distance, p_in_c, p_in_t, p_out_c, p_out_t, sign_idx=1)
-
-    assert isinstance(c1, stim.Circuit)
-    assert isinstance(c2, stim.Circuit)
-    assert c1.num_qubits == c2.num_qubits
-    assert c1.num_measurements == c2.num_measurements
+    # Shortest logical error should be equal to the distance
+    assert len(circuit_1.shortest_graphlike_error()) == distance

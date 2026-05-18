@@ -20,7 +20,7 @@ __all__ = ["XZZXBuilder"]
 
 
 class XZZXBuilder(BaseClassBuilder):
-    def __init__(self, distance: int, state_init: str, noise: NoiseParameters = None):
+    def __init__(self, distance: int, state_init: str, noise: NoiseParameters | None = None):
         self.geometry = XZZXGeometry(
             distance=distance,
             state_init=state_init,
@@ -36,7 +36,6 @@ class XZZXBuilder(BaseClassBuilder):
         reset_circ = ResetCircuit(
             self.geometry,
             self.pairings,
-            self.noise,
         )
         self.full_circuit += reset_circ.build_reset_circuit()
 
@@ -64,4 +63,6 @@ class XZZXBuilder(BaseClassBuilder):
         return self.apply_noise(input_circuit=self.full_circuit, 
                                 noise=self.noise, 
                                 geometry=self.geometry, 
-                                distance=self.geometry.distance)
+                                distance=self.geometry.distance,
+                                num_tick_first_noise=0,
+                                num_tick_last_noise=self.full_circuit.num_ticks)

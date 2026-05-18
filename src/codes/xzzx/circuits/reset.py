@@ -13,11 +13,9 @@ class ResetCircuit:
         self,
         geometry: XZZXGeometry,
         stab_pairings: XZZXPairings,
-        noise: NoiseParameters,
     ):
         self.geometry = geometry
         self.stab_pairings = stab_pairings
-        self.noise = noise
 
     def build_reset_circuit(self) -> stim.Circuit:
         # Initialize Empty Circuit
@@ -25,9 +23,6 @@ class ResetCircuit:
 
         # Apply Reset Operations
         self.reset_circ = self._apply_reset()
-
-        # Apply Pre-Round Noise
-        self.reset_circ = self._apply_pre_round_noise()
 
         return self.reset_circ
 
@@ -70,26 +65,5 @@ class ResetCircuit:
 
         for gate, qubits in init_patterns[self.geometry.state_init]:
             self.reset_circ.append(gate, qubits)
-
-        return self.reset_circ
-
-    def _apply_pre_round_noise(self):
-        # -------Adding Before Round Data Depol.------------
-        if self.noise.before_round_depol > 0:
-            self.reset_circ.append(
-                "DEPOLARIZE1",
-                self.geometry.data_idx,
-                self.noise.before_round_depol,
-            )
-        # --------------------------------------------------
-
-        # -------Adding Before Round Data Depol.------------
-        if np.any(self.noise.before_round_p_xyz):
-            self.reset_circ.append(
-                "PAULI_CHANNEL_1",
-                self.geometry.data_idx,
-                self.noise.before_round_p_xyz,
-            )
-        # --------------------------------------------------
 
         return self.reset_circ
