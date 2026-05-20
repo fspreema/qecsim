@@ -120,7 +120,7 @@ def test_surgery_builder(distance: int,
     assert circuit_1.num_qubits == circuit_2.num_qubits
     assert circuit_1.num_measurements == circuit_2.num_measurements
 
-@pytest.mark.parametrize("distance", [3,5, 7], ids=["d3", "d5", "d7"])
+@pytest.mark.parametrize("distance", [3, 5, 7], ids=["d3", "d5", "d7"])
 @pytest.mark.parametrize(
     "p_in_c,p_in_t,p_out_c,p_out_t",
     [
@@ -140,10 +140,7 @@ def test_noisy_surgery_builder(distance: int,
     
     noise = 1e-5
 
-    noise_class_circuit = NoiseParameters(before_m_flip_prob=noise,
-                                after_r_flip=noise,
-                                after_c_depol_prob=noise,
-                                before_round_depol=noise)
+    noise_class_circuit = NoiseParameters(circuit_noise_prob= noise)
     
     circuit_1 = _build(distance=distance,
                      p_in_c=p_in_c,

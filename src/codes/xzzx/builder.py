@@ -62,7 +62,6 @@ class XZZXBuilder(BaseClassBuilder):
         # 5) Applying Noise Model
         return self.apply_noise(input_circuit=self.full_circuit, 
                                 noise=self.noise, 
-                                geometry=self.geometry, 
-                                distance=self.geometry.distance,
+                                geometry=self.geometry,
                                 num_tick_first_noise=0,
                                 num_tick_last_noise=self.full_circuit.num_ticks)

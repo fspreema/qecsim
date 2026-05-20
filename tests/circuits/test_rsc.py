@@ -81,12 +81,7 @@ def test_surface_builder_invariants(distance, basis, log_obs) -> None:
 )
 def test_noisy_surface_builder(distance: int, state_init: str, log_obs: str) -> None:
     noise = 1e-5
-    noise_params = NoiseParameters(
-        before_m_flip_prob=noise,
-        after_r_flip=noise,
-        after_c_depol_prob=noise,
-        before_round_depol=noise,
-    )
+    noise_params = NoiseParameters(circuit_noise_prob= noise)
 
     circuit = _build(
         distance=distance,

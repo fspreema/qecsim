@@ -23,11 +23,8 @@ class NoiseParameters:
     before_round_p_xyz: list | None = field(default=None)
 
     # For regular circuit Noise Model
-    before_round_depol: float = 0.0
-    before_m_flip_prob: float = 0.0
-    after_r_flip: float = 0.0
-    after_c_depol_prob: float = 0.0
-    after_c_pauli_channel_prob: float = 0.0
+    circuit_noise_prob: float = 0.0
+    phenomenological_noise_prob: float = 0.0
     noise_bias: list[float] | None = field(default=None)
 
 

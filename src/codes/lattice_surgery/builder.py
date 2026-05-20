@@ -64,6 +64,7 @@ class SurgeryBuilder(BaseClassBuilder):
         self.target_measure_basis = target_measure_basis
         self.noise = noise
         self.return_circuit = stim.Circuit()
+        self.custom_rounds: dict[int, str] = {}
 
         # Setting Up tick information for noise model construction
         # Used for construction of the noise model
@@ -153,7 +154,6 @@ class SurgeryBuilder(BaseClassBuilder):
         # Adding Noise Model if applicable
         self.return_circuit = self.apply_noise(
             input_circuit=self.return_circuit,
-            distance=self.distance,
             geometry=self.geometry,
             noise=self.noise,
             ft_init=FT_INIT,
@@ -202,7 +202,7 @@ class SurgeryBuilder(BaseClassBuilder):
         self.tick_dict["init_single"] = 14
         self.tick_dict["init_repeat_per_round"] = (
             (self.init_circuit.num_ticks - self.tick_dict["init_single"]) //
-            ((2 * self.distance) - 1)
+            (self.distance + 1)
         )
 
         return self.init_circuit
@@ -245,7 +245,7 @@ class SurgeryBuilder(BaseClassBuilder):
             )
         else:
             self.tick_dict["split_repeat_per_round_AT"] = (
-                (split_circuit.num_ticks - self.tick_dict["split_init"]) // ((self.distance * 2) - 1)
+                (split_circuit.num_ticks - self.tick_dict["split_init"]) // (self.distance)
             )
 
         return split_circuit
@@ -319,21 +319,23 @@ class SurgeryBuilder(BaseClassBuilder):
         """
 
         if beginning:
+            # First noise after the nosieless round of intilization!
             num_tick = self.tick_dict.get("reset") \
                     + self.tick_dict.get("init_single") \
-                    + self.tick_dict.get("init_repeat_per_round") * 1\
-                    + 1 \
+                    + self.tick_dict.get("init_repeat_per_round") * 1 \
+                    - 5
             
         else:
+            # Last noise before the orund where the non-ft measurements are taken!
             num_tick = self.tick_dict.get("reset") \
                     + self.tick_dict.get("init_single") \
-                    + (self.tick_dict.get("init_repeat_per_round") * ((2 * self.distance) - 1))\
+                    + (self.tick_dict.get("init_repeat_per_round") * (self.distance + 1))\
                     + self.tick_dict.get("merge_full_AT")\
                     + self.tick_dict.get("merge_full_AC")\
                     + self.tick_dict.get("split_init") * 2\
                     + self.tick_dict.get("split_repeat_AC")\
-                    + (self.tick_dict.get("split_repeat_per_round_AT") * ((self.distance * 1) - 1))\
-                    # - 150 \
+                    + (self.tick_dict.get("split_repeat_per_round_AT") * (self.distance - 1))\
+                    - 2
 
         return num_tick
                     

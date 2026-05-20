@@ -142,9 +142,10 @@ class SurgeryInitialization:
     def _adding_repeat_block(self) -> stim.Circuit:
         rep_init_circuit = stim.Circuit()
 
-        # We need to do 2d rounds of inital as d rounds are needed to ensure FT with non-FT
-        # init. To still have d noisy rounds we do 2*d rounds in total...
-        for curr_round in range((2 * self.geometry.distance) - 1):
+        # Here non-ft init needs to be noiseless
+        # -> 2 rounds noiseless before the normal d rounds
+        # -> d + 1 repet rounds + 1 init round
+        for curr_round in range(self.geometry.distance + 1):
             # Adding reset from initial round
             rep_init_circuit.append("TICK")
             rep_init_circuit.append("R", self.geometry.control_target_all_stab_idx)

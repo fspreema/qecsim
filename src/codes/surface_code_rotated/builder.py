@@ -165,8 +165,7 @@ class SurfaceBuilder(BaseClassBuilder):
 
         # Adding Noise if specified
         self.return_circuit = self.apply_noise(
-            input_circuit=self.return_circuit, 
-            distance=self.distance,
+            input_circuit=self.return_circuit,
             geometry=self.master_geometry.geometry_std,
             noise=self.noise, 
             ft_init=FT_INIT, 
@@ -238,7 +237,7 @@ class SurfaceBuilder(BaseClassBuilder):
         self.rec_list = repet_builder.rec_list()
 
         # Adding TICK info
-        self.tick_dict["repetition_per_round"] = repet_circ.num_ticks // ((self.distance * 3) - 1)
+        self.tick_dict["repetition_per_round"] = repet_circ.num_ticks // (self.distance + 2)
 
         return repet_circ
 
@@ -339,10 +338,12 @@ class SurfaceBuilder(BaseClassBuilder):
         if beginning:
             num_tick = self.tick_dict.get("reset") \
                         + self.tick_dict.get("init")\
-                        + self.tick_dict.get("repetition_per_round") * (self.distance - 1)
+                        + self.tick_dict.get("repetition_per_round") * 1
+            
         else:
             num_tick = self.tick_dict.get("reset") \
                     + self.tick_dict.get("init") \
-                    + (self.tick_dict.get("repetition_per_round") * ((self.distance * 2) - 1))
+                    + self.tick_dict.get("repetition_per_round") * (self.distance + 1) \
+                    - 1
             
         return num_tick

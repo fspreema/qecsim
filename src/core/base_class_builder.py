@@ -5,7 +5,7 @@ import stim
 from src.core.base_geometry import BaseGeometry
 from src.core.data_models import NoiseParameters
 from src.core.get_measurement_recs import get_measurement_recs
-from src.core.noise_models import BiasNoise, CircuitNoise
+from src.core.noise_models import CircuitNoise, PenomenologicalNoise
 
 
 class BaseClassBuilder(ABC):
@@ -43,7 +43,6 @@ class BaseClassBuilder(ABC):
     def apply_noise(
         self,
         input_circuit: stim.Circuit,
-        distance:int ,
         geometry: BaseGeometry,
         num_tick_first_noise: int,
         num_tick_last_noise: int,
@@ -55,57 +54,48 @@ class BaseClassBuilder(ABC):
         Method to apply noise models to the circuit.
         """
 
-        # Initialize Noise Model
+        # Initlize Noise Model and Check what noise to apply
         if noise is None:
-            noise = NoiseParameters(
-                after_c_depol_prob=0.0,
-                before_round_depol=0.0,
-                before_m_flip_prob=0.0,
-                after_r_flip=0.0,
-                after_c_pauli_channel_prob=0.0,
-                noise_bias=None,
-            )
+            noise = NoiseParameters()
         self.noise = noise
 
-        # 1) Circuit Noise Model
-        if self.noise.noise_bias is None and self.noise.after_c_pauli_channel_prob == 0.0:
-            noise_dict = {
-                "before_round_depol": self.noise.before_round_depol,
-                "before_m_flip_prob": self.noise.before_m_flip_prob,
-                "after_r_flip": self.noise.after_r_flip,
-                "after_c_depol_prob": self.noise.after_c_depol_prob,
-            }
+        use_circuit_noise = self.noise.circuit_noise_prob > 0.0
+        use_pheno_noise   = self.noise.phenomenological_noise_prob > 0.0
+        use_bias          = self.noise.noise_bias is not None
 
-            # Apply Noise Model
-            circuit_noise_builder = CircuitNoise(circuit=input_circuit,
-                                                 noise=noise_dict,
-                                                 distance = distance,
-                                                 geometry = geometry,
-                                                 ft_init = ft_init,
-                                                 ft_measurements = ft_meas,
-                                                 num_tick_first_noise = num_tick_first_noise,
-                                                 num_tick_last_noise = num_tick_last_noise,)
-            input_circuit = circuit_noise_builder.apply()
+        shared_kwargs = dict(
+            circuit=input_circuit,
+            geometry=geometry,
+            ft_init=ft_init,
+            ft_measurements=ft_meas,
+            num_tick_first_noise=num_tick_first_noise,
+            num_tick_last_noise=num_tick_last_noise,
+        )
 
-        # 2) Biased Noise Model
-        if self.noise.after_c_pauli_channel_prob > 0.0 or self.noise.noise_bias is not None:
-            
+        if use_bias and use_circuit_noise:
+            # Init Circuit Noise but with Biased
             noise_dict = {
-                "after_c_custom_noise": self.noise.after_c_pauli_channel_prob,
+                "CircuitNoiseProbability": self.noise.circuit_noise_prob,
                 "bias": self.noise.noise_bias,
-                "before_m_flip_prob": self.noise.before_m_flip_prob,
-                "after_r_flip": self.noise.after_r_flip,
             }
+            input_circuit = CircuitNoise(noise=noise_dict, **shared_kwargs).apply()
 
-            # Apply Noise Model
-            bias_noise_builder = BiasNoise(circuit=input_circuit, 
-                                            noise=noise_dict,
-                                            distance = distance,
-                                            geometry = geometry,
-                                            ft_init = ft_init,
-                                            ft_measurements = ft_meas,
-                                            num_tick_first_noise = num_tick_first_noise,
-                                            num_tick_last_noise = num_tick_last_noise)
-            input_circuit = bias_noise_builder.apply()
+        elif use_bias and use_pheno_noise:
+            # Init Pheno Noise but with Biased
+            noise_dict = {
+                "PhemoNoiseProbability": self.noise.phenomenological_noise_prob,
+                "bias": self.noise.noise_bias,
+            }
+            input_circuit = PenomenologicalNoise(noise=noise_dict, **shared_kwargs).apply()
+
+        elif use_circuit_noise:
+            noise_dict = {"CircuitNoiseProbability": self.noise.circuit_noise_prob}
+            input_circuit = CircuitNoise(noise=noise_dict, **shared_kwargs).apply()
+
+        elif use_pheno_noise:
+            noise_dict = {
+                "PhemoNoiseProbability": self.noise.phenomenological_noise_prob,
+            }
+            input_circuit = PenomenologicalNoise(noise=noise_dict, **shared_kwargs).apply()
 
         return input_circuit

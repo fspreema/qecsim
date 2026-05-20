@@ -211,10 +211,11 @@ class SurfaceRepetitionCircuit:
     def _adding_repetition_rounds(self) -> stim.Circuit:
         repetition_circ = stim.Circuit()
 
-        # We need to do *3 rounds as we currently only do non-ft and therefore need
-        # d rounds prioir and d rounds after which are nosieless. To ensure that for every
-        # d we still have d noisy rounds we do 3*d rounds in total...
-        for curr_round in range((self.geometry.distance * 3) - 1):
+        # As we do not have fault tolerant initlization and measurement we need
+        # 2 rounds at the beginning and 1 rounds at the end which are noiseless
+        # Init -> 1 round
+        # Repetition d + 2
+        for curr_round in range(self.geometry.distance + 2):
 
             # -----BUILDING-REPETITION-CIRC------
             repetition_circ.append("R", self.stab_idx)

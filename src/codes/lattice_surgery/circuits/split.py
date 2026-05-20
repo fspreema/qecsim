@@ -32,9 +32,11 @@ class SurgerySplit:
             self.combined_x_stab_merging_lattices, self.combined_z_stab_merging_lattices = (
                 self.geometry.get_combined_xz_stabs_merging_lattice(split_type="AT")
             )
-            # We need to do 2d rounds of inital as d rounds are needed to ensure FT with non-FT
-            # init. To still have d noisy rounds we do 2*d rounds in total...
-            self.needed_rep_rounds = (self.geometry.distance * 2) - 1
+            
+            # Here non-ft measurement needs to be noiseless
+            # -> d + 1 split rounds where the last round is noiseless!
+            # -> d rounds repetition + 1 init round
+            self.needed_rep_rounds = self.geometry.distance
         elif split_type == "AC":
             self.x_stab_index_untouched_circ = self.geometry.target_x_stb_idx
             self.z_stab_index_untouched_circ = self.geometry.target_z_stb_idx
