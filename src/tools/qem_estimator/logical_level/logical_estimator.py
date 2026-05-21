@@ -184,10 +184,19 @@ class GeneralLogicalEstimator:
         ptm_noise = np.matmul(self.ptm_noisy, ptm_ideal_inv)
 
         # We force the noise mtx to be diagonal as non-pauli noise is not supported
-        ptm_noise = np.diag(np.diag(ptm_noise))
+        ptm_noise_diag_vec = np.diag(ptm_noise)
+
+        # Check min value for pauli fidelities (ptm_noise)
+        # -> Else Inversion fails due to matrix beiing singular!
+        MIN_FIDELITY = 1e-6
+        filtered_ptm_noise_diag_vec = np.where(np.abs(ptm_noise_diag_vec) < MIN_FIDELITY, 
+                                           MIN_FIDELITY, 
+                                           ptm_noise_diag_vec)
+        # Double Diag to get an nxn array
+        filtered_noise_ptm_mtx = np.diag(filtered_ptm_noise_diag_vec)
 
         # Invert noise mtx to get pauli fidelities
-        ptm_noise_inv = np.linalg.inv(ptm_noise)
+        ptm_noise_inv = np.linalg.inv(filtered_noise_ptm_mtx)
 
         return ptm_noise_inv
 

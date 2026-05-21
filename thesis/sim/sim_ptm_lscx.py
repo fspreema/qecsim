@@ -138,16 +138,7 @@ class GetPTMThreshold:
 
         if noise_type == "CircuitNoise":
 
-            noise_class = NoiseParameters(before_round_depol=physical_err_probs,
-                                        before_m_flip_prob=physical_err_probs,
-                                        after_r_flip=physical_err_probs,
-                                        after_c_depol_prob=physical_err_probs,)
-
-        elif noise_type == "BiasNoise":
-            noise_class = NoiseParameters(before_m_flip_prob=physical_err_probs,
-                                        after_r_flip=physical_err_probs,
-                                        after_c_pauli_channel_prob=physical_err_probs,
-                                        noise_bias= bias)
+            noise_class = NoiseParameters(circuit_noise_prob= physical_err_probs)
 
         else:
             raise ValueError(f"Invalid noise type: {noise_type}. Supported types are 'CircuitNoise' and 'BiasNoise'.")
