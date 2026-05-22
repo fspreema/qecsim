@@ -60,7 +60,7 @@ def main():
             decoders=['pymatching'],
             max_shots=10_000_000,
             max_errors=150_000,
-            print_progress=True,  # This outputs clean interval logs to your file
+            print_progress=True,
             save_resume_filepath=filename
         )
         print(f"Finished processing configuration: {curr_config}\n")
