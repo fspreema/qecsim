@@ -241,12 +241,16 @@ class SurgeryBuilder(BaseClassBuilder):
         self.tick_dict["split_init"] = 14
         if split_type == "AC":
             self.tick_dict["split_repeat_AC"] = (
-                (split_circuit.num_ticks - self.tick_dict["split_init"])
+                split_circuit.num_ticks - self.tick_dict["split_init"]
             )
         else:
-            self.tick_dict["split_repeat_per_round_AT"] = (
-                (split_circuit.num_ticks - self.tick_dict["split_init"]) // (self.distance)
-            )
+            # Calc total TICKSs and remove the 3 additional TICKs in last round
+            ticks_repeat_filtered = split_circuit.num_ticks - self.tick_dict["split_init"] - 3
+            # Normal per round ticks
+            ticks_normal_round = (ticks_repeat_filtered) // self.distance
+            self.tick_dict["split_repeat_per_round_AT"] = ticks_normal_round
+
+
 
         return split_circuit
 
@@ -335,7 +339,6 @@ class SurgeryBuilder(BaseClassBuilder):
                     + self.tick_dict.get("split_init") * 2\
                     + self.tick_dict.get("split_repeat_AC")\
                     + (self.tick_dict.get("split_repeat_per_round_AT") * (self.distance - 1))\
-                    - 2
 
         return num_tick
                     
