@@ -133,8 +133,9 @@ class SurgeryInitialization:
         # )
 
         self.measurement_tracker.add_measurements_to_tracker(
-            patch_type="None",
+            patch_type="Control_&_Target",
             measured_qubits=self.geometry.control_target_all_stab_idx,
+            qubits_for_detectors=[]
         )
 
         return ct_init_circuit
@@ -143,9 +144,9 @@ class SurgeryInitialization:
         rep_init_circuit = stim.Circuit()
 
         # Here non-ft init needs to be noiseless
-        # -> 2 rounds noiseless before the normal d rounds
-        # -> d + 1 repet rounds + 1 init round
-        for curr_round in range(self.geometry.distance + 1):
+        # -> 1 rounds noiseless before the normal d noisy rounds
+        # -> d repet rounds + 1 init round
+        for curr_round in range(self.geometry.distance):
             # Adding reset from initial round
             rep_init_circuit.append("TICK")
             rep_init_circuit.append("R", self.geometry.control_target_all_stab_idx)
@@ -209,9 +210,6 @@ class SurgeryInitialization:
             rep_init_circuit += self._get_detectors(
                 measured_qubits=self.geometry.control_target_all_stab_idx,
                 patch_type="Control_&_Target",
-                qubits_for_detectors= []
-                if curr_round == 0
-                else self.geometry.control_target_all_stab_idx,
             )
 
         return rep_init_circuit

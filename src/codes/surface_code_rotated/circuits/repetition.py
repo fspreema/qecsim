@@ -212,10 +212,11 @@ class SurfaceRepetitionCircuit:
         repetition_circ = stim.Circuit()
 
         # As we do not have fault tolerant initlization and measurement we need
-        # 2 rounds at the beginning and 1 rounds at the end which are noiseless
+        # 1 rounds at the beginning and 1 round at the end which are noiseless
         # Init -> 1 round
-        # Repetition d + 2
-        for curr_round in range(self.geometry.distance + 2):
+        # Repetition d + 1
+        # -> This leads to d noisy rounds
+        for curr_round in range(self.geometry.distance + 1):
 
             # -----BUILDING-REPETITION-CIRC------
             repetition_circ.append("R", self.stab_idx)
@@ -242,9 +243,6 @@ class SurfaceRepetitionCircuit:
             repetition_circ += self._get_detectors(
                 measured_qubits=self.stab_idx,
                 patch_type="STD_PATCH",
-                qubits_for_detectors= []
-                if curr_round == 0
-                else self.stab_idx,
             )
 
             repetition_circ.append("TICK")

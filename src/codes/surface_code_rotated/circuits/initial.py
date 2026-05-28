@@ -90,8 +90,9 @@ class SurfaceInitialization:
         init_circuit.append("TICK")
 
         self.tracker.add_measurements_to_tracker(
-            patch_type="None",
+            patch_type="STD_PATCH",
             measured_qubits=self.geometry.stab_x_idx + self.geometry.stab_z_idx,
+            qubits_for_detectors=[]
         )
 
         return init_circuit

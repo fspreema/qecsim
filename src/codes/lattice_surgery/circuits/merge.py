@@ -108,6 +108,10 @@ class SurgeryMerge:
         merge_init_circuit.append("TICK")
         merge_init_circuit.append("R", self.geometry.control_target_all_stab_idx)
 
+        # Also Reset the now used additional non determinstic stabiliers
+        # -> This is done as nosie may be applied on these qubits beforehand!
+        merge_init_circuit.append("R", self.non_det_stab_indices)
+
         merge_init_circuit.append("TICK")
         merge_init_circuit.append("H", self.combined_x_stab)
 

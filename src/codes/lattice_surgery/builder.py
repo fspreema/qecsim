@@ -200,10 +200,7 @@ class SurgeryBuilder(BaseClassBuilder):
 
         # Adding TICK info
         self.tick_dict["init_single"] = 14
-        self.tick_dict["init_repeat_per_round"] = (
-            (self.init_circuit.num_ticks - self.tick_dict["init_single"]) //
-            (self.distance + 1)
-        )
+        self.tick_dict["init_repeat_full"] = self.init_circuit.num_ticks - self.tick_dict["init_single"]
 
         return self.init_circuit
 
@@ -249,8 +246,6 @@ class SurgeryBuilder(BaseClassBuilder):
             # Normal per round ticks
             ticks_normal_round = (ticks_repeat_filtered) // self.distance
             self.tick_dict["split_repeat_per_round_AT"] = ticks_normal_round
-
-
 
         return split_circuit
 
@@ -326,14 +321,13 @@ class SurgeryBuilder(BaseClassBuilder):
             # First noise after the nosieless round of intilization!
             num_tick = self.tick_dict.get("reset") \
                     + self.tick_dict.get("init_single") \
-                    + self.tick_dict.get("init_repeat_per_round") * 1 \
                     - 5
             
         else:
             # Last noise before the orund where the non-ft measurements are taken!
             num_tick = self.tick_dict.get("reset") \
                     + self.tick_dict.get("init_single") \
-                    + (self.tick_dict.get("init_repeat_per_round") * (self.distance + 1))\
+                    + self.tick_dict.get("init_repeat_full")\
                     + self.tick_dict.get("merge_full_AT")\
                     + self.tick_dict.get("merge_full_AC")\
                     + self.tick_dict.get("split_init") * 2\

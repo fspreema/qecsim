@@ -237,7 +237,7 @@ class SurfaceBuilder(BaseClassBuilder):
         self.rec_list = repet_builder.rec_list()
 
         # Adding TICK info
-        self.tick_dict["repetition_per_round"] = repet_circ.num_ticks // (self.distance + 2)
+        self.tick_dict["repetition_per_round"] = repet_circ.num_ticks // (self.distance + 1)
 
         return repet_circ
 
@@ -338,12 +338,11 @@ class SurfaceBuilder(BaseClassBuilder):
         if beginning:
             num_tick = self.tick_dict.get("reset") \
                         + self.tick_dict.get("init")\
-                        + self.tick_dict.get("repetition_per_round") * 1
             
         else:
             num_tick = self.tick_dict.get("reset") \
                     + self.tick_dict.get("init") \
-                    + self.tick_dict.get("repetition_per_round") * (self.distance + 1) \
+                    + self.tick_dict.get("repetition_per_round") * self.distance \
                     - 1
             
         return num_tick

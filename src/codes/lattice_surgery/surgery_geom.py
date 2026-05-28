@@ -182,7 +182,7 @@ class SurgeryGeometry(BaseGeometry):
         # Define needed data and ancilla idx for noise model #
         ######################################################
         self.data_idx = self.anc_data_idx + self.control_data_idx + self.target_data_idx
-        self.stab_idx = self.all_stab_idx
+        self.stab_idx = self.all_stab_idx + self.non_det_stab_indices_ac + self.non_det_stab_indices_at
 
     def get_coords(self, specific_coord=None) -> dict[complex, str]:
         """

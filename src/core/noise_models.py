@@ -54,7 +54,7 @@ class NoiseModel(ABC):
             self.shared_qubits = set(geometry.anc_x_bdy_b_stb_idx + geometry.anc_z_bdy_r_stb_idx)
             self.ancilla_qbts = set(geometry.anc_data_idx + geometry.anc_x_stb_idx + geometry.anc_z_stb_idx)
             self.unshared_ancilla = self.ancilla_qbts - self.shared_qubits
-            self.all_qubits = geometry.data_idx + geometry.all_stab_idx
+            self.all_qubits = geometry.data_idx + geometry.stab_idx
 
         elif isinstance(geometry, SurfaceGeometry) or isinstance(geometry, XZZXGeometry):
             # Load normal Surface Geometry
