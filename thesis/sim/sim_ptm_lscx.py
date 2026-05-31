@@ -80,44 +80,61 @@ class GetPTMThreshold:
 
             # Construct the ideal PTMS
             # -> These do only need to be calculated once per distance!
-            ideal_ptm = self._build_ptm(distance=d, 
-                                        physical_err_probs=0.0, 
-                                        noise_type = noise_type, 
-                                        bias = bias,
-                                        sparse_ideal=self.sparse_ideal_ptm,)
+            # Load ideal PTM from cache if it exists, otherwise compute it
+            ideal_filename = os.path.join(output_folder, f"ptm_ideal_d{d}_{noise_type}.npy")
+            if os.path.exists(ideal_filename):
+                print(f"Loading cached ideal PTM for d={d}")
+                ideal_ptm = np.load(ideal_filename)
+            else:
+                ideal_ptm = self._build_ptm(distance=d, 
+                                            physical_err_probs=0.0, 
+                                            noise_type=noise_type, 
+                                            bias=bias,
+                                            sparse_ideal=self.sparse_ideal_ptm)
+                if save_ptm_files:
+                    np.save(ideal_filename, ideal_ptm)
 
-            
-            if save_ptm_files:
-                ideal_filename = f"ptm_ideal_d{d}_{noise_type}.npy"
-                np.save(os.path.join(output_folder, ideal_filename), ideal_ptm)
+            # Split probabilities into cached and missing
+            # As Probs can be cahnged, check if probs were already calculated which lie
+            # within the current probs window
+            missing_probs = []
+            cached_ptms = {}
+            for p in physical_err_probs:
+                noisy_path = os.path.join(output_folder, f"ptm_noisy_d{d}_p{p:.2e}_{noise_type}.npy")
+                if os.path.exists(noisy_path):
+                    cached_ptms[p] = np.load(noisy_path)
+                else:
+                    missing_probs.append(p)
 
-            # Prepare tasks for workers for all physical error probabilites at this fixed distance
+            print(f"  Cache hits: {len(cached_ptms)}, To compute: {len(missing_probs)}")
+
+            # Only dispatch workers for missing probabilities at this fixed distance
             # Use partial function to freeze everything except the physical error prob.
             worker_task = functools.partial(
-                self._build_ptm, 
-                distance=d, 
-                noise_type=noise_type, 
-                bias=bias, 
-                sparse_noisy=self.sparse_noisy_ptm
+            self._build_ptm, 
+            distance=d, noise_type=noise_type, bias=bias, 
+            sparse_noisy=self.sparse_noisy_ptm
             )
 
-            # Implementing parralel execution
-            with ProcessPoolExecutor() as executor:
-                # We use tqdm to show the progress bar
-                noisy_ptms = list(tqdm(
-                    executor.map(worker_task, physical_err_probs),
-                    total=len(physical_err_probs),
-                    desc=f"Calculating Noisy PTMS for d={d}",
-                ))
+            new_ptms = {}
+            if missing_probs:
+                with ProcessPoolExecutor() as executor:
+                    computed = list(tqdm(
+                        executor.map(worker_task, missing_probs),
+                        total=len(missing_probs),
+                        desc=f"Calculating Noisy PTMs for d={d}",
+                    ))
+                for p, ptm in zip(missing_probs, computed):
+                    new_ptms[p] = ptm
+                    if save_ptm_files:
+                        noisy_path = os.path.join(output_folder, f"ptm_noisy_d{d}_p{p:.2e}_{noise_type}.npy")
+                        np.save(noisy_path, ptm)
 
-            # Calculate the overhead factor gamma
-            for p, noisy_ptm in zip(physical_err_probs, noisy_ptms):
-                gamma = self._get_overhead_gamma(ptm_ideal=ideal_ptm, ptm_noisy=noisy_ptm)
+            # Reassemble in original order and compute gamma
+            all_ptms = {**cached_ptms, **new_ptms}
+            for p in physical_err_probs:
+                gamma = self._get_overhead_gamma(ptm_ideal=ideal_ptm.copy(), ptm_noisy=all_ptms[p].copy())
                 results.append({"distance": d, "physical_error_probability": p, "gamma": gamma})
-
-                if save_ptm_files:
-                    noisy_filename = f"ptm_noisy_d{d}_p{p:.2e}_{noise_type}.npy"
-                    np.save(os.path.join(output_folder, noisy_filename), noisy_ptm)
 
         return results
 
@@ -239,8 +256,10 @@ if __name__ == "__main__":
     # Settings
     ds = [3,5,7,9]
     ps = np.concatenate([
-    np.geomspace(1e-5, 1e-3, 10),    # 10 points logscaling
-    np.linspace(1.1e-3, 1e-2, 40),   # 40 dense linear points
+    np.geomspace(1e-3, 1.5e-3, 8),    # sparse
+    np.geomspace(1.5e-3, 2.2e-3, 12)[1:], # approaching the rise
+    np.geomspace(2.2e-3, 3.5e-3, 25)[1:], # dense in the steep divergence zone (threshold)
+    np.geomspace(3.5e-3, 1e-2, 8)[1:],    # sparse tail
     ])
     
     # Executing Simulation
