@@ -1,5 +1,5 @@
 import itertools
-import math
+import numpy as np
 import os
 import sinter
 from src.codes.lattice_surgery.builder import SurgeryBuilder
@@ -18,9 +18,10 @@ def main():
     os.makedirs(DATA_DIR, exist_ok=True)
 
     # Intial Setup Values
-    geom = [10**(math.log10(1e-5) + i*(math.log10(1e-3) - math.log10(1e-5))/9) for i in range(10)]
-    lin = [1.1e-3 + i*(0.015 - 1.1e-3)/39 for i in range(40)]
-    p_values = geom + lin
+    p_values = np.concatenate([
+    np.geomspace(1e-5, 1e-3, 10),    # 10 points logscaling
+    np.linspace(1.1e-3, 1e-2, 40),   # 40 dense linear points
+    ])
     distances = [3, 5, 7, 9]
     combinations = list(itertools.product(distances, p_values))
 

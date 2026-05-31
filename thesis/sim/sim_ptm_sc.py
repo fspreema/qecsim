@@ -207,7 +207,7 @@ if __name__ == "__main__":
     ])
     
     # Executing Simulation
-    sim = GetPTMThreshold(samples=10_000, only_diag=True)
+    sim = GetPTMThreshold(samples=20_000, only_diag=True)
     
 
     # --- Experiment 1: Standard Depolarizing ---

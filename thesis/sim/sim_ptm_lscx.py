@@ -237,14 +237,14 @@ class GetPTMThreshold:
 # Run Simulation
 if __name__ == "__main__":
     # Settings
-    ds = [3, 5, 7, 9]
+    ds = [3,5,7,9]
     ps = np.concatenate([
     np.geomspace(1e-5, 1e-3, 10),    # 10 points logscaling
     np.linspace(1.1e-3, 1e-2, 40),   # 40 dense linear points
     ])
     
     # Executing Simulation
-    sim = GetPTMThreshold(samples=10_000, sparse_ideal_ptm=True, sparse_noisy_ptm=True)
+    sim = GetPTMThreshold(samples=20_000, sparse_ideal_ptm=True, sparse_noisy_ptm=True)
     
 
     # --- Experiment 1: Standard Depolarizing ---
